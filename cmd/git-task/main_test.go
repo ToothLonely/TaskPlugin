@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"git-task/internal/testrepo"
 )
 
 func TestBinaryCommands(t *testing.T) {
@@ -79,5 +81,23 @@ func TestBinaryCommands(t *testing.T) {
 	output, err := cmd.CombinedOutput()
 	if err != nil || string(output) != "git-task test-build\n" {
 		t.Fatalf("git task version: %q, %v", output, err)
+	}
+
+	c := testrepo.New(t)
+	for _, tc := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"init"}, "План создан"},
+		{[]string{"add", "Реальная задача"}, "task-001"},
+		{[]string{"status"}, "todo — Реальная задача"},
+		{[]string{"init"}, "уже инициализирован"},
+	} {
+		cmd := exec.CommandContext(ctx, binary, tc.args...)
+		cmd.Dir, cmd.Env = c.Dir, c.Env
+		output, err := cmd.CombinedOutput()
+		if err != nil || !strings.Contains(string(output), tc.want) {
+			t.Fatalf("binary %q: %v %s", tc.args, err, output)
+		}
 	}
 }

@@ -10,11 +10,11 @@ import (
 type Status string
 
 const (
-	Todo       Status = "todo"
-	InProgress Status = "in_progress"
-	Paused     Status = "paused"
-	Done       Status = "done"
-	Archived   Status = "archived"
+	Todo     Status = "todo"
+	Active   Status = "active"
+	Paused   Status = "paused"
+	Done     Status = "done"
+	Archived Status = "archived"
 )
 
 // Errors can be inspected with errors.Is by application and CLI callers.

@@ -66,7 +66,7 @@ func TestEventOverflowAndWrongAttempt(t *testing.T) {
 	if changed || err == nil || snapshot(t, p) != before {
 		t.Fatal("overflow changed plan")
 	}
-	p = planInState(t, InProgress)
+	p = planInState(t, Active)
 	before = snapshot(t, p)
 	changed, err = p.Complete("task-a", "wrong", Completion{Source: Manual, TargetBranch: "main"})
 	if changed || err == nil || snapshot(t, p) != before {

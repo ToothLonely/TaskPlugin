@@ -21,7 +21,7 @@ func (p *Plan) Start(id string, a Attempt, again bool) (bool, error) {
 			return false, invalid("start требует новый подход")
 		}
 		copy := a.clone()
-		t.ActiveAttempt, t.Status = &copy, InProgress
+		t.ActiveAttempt, t.Status = &copy, Active
 		t.Warnings = nil
 		return true, nil
 	})
@@ -45,7 +45,7 @@ func (p *Plan) Pause(id string) (bool, error) {
 		if t.Status == Paused {
 			return false, nil
 		}
-		if t.Status != InProgress {
+		if t.Status != Active {
 			return false, fmt.Errorf("%w: pause из %s", ErrTransition, t.Status)
 		}
 		t.Status = Paused
@@ -59,7 +59,7 @@ func (p *Plan) Resume(id string) (bool, error) {
 		if t.Status != Paused {
 			return false, fmt.Errorf("%w: resume из %s", ErrTransition, t.Status)
 		}
-		t.Status = InProgress
+		t.Status = Active
 		return true, nil
 	})
 }
@@ -79,7 +79,7 @@ func (p *Plan) Archive(id string) (bool, error) {
 // observations; previous tracking evidence must not be reused for this binding.
 func (p *Plan) Rebind(id, branch, base string, observed time.Time) (bool, error) {
 	return p.change(id, func(_ *Plan, t *Task) (bool, error) {
-		if t.Status != InProgress && t.Status != Paused {
+		if t.Status != Active && t.Status != Paused {
 			return false, fmt.Errorf("%w: rebind из %s", ErrTransition, t.Status)
 		}
 		a := t.ActiveAttempt
@@ -111,7 +111,7 @@ func (p *Plan) Complete(id, attemptID string, c Completion) (bool, error) {
 				return false, nil
 			}
 		}
-		if t.Status != Todo && t.Status != InProgress && t.Status != Paused {
+		if t.Status != Todo && t.Status != Active && t.Status != Paused {
 			return false, fmt.Errorf("%w: complete из %s", ErrTransition, t.Status)
 		}
 		if c.Source == Imported && t.Status != Todo {

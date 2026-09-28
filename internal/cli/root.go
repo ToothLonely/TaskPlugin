@@ -24,7 +24,12 @@ func (e *usageError) Error() string { return e.message }
 // Run executes a command and returns the process exit code. It never exits the
 // process, so the caller can release resources before calling os.Exit.
 func Run(ctx context.Context, args []string, version string, streams Streams) int {
-	err := execute(ctx, args, version, streams.Out)
+	return RunWithPlans(ctx, args, version, streams, nil)
+}
+
+// RunWithPlans connects repository operations while preserving lazy discovery.
+func RunWithPlans(ctx context.Context, args []string, version string, streams Streams, open OpenPlans) int {
+	err := execute(ctx, args, version, streams, open)
 	if err == nil {
 		return 0
 	}
@@ -43,7 +48,8 @@ func Run(ctx context.Context, args []string, version string, streams Streams) in
 	return code
 }
 
-func execute(ctx context.Context, args []string, version string, out io.Writer) error {
+func execute(ctx context.Context, args []string, version string, streams Streams, open OpenPlans) error {
+	out := streams.Out
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -64,8 +70,11 @@ func execute(ctx context.Context, args []string, version string, out io.Writer) 
 		args = args[1:]
 	}
 	if command != "help" && command != "version" {
+		if command == "init" || command == "add" || command == "status" {
+			return runPlan(ctx, command, args[1:], streams, open)
+		}
 		if planned(command) {
-			return fmt.Errorf("команда %q ещё не реализована; доступны help и version", command)
+			return fmt.Errorf("команда %q ещё не реализована; доступны help, version, init, add и status", command)
 		}
 		return &usageError{fmt.Sprintf("неизвестная команда %q; используйте git task help", command)}
 	}

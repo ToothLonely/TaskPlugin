@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 
+	"git-task/internal/app"
 	"git-task/internal/cli"
 )
 
@@ -19,7 +20,7 @@ func main() {
 func run() int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	return cli.Run(ctx, os.Args[1:], version, cli.Streams{
+	return cli.RunWithPlans(ctx, os.Args[1:], version, cli.Streams{
 		In: os.Stdin, Out: os.Stdout, Err: os.Stderr,
-	})
+	}, func(ctx context.Context) (*app.Plans, error) { return app.Open(ctx, "") })
 }

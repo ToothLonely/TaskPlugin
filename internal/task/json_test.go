@@ -160,7 +160,7 @@ func TestValidateInvalidSnapshots(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			p := planInState(t, InProgress)
+			p := planInState(t, Active)
 			tc.mutate(&p)
 			if err := p.Validate(); !errors.Is(err, ErrInvalid) {
 				t.Fatalf("Validate: %v", err)

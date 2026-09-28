@@ -77,7 +77,7 @@ func TestLifecycleAndDelayedCompletion(t *testing.T) {
 	}
 	rev := p.Revision
 	changed, err = p.Complete("task-a", "attempt-1", c)
-	if changed || err != nil || p.Revision != rev || p.Tasks[0].Status != InProgress {
+	if changed || err != nil || p.Revision != rev || p.Tasks[0].Status != Active {
 		t.Fatalf("delayed event changed new attempt: %v %v", changed, err)
 	}
 	// The same SHA is not an event identity: a different attempt still completes.
@@ -99,13 +99,13 @@ func TestTransitionMatrix(t *testing.T) {
 		{"start", func(p *Plan) (bool, error) { return p.Start("task-a", attempt("new", "new-branch"), false) }, map[Status]bool{Todo: true}, nil},
 		{"again", func(p *Plan) (bool, error) { return p.Start("task-a", attempt("new", "new-branch"), true) }, map[Status]bool{Done: true}, nil},
 		{"attach", func(p *Plan) (bool, error) { return p.Attach("task-a", attempt("new", "new-branch")) }, map[Status]bool{Todo: true}, nil},
-		{"pause", func(p *Plan) (bool, error) { return p.Pause("task-a") }, map[Status]bool{InProgress: true, Paused: true}, map[Status]bool{Paused: true}},
+		{"pause", func(p *Plan) (bool, error) { return p.Pause("task-a") }, map[Status]bool{Active: true, Paused: true}, map[Status]bool{Paused: true}},
 		{"resume", func(p *Plan) (bool, error) { return p.Resume("task-a") }, map[Status]bool{Paused: true}, nil},
-		{"archive", func(p *Plan) (bool, error) { return p.Archive("task-a") }, map[Status]bool{Todo: true, InProgress: true, Paused: true, Done: true, Archived: true}, map[Status]bool{Archived: true}},
-		{"manual", func(p *Plan) (bool, error) { return p.CompleteManual("task-a", "manual-1", "", testTime) }, map[Status]bool{Todo: true, InProgress: true, Paused: true, Done: true}, map[Status]bool{Done: true}},
-		{"rebind", func(p *Plan) (bool, error) { return p.Rebind("task-a", "replacement", testOID, testTime) }, map[Status]bool{InProgress: true, Paused: true}, nil},
+		{"archive", func(p *Plan) (bool, error) { return p.Archive("task-a") }, map[Status]bool{Todo: true, Active: true, Paused: true, Done: true, Archived: true}, map[Status]bool{Archived: true}},
+		{"manual", func(p *Plan) (bool, error) { return p.CompleteManual("task-a", "manual-1", "", testTime) }, map[Status]bool{Todo: true, Active: true, Paused: true, Done: true}, map[Status]bool{Done: true}},
+		{"rebind", func(p *Plan) (bool, error) { return p.Rebind("task-a", "replacement", testOID, testTime) }, map[Status]bool{Active: true, Paused: true}, nil},
 	}
-	for _, status := range []Status{Todo, InProgress, Paused, Done, Archived} {
+	for _, status := range []Status{Todo, Active, Paused, Done, Archived} {
 		for _, act := range actions {
 			t.Run(string(status)+"/"+act.name, func(t *testing.T) {
 				p := planInState(t, status)
@@ -129,7 +129,7 @@ func TestTransitionMatrix(t *testing.T) {
 func planInState(t *testing.T, status Status) Plan {
 	t.Helper()
 	p := planForTest(t)
-	if status == InProgress || status == Paused {
+	if status == Active || status == Paused {
 		changed, err := p.Start("task-a", attempt("active", "feature"), false)
 		requireChange(t, changed, err)
 	}
@@ -233,12 +233,12 @@ func TestFailedTransitionsAreAtomic(t *testing.T) {
 }
 
 func TestWarningsAndSnapshots(t *testing.T) {
-	p := planInState(t, InProgress)
+	p := planInState(t, Active)
 	warnings := []Warning{{Code: "branch_missing", Message: "Ветка удалена"}}
 	changed, err := p.SetWarnings("task-a", warnings)
 	requireChange(t, changed, err)
 	warnings[0].Code = "changed"
-	if p.Tasks[0].Status != InProgress || p.Tasks[0].ActiveAttempt == nil || p.Tasks[0].Warnings[0].Code != "branch_missing" {
+	if p.Tasks[0].Status != Active || p.Tasks[0].ActiveAttempt == nil || p.Tasks[0].Warnings[0].Code != "branch_missing" {
 		t.Fatal("warning changed state or aliases input")
 	}
 	saved, err := p.FindID("task-a")
@@ -306,7 +306,7 @@ func TestAgainThroughBothSelectors(t *testing.T) {
 			}
 			changed, err := p.Start(selected.ID, attempt("retry", "retry-branch"), true)
 			requireChange(t, changed, err)
-			if p.Tasks[0].Status != InProgress || len(p.Tasks[0].Attempts) != 1 {
+			if p.Tasks[0].Status != Active || len(p.Tasks[0].Attempts) != 1 {
 				t.Fatal("selector changed restart semantics")
 			}
 			first, err := p.FirstTodo()

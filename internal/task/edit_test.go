@@ -9,7 +9,7 @@ import (
 )
 
 func TestEditFieldsInEveryState(t *testing.T) {
-	for _, status := range []Status{Todo, InProgress, Paused, Done, Archived} {
+	for _, status := range []Status{Todo, Active, Paused, Done, Archived} {
 		t.Run(string(status), func(t *testing.T) {
 			p := planInState(t, status)
 			p.Tasks[0].Description = "original"
@@ -89,7 +89,7 @@ func TestEditErrorsLeavePlanUnchanged(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := planInState(t, InProgress)
+			p := planInState(t, Active)
 			if tt.prepare != nil {
 				tt.prepare(&p)
 			}

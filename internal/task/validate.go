@@ -117,7 +117,7 @@ func (p Plan) Validate() error {
 				}
 			}
 		}
-		if t.Status == InProgress || t.Status == Paused {
+		if t.Status == Active || t.Status == Paused {
 			a := t.ActiveAttempt
 			if a.TargetBranch != p.TargetBranch {
 				return invalid("цель активного подхода отличается от target_branch")
@@ -156,7 +156,7 @@ func (t Task) validate() error {
 		if t.ActiveAttempt != nil || len(t.Attempts) != 0 {
 			return invalid("todo не имеет подходов")
 		}
-	case InProgress, Paused:
+	case Active, Paused:
 		if t.ActiveAttempt == nil {
 			return invalid("нет текущего подхода")
 		}

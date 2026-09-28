@@ -56,7 +56,7 @@ func TestInvalidArguments(t *testing.T) {
 }
 
 func TestPlannedCommandsRefuseExecution(t *testing.T) {
-	for _, command := range []string{"init", "start", "sync", "status", "doctor", "hooks"} {
+	for _, command := range []string{"start", "sync", "doctor", "hooks"} {
 		for _, args := range [][]string{{command}, {"help", command}} {
 			var out, diagnostic bytes.Buffer
 			code := Run(context.Background(), args, "test", Streams{Out: &out, Err: &diagnostic})

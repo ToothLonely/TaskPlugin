@@ -62,7 +62,7 @@ func TestJSONTimestampOffsets(t *testing.T) {
 	for _, field := range []string{"started_at", "completed_at", "observed_at", "rebind_observed_at"} {
 		for _, offset := range []string{"+24:00", "-24:00", "+03:60", "-03:60", "+23:59", "-23:59", "+03:30", "-04:00", "Z"} {
 			t.Run(field+"/"+offset, func(t *testing.T) {
-				p := planInState(t, InProgress)
+				p := planInState(t, Active)
 				if field == "rebind_observed_at" {
 					changed, err := p.Rebind("task-a", "replacement", testOID, testTime)
 					requireChange(t, changed, err)
@@ -100,7 +100,7 @@ func TestInvalidTimeTransitionsAreAtomic(t *testing.T) {
 			t.Run(at.String()+"/"+action, func(t *testing.T) {
 				p := planForTest(t)
 				if action == "rebind" {
-					p = planInState(t, InProgress)
+					p = planInState(t, Active)
 				}
 				before := snapshot(t, p)
 				var changed bool
