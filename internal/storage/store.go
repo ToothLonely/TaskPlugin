@@ -41,9 +41,10 @@ func New(root, excludePath string, guard Guard) *Store {
 
 // Snapshot retains the exact source bytes independently of the editable Plan.
 type Snapshot struct {
-	Plan task.Plan
-	raw  []byte
-	dir  string
+	Plan             task.Plan
+	PendingOperation bool
+	raw              []byte
+	dir              string
 }
 
 func (s *Store) check(ctx context.Context, holdingLock bool) error {
@@ -76,7 +77,11 @@ func (s *Store) load() (Snapshot, error) {
 	if err != nil {
 		return Snapshot{}, err
 	}
-	return Snapshot{Plan: plan, raw: data, dir: s.dir}, nil
+	_, journalErr := os.Lstat(filepath.Join(s.dir, "operation.json"))
+	if journalErr != nil && !errors.Is(journalErr, os.ErrNotExist) {
+		return Snapshot{}, journalErr
+	}
+	return Snapshot{Plan: plan, PendingOperation: journalErr == nil, raw: data, dir: s.dir}, nil
 }
 
 // Init creates the plan only at a free, safe path. Repeating it preserves bytes.
@@ -115,6 +120,9 @@ func (s *Store) Init(ctx context.Context, target string) (created bool, err erro
 		}
 	}()
 	if err = s.check(ctx, true); err != nil {
+		return false, err
+	}
+	if err = s.noOperation(); err != nil {
 		return false, err
 	}
 	previous, err = s.load()
@@ -175,6 +183,9 @@ func (s *Store) Save(ctx context.Context, base Snapshot, next task.Plan) (change
 		}
 	}()
 	if err = s.check(ctx, true); err != nil {
+		return false, err
+	}
+	if err = s.noOperation(); err != nil {
 		return false, err
 	}
 	if err = s.compare(base.raw); err != nil {

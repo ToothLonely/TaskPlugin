@@ -152,9 +152,14 @@ func runPlan(ctx context.Context, command string, args []string, streams Streams
 		}
 		return err
 	case "status":
-		plan, err := plans.Status(ctx)
+		plan, pending, err := plans.StatusState(ctx)
 		if err != nil {
 			return err
+		}
+		if pending {
+			if _, err = fmt.Fprintln(streams.Err, "Предупреждение: незавершённая операция в operation.json; изменения заблокированы до явного восстановления."); err != nil {
+				return err
+			}
 		}
 		return writeStatus(streams.Out, plan)
 	}

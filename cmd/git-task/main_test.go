@@ -46,7 +46,7 @@ func TestBinaryCommands(t *testing.T) {
 	}{
 		{nil, 0, "Доступные команды:"}, {[]string{"help"}, 0, "Доступные команды:"},
 		{[]string{"--version"}, 0, "git-task test-build\n"},
-		{[]string{"nonsense"}, 2, "неизвестная команда"}, {[]string{"start", "feature"}, 1, "ещё не реализована"},
+		{[]string{"nonsense"}, 2, "неизвестная команда"}, {[]string{"sync"}, 1, "ещё не реализована"},
 	} {
 		cmd := exec.CommandContext(ctx, binary, tc.args...)
 		cmd.Dir, cmd.Env = dir, env

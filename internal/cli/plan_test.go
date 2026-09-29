@@ -36,7 +36,7 @@ func TestPlanArgumentErrorsBeforeOpeningRepository(t *testing.T) {
 
 func TestPlanHelpWithoutGit(t *testing.T) {
 	t.Setenv("PATH", "")
-	for _, command := range []string{"init", "add", "status"} {
+	for _, command := range []string{"init", "add", "status", "start", "attach"} {
 		for _, args := range [][]string{{"help", command}, {command, "--help"}} {
 			var out, diagnostic bytes.Buffer
 			if code := Run(context.Background(), args, "test", Streams{Out: &out, Err: &diagnostic}); code != 0 || !strings.Contains(out.String(), "Использование:") || diagnostic.Len() != 0 {
@@ -113,6 +113,24 @@ func TestPlanCommandsFromNestedDirectory(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(nested, ".git-task")); !os.IsNotExist(err) {
 		t.Fatalf("metadata in nested cwd: %v", err)
+	}
+	testrepo.Commit(t, c)
+	if code, out, diagnostic := run("start", "profile", "--title", "Первая"); code != 0 || !strings.Contains(out, "task-001") || diagnostic != "" {
+		t.Fatalf("start title: %d %q %q", code, out, diagnostic)
+	}
+	if code, out, diagnostic := run("start", "next"); code != 0 || !strings.Contains(out, "task-002") || diagnostic != "" {
+		t.Fatalf("start auto: %d %q %q", code, out, diagnostic)
+	}
+	testrepo.Run(t, c, "branch", "existing", "main")
+	if code, out, diagnostic := run("attach", "existing", "--id", "task-003"); code != 0 || !strings.Contains(out, "task-003") || diagnostic != "" {
+		t.Fatalf("attach: %d %q %q", code, out, diagnostic)
+	}
+	journalPath := filepath.Join(c.Dir, ".git-task", "operation.json")
+	if err := os.WriteFile(journalPath, []byte("interrupted"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if code, out, diagnostic := run("status"); code != 0 || out == "" || !strings.Contains(diagnostic, "Предупреждение") {
+		t.Fatalf("pending status: %d %q %q", code, out, diagnostic)
 	}
 	if err := os.WriteFile(planPath, []byte("broken"), 0600); err != nil {
 		t.Fatal(err)

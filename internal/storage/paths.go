@@ -78,6 +78,9 @@ func (s *Store) inspect(holdingLock bool) error {
 			if !holdingLock {
 				return ErrLocked
 			}
+		case "operation.json":
+			// Read-only access remains available for diagnosis. Writers reject
+			// the journal unless they explicitly enter operation recovery.
 		default:
 			if strings.HasPrefix(name, "pending-") {
 				return fmt.Errorf("%w: сохранён файл %s; требуется разбор прерванной записи", ErrInterrupted, filepath.Join(s.dir, name))

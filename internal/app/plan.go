@@ -11,8 +11,9 @@ import (
 
 // Plans provides the local plan operations shared by application entry points.
 type Plans struct {
-	store *storage.Store
-	git   *git.Client
+	store      *storage.Store
+	git        *git.Client
+	checkpoint func(string) error
 }
 
 // Open resolves paths without assuming the process runs in the repository root.
@@ -60,4 +61,10 @@ func (p *Plans) Add(ctx context.Context, title, description string, pos task.Pos
 func (p *Plans) Status(ctx context.Context) (task.Plan, error) {
 	snapshot, err := p.store.Load(ctx)
 	return snapshot.Plan, err
+}
+
+// StatusState also reports an unfinished operation without repairing it.
+func (p *Plans) StatusState(ctx context.Context) (task.Plan, bool, error) {
+	snapshot, err := p.store.Load(ctx)
+	return snapshot.Plan, snapshot.PendingOperation, err
 }
