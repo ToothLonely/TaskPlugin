@@ -12,15 +12,15 @@
 | Проект | Git Task — локальный CLI-трекер плана, связанный с Git-ветками |
 | Каталог | D:\TaskPlugin |
 | Язык | Go |
-| Состояние проекта | P01–P07 приняты; P08 открыт исполнителю |
-| Текущий этап | P08 — Импорт и экспорт |
+| Состояние проекта | P01–P08 приняты; P09 открыт исполнителю |
+| Текущий этап | P09 — Определение завершения и локальный sync |
 | Статус текущего этапа | active |
 | Следующая роль | исполнитель |
-| Следующее действие | Создать ветку P08 от master и реализовать импорт/экспорт по контракту этапа |
-| Последний принятый этап | P07 — Явный интерактивный выбор --select |
-| Принято этапов | 7 из 17 этапов первой версии; P13 отложен |
-| Блокеры | Нет; P07-B01 снят успешным независимым повтором Windows-проверок |
-| Последнее обновление | 2026-09-30 — P07 принят после успешного повторного Windows-прогона; P08 открыт |
+| Следующее действие | Создать ветку P09 от актуальной master; описать доказательства завершения в docs/TRACKING.md, реализовать локальный sync и необходимые тесты |
+| Последний принятый этап | P08 — Импорт и экспорт |
+| Принято этапов | 8 из 17 этапов первой версии; P13 отложен |
+| Блокеры | Нет; P08 независимо принят после полного Windows-прогона, race и проверок CLI |
+| Последнее обновление | 2026-09-30 — независимая приёмка P08; открыт P09 |
 <!-- CURRENT_STATE_END -->
 
 P01 принят независимым проверяющим после повторного ревью; P02 принят после независимой проверки кода и запуска тестов. P03 принят после исправления P03-R01/P03-R02 и повторного независимого запуска проверок; P04 принят после независимой проверки операций и тестов. P05 принят после исправления P05-R01 и успешного независимого подтверждения P05-R02/P05-R03 на окончательном коде. Создание исходного PLAN.md не засчитывалось как выполнение P01. Последние этапы включают проверку и проектирование дальнейшего развития; счётчик не является процентом готового кода.
@@ -265,8 +265,8 @@ $ git task start feature --id task-003
 | [P05](#p05) | Локальное JSON-хранилище | done | P02–P04 |
 | [P06](#p06) | Создание ветки и надёжная привязка | done | P05 |
 | [P07](#p07) | Явный интерактивный выбор --select | done | P06 |
-| [P08](#p08) | Импорт и экспорт | active | P04–P05, P07 |
-| [P09](#p09) | Определение завершения и sync | todo | P05–P06 |
+| [P08](#p08) | Импорт и экспорт | done | P04–P05, P07 |
+| [P09](#p09) | Определение завершения и sync | active | P05–P06 |
 | [P10](#p10) | Установка и работа Git-hooks | todo | P09 |
 | [P11](#p11) | Управление жизненным циклом задач | todo | P09–P10 |
 | [P12](#p12) | Экран возвращения к проекту | todo | P08–P11 |
@@ -994,7 +994,7 @@ if (($ids | Select-Object -Unique).Count -ne 76) { throw 'Duplicate scenario ID'
 
 ## P08 — Импорт и экспорт
 
-Статус: active. Зависимости: P04–P05, P07.
+Статус: done. Зависимости: P04–P05, P07.
 
 ### Что реализовать
 
@@ -1005,13 +1005,13 @@ if (($ids | Select-Object -Unique).Count -ne 76) { throw 'Duplicate scenario ID'
 
 ### Критерии приёмки
 
-- [ ] Порядок, Unicode и отметки чеклиста сохраняются, импортированные done имеют основание imported.
-- [ ] Предпросмотр и отмена не меняют состояние.
-- [ ] Повторный импорт не создаёт дубликаты и не очищает существующие задачи.
-- [ ] Экспорт/импорт полного JSON сохраняет существенные данные и ID; локальные блокировки/кеш не переносятся.
-- [ ] Ошибка в середине входного документа не оставляет частично импортированный план.
-- [ ] Исходный Markdown не перезаписывается и не объявляется автоматически синхронизируемым источником.
-- [ ] Каждый импортированный done имеет непустой attempts с source imported; впервые импортированный todo не получает attempts; полный JSON сохраняет различие active_attempt/attempts.
+- [x] Порядок, Unicode и отметки чеклиста сохраняются, импортированные done имеют основание imported.
+- [x] Предпросмотр и отмена не меняют состояние.
+- [x] Повторный импорт не создаёт дубликаты и не очищает существующие задачи.
+- [x] Экспорт/импорт полного JSON сохраняет существенные данные и ID; локальные блокировки/кеш не переносятся.
+- [x] Ошибка в середине входного документа не оставляет частично импортированный план.
+- [x] Исходный Markdown не перезаписывается и не объявляется автоматически синхронизируемым источником.
+- [x] Каждый импортированный done имеет непустой attempts с source imported; впервые импортированный todo не получает attempts; полный JSON сохраняет различие active_attempt/attempts.
 
 ### Промпт агенту-исполнителю
 
@@ -1023,13 +1023,48 @@ if (($ids | Select-Object -Unique).Count -ne 76) { throw 'Duplicate scenario ID'
 
 ### Журнал передачи
 
-Работа не выполнялась. Результаты и проверки отсутствуют.
+#### 2026-09-30 01:58 MSK — исполнитель P08: реализация и промежуточные проверки
+
+- Ветка `feat/p08-import-export` создана от чистой локальной `master` (`8af78d2`). Выполнен только P08. Коммит, merge и push не выполнялись; исполнитель не принимает свой этап.
+- Реализованы import/export Markdown и полного JSON схемы 1. Markdown строго проверяется целиком с номером строки; сохранены BOM/LF/CRLF, Unicode, буквальные названия, дубли title и порядок. Отмеченные пункты получают одну историю imported без дат/веток/SHA; todo не получает attempts. Вставки используют принятые доменные операции и хвост последнего imported-завершения.
+- Предпросмотр показывает формат, количество, полный порядок, ID/номера/статусы, путь назначения и target_branch. Подтверждение через существующий Dialogue с отказом по умолчанию, EOF/context и Close; `--yes` работает без терминала после той же проверки. До подтверждения записи нет. Импортированный источник остаётся самостоятельным неизменённым файлом, автоматическая синхронизация не вводилась.
+- Подготовленный импорт сохраняет приватные канонические байты результата и точный исходник назначения. После диалога повторяются версия/пустота/отсутствие операции; под lock используется общий механизм хранения. `Store.Import` допускает исходную revision JSON, включая 0, исключительно для пустого назначения; обычный Save не ослаблен. JSON сохраняет ID, номера, порядок, состояния, active_attempt/attempts, настройки, хронологию, хвост и ревизии; refs/hooks не создаются, сеть и P13 не реализованы.
+- Export не выполняет sync, отказывает при повреждённом или несогласованном хранилище. Markdown представляет все статусы и предупреждает о потерях в stderr; multiline title требует JSON. JSON stdout содержит только снимок. Output публикуется через временный файл, Sync/Close и hard link без перезаписи; служебные каталоги защищены по файловой идентичности, включая алиасы и регистр файловой системы. Протокол и ограничения описаны в `docs/TRANSFER.md`; решение — D18.
+- Артефакты: `internal/transfer/markdown.go`, `internal/transfer/json.go`, их `markdown_test.go`/`json_test.go`; `internal/app/import.go`, `internal/app/export.go`, `internal/app/transfer_test.go`; `internal/cli/transfer.go`, `internal/cli/transfer_test.go`, `internal/cli/root.go`, `internal/cli/help.go`; `internal/storage/store.go`, `internal/storage/import_test.go`; `cmd/git-task/main_test.go`; `docs/TRANSFER.md`, `docs/STORAGE.md`, `docs/DEVELOPMENT.md`, `docs/DECISIONS.md`, `PLAN.md`. Новые комментарии в Go-код не добавлены; существующие сохранены. Незатронутые файлы не переформатированы.
+- Новые тесты transfer: `TestMarkdownOrderUnicodeAndImportedHistory`, `TestMarkdownTodoTailAndLongLine`, `TestMarkdownRejectsUnsupportedInputWithoutPartialPlan`, `TestMarkdownExportUsesOrderAndCurrentStatus`, `TestMarkdownExportForEveryStatus`, `TestJSONRoundTripPreservesFullState`, `TestJSONRejectsDamagedVersionIdentitiesAndInvariants`, `FuzzMarkdown`.
+- Новые тесты app: `TestImportPreviewApplyAndRepeat`, `TestImportConflictsCancellationAndArchivedDestination`, `TestImportRejectsWholeDamagedInputAndStorage`, `TestJSONImportExportPreservesStateWithoutChangingGit`, `TestJSONImportPreservesZeroRevisionAndSettings`, `TestExportNoOverwriteProtectedPathsAndCancellation`, `TestExportRejectsPendingAndCorruptStorage`.
+- Новые тесты CLI: `TestTransferArgumentsAndHelpWithoutRepository`, `TestImportConfirmationPreviewAndCancellation`, `TestTransferJSONSettingsAndExportStreams`, `TestImportResultWriteFailureReportsSavedState`, `TestImportRechecksTrackedStorageAfterConfirmation`. Storage: `TestImportPreservesSnapshotRevisionOnlyInEmptyPlan`, `TestImportRechecksVersionUnderLock`, `TestImportInterruptedBeforeReplacementPreservesPlan`. Расширен `TestBinaryCommands`: реальный `git task import/export`, отказ без TTY, --yes, неизменность при повторе/существующем output, полный JSON round-trip между изолированными пустыми репозиториями. Git-интеграция использует собственные config/identity/hooks, пользовательские credentials не читаются.
+- Среда: Windows/amd64, Go 1.26.8, Git 2.51.0.windows.1; перед Go-командами `. ./.tools/session-env.ps1`, инструменты/кеши/временные репозитории внутри проекта. `.tools/go/bin/go.exe test -count=1 ./internal/transfer` → **0** (последний адресный запуск 0.988s); `.tools/go/bin/go.exe test -count=1 ./internal/app ./internal/cli -run 'Test(Import|JSONImport|Export|Transfer)'` → **0** (app 15.054s, cli 37.986s, до последних дополнений); `.tools/go/bin/go.exe test -count=1 ./internal/storage -run TestImport` → **0** (7.324s).
+- `.tools/go/bin/go.exe test ./internal/transfer -run '^$' -fuzz '^FuzzMarkdown$' -fuzztime=10s -parallel=2` → **0**, 27 638 выполнений, 43 новых интересных входа, 11.989s. `.tools/go/bin/go.exe vet ./...` и `.tools/go/bin/go.exe build ./...` → **0** на окончательном коде. Форматирование затронутых файлов выполнено; адресный `gofmt -l` пустой. `git -c core.safecrlf=false diff --check` → **0**; проверены локальные ссылки изменённых документов.
+- Первый `.tools/go/bin/go.exe test -race -count=1 -parallel=4 -timeout=10m ./internal/storage ./internal/app ./internal/cli ./internal/transfer -run 'Test(Import|JSONImport|Export|Transfer|Markdown|JSONRoundTrip|JSONRejects)'` → **1**: запуск storage/app/cli EXE получил `Access is denied`, transfer прошёл. Причина этого отказа в данной сессии не устанавливалась. После сообщения пользователя «сейчас отказа быть не должно» повтор с `-work` → **0**: storage 20.336s, app 48.940s, cli 83.180s, transfer 1.313s; каталог `.tools/tmp/go-build3551300482`. Настройки защиты не изменялись; успех повторного запуска не отменяет предыдущий отказ.
+- Первый полный `.tools/go/bin/go.exe test -count=1 ./...` → **1**: cmd/git-task 152.694s, app 315.083s, git 44.590s, storage 334.737s, task 1.747s, transfer 1.056s прошли; ранний запуск cli EXE получил `Access is denied`. Этот запуск начат до сообщения пользователя. На окончательном коде выполняется повтор `.tools/go/bin/go.exe test -count=1 -parallel=8 -timeout=15m ./...`; до получения результата статус **active**, не review.
+- `.tools/go/bin/go.exe build -o bin/git-task.exe ./cmd/git-task` → **0**; `bin/git-task.exe help import` и `help export` → **0**, бинарник обновлён. Linux/macOS в этой сессии не запускались; поддержка всех платформ остаётся предметом P15/P17. Ограничения hard links/родительских каталогов и внешнего редактора зафиксированы в TRANSFER/STORAGE.
+- Обязательных замечаний проверяющего пока нет. Следующее действие — дождаться итогового полного прогона, при успехе записать результаты и передать P08 независимому проверяющему; при отказе оставить незавершённость с точным результатом. Критерии не отмечены, принято 7 из 17, P09 todo, P13 deferred.
+
+#### 2026-09-30 02:04 MSK — исполнитель: окончательные проверки и передача P08
+
+- Без изменения окончательного кода повторён полный `.tools/go/bin/go.exe test -count=1 -parallel=8 -timeout=15m ./...` → **0**: cmd/git-task 36.610s, app 234.859s, cli 365.117s, git 10.859s, storage 260.038s, task 0.408s, transfer 0.157s; testrepo без тестов. Все тесты сохранены, пакеты не исключались; общий лимит 15 минут не достигнут. Отказы запуска EXE в этом повторе не возникли.
+- Успешный адресный race на окончательном коде: `.tools/go/bin/go.exe test -work -race -count=1 -parallel=4 -timeout=10m ./internal/storage ./internal/app ./internal/cli ./internal/transfer -run 'Test(Import|JSONImport|Export|Transfer|Markdown|JSONRoundTrip|JSONRejects)'` → **0**. Успешные vet/build/fuzz, сборка `bin/git-task.exe` и проверка справки из предыдущей записи относятся к тому же коду. Все обязательные проверки выполнены; первоначальные Access is denied сохранены в журнале, причина изменения внешнего поведения не приписывается коду.
+- Незатронутые файлы с прежними отличиями CRLF/gofmt не менялись; форматирование затронутых файлов, локальные ссылки документов и `git -c core.safecrlf=false diff --check` проверены. Новых зависимостей и изменений схемы нет. Ограничения файловой системы и внешнего редактора остаются описанными в TRANSFER/STORAGE; Linux/macOS в этой сессии не проверялись, полная матрица остаётся P15/P17.
+- Решение исполнителя: **review**, следующая роль — **проверяющий**. Обязательных замечаний проверяющего нет; внешнего блокера успешного Windows-прогона больше нет. P08 остаётся текущим, критерии не отмечены, принято 7 из 17; P09 todo, P13 deferred. Коммит, merge и push не выполнялись. Следующее действие — независимое ревью реализации и тестов, повтор необходимых проверок, затем приёмка либо возврат замечаний по общему протоколу.
+
+#### 2026-09-30, 02:19 MSK — проверяющий P08, независимая приёмка
+
+- Проверена ветка `feat/p08-import-export` от `8af78d2`, все переданные изменения кода, тестов и документов. Реализация при ревью не исправлялась; изменения исполнителя сохранены. Проверены SPEC §8, MODEL, STORAGE, TRANSFER и решение D18. Артефакты: `internal/transfer/{markdown,json}.go` и тесты, `internal/app/{import,export,transfer_test}.go`, `internal/cli/{transfer,transfer_test,root,help}.go`, `internal/storage/{store,import_test}.go`, `cmd/git-task/main_test.go`, изменённые документы.
+- Границы соблюдены: CLI разбирает аргументы/показывает предпросмотр; app координирует подтверждённый снимок; transfer использует строгую модель; storage повторяет проверки под lock и сохраняет backup. `Store.Import` допускает исходную revision только в пустом назначении, обычный Save не ослаблен. Новых зависимостей, фоновой конкурентности и реализации будущих этапов нет. Ошибки записи/закрытия/очистки учитываются; новых комментариев в Go-коде нет. Просмотрены Go Code Review Comments, рекомендации структуры модуля и устройство GitHub CLI; Google Go Style Guide снова вернул restricted URL, применены зафиксированные правила AGENTS/SKILLS без заявления об успешном открытии внешней страницы.
+- Все семь критериев сопоставлены с фактической реализацией и независимо запущенными тестами. В частности, `TestMarkdownOrderUnicodeAndImportedHistory`, `TestMarkdownRejectsUnsupportedInputWithoutPartialPlan`, `TestJSONRoundTripPreservesFullState`, `TestJSONRejectsDamagedVersionIdentitiesAndInvariants`; `TestImportPreviewApplyAndRepeat`, `TestImportConflictsCancellationAndArchivedDestination`, `TestJSONImportExportPreservesStateWithoutChangingGit`; `TestImportConfirmationPreviewAndCancellation`, `TestImportRechecksTrackedStorageAfterConfirmation`; три `TestImport*` в storage и сквозной `TestBinaryCommands`. Диалог/EOF/context не записывают план; внешний конфликт и tracked-путь отклоняются; прерванная запись сохраняет исходник и диагностируется.
+- Дополнительно создан независимый диагностический сценарий `.tools/review-p08/check.py` и собран отдельный бинарник `.tools/review-p08/git-task.exe`. `python .tools/review-p08/check.py` → **0**, десять групп проверок, отчёт `.tools/review-p08/result.txt`. Собственные входы: BOM/CRLF, Unicode, одинаковые title, `[X]`/`[x]` без дат; вложенный пункт/продолжение/иной маркер/невалидный UTF-8 в середине; обрезанный JSON, версия 9, дубли ID/ключей, чужое поле, неверная ссылка и null. Отказы не меняют байты назначения и не создают backup; повтор не создаёт дубли; источник Markdown сохранён.
+- Независимый полный JSON проверен с произвольными ID/номерами, обратным порядком, многострочными описаниями, active/paused/archived, прежней imported-историей одновременно с новой `active_attempt`, сохранёнными настройками/счётчиками/хвостом. После импорта и экспорта данные совпали полностью; refs и Git status назначения не изменились. JSON stdout чистый. Markdown читаем, предупреждает о потерях; многострочный title отклонён до вывода. Существующий export сохранён; служебные каталоги и варианты регистра `.GIT-TASK`/`.GIT` отклонены; временных файлов нет; lock/pending/operation запрещают полный экспорт.
+- Среда: Windows/amd64, Go 1.26.8, Git 2.51.0.windows.1. Кеши и временные каталоги заданы внутри проекта, перед последующими Go-командами `. ./.tools/session-env.ps1`; Git-сценарий имеет собственные HOME/config/hooks/template, отключённые global/system config и не читает credentials. `.tools/go/bin/go.exe vet ./...` → **0**; `.tools/go/bin/go.exe build ./...` → **0**. `.tools/go/bin/go.exe test -count=1 ./...` → **0**: cmd/git-task 50.154s, app 242.868s, cli 364.570s, git 13.010s, storage 261.104s, task 0.473s, transfer 0.153s; testrepo без тестов. Пакеты и тесты не исключались; отказов запуска EXE в этой сессии не было.
+- `.tools/go/bin/go.exe test -race -count=1 -parallel=4 -timeout=10m ./internal/storage ./internal/app ./internal/cli ./internal/transfer -run 'Test(Import|JSONImport|Export|Transfer|Markdown|JSONRoundTrip|JSONRejects)'` → **0**: storage 9.620s, app 23.801s, cli 41.012s, transfer 1.243s. `.tools/go/bin/go.exe test ./internal/transfer -run '^$' -fuzz '^FuzzMarkdown$' -fuzztime=10s -parallel=2` → **0**, 20 034 выполнений, пять новых интересных входов, 11.120s. Адресный `gofmt -l` пуст; `git -c core.safecrlf=false diff --check` → **0**.
+- Ограничения: Linux/macOS в этой сессии не запускались; матрица платформ остаётся P15/P17. Hard links и существующий родитель для output, а также границы защиты от внешнего редактора описаны в TRANSFER/STORAGE; проверка на Windows не расширяет эти гарантии. Диагностика в `.tools` не включается в исходники. Обязательные замечания: **нет**.
+- Решение: **P08 done**, все критерии отмечены; **P09 active**, следующая роль — **исполнитель**, принято 8 из 17, P13 deferred. Реализация P09 не начата. Следующее действие проверяющего — коммит принятого P08 и fast-forward в локальную master; факт интеграции записать отдельно. Затем исполнитель создаёт отдельную ветку P09 от актуальной master и начинает с docs/TRACKING.md. Push не выполняется.
 
 <a id="p09"></a>
 
 ## P09 — Определение завершения и локальный sync
 
-Статус: todo. Зависимости: P05–P06.
+Статус: active. Зависимости: P05–P06.
 
 ### Что реализовать
 

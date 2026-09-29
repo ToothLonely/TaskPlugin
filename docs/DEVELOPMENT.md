@@ -51,13 +51,15 @@ $env:GOTELEMETRY = 'off'
 
 - `cmd/git-task/main.go` соединяет сигналы отмены, потоки процесса и CLI.
   `os.Exit` вызывается после возврата `run`, когда его defer уже выполнены.
-- `internal/cli` реализует help/version/init/add/start/attach и текстовый status, синтаксические
+- `internal/cli` реализует help/version/init/add/start/attach/import/export и текстовый status, синтаксические
   ошибки, коды выхода и явные потоки. Справка не открывает репозиторий.
   Status пока читает сохранённый план; tracking и --json — P09/P12.
 - `internal/app` соединяет Git, модель задач и сохранение. Зависимости собираются
   через функцию открытия, переданную из main; при ошибке синтаксиса она не вызывается.
 - `internal/storage` читает/пишет единственный plan.json с проверкой снимка,
   блокировкой и резервной копией. Протокол и ограничения — [STORAGE.md](STORAGE.md).
+- `internal/transfer` разбирает плоский Markdown и полный JSON модели.
+  Форматы, подтверждение и безопасный файл экспорта — [TRANSFER.md](TRANSFER.md).
 - `internal/git` находит исполняемый Git и запускает его с контекстом,
   отдельными аргументами и раздельными stdout/stderr. Отсутствие Git возвращает
   `ErrUnavailable`; ошибка выполнения сохраняет `CommandError` и исходный

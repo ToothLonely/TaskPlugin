@@ -156,6 +156,14 @@ func (s *Store) Init(ctx context.Context, target string) (created bool, err erro
 // Save commits a validated result only against its exact source snapshot.
 // It returns false for a semantic no-op without rewriting plan or backup.
 func (s *Store) Save(ctx context.Context, base Snapshot, next task.Plan) (changed bool, err error) {
+	return s.save(ctx, base, next, false)
+}
+
+func (s *Store) Import(ctx context.Context, base Snapshot, next task.Plan) (bool, error) {
+	return s.save(ctx, base, next, true)
+}
+
+func (s *Store) save(ctx context.Context, base Snapshot, next task.Plan, importing bool) (changed bool, err error) {
 	data, err := encode(next)
 	if err != nil {
 		return false, err
@@ -195,10 +203,13 @@ func (s *Store) Save(ctx context.Context, base Snapshot, next task.Plan) (change
 	if err = s.compare(base.raw); err != nil {
 		return false, s.preserveConflict(data, err)
 	}
+	if importing && len(original.Tasks) != 0 {
+		return false, fmt.Errorf("импорт требует пустой план")
+	}
 	if bytes.Equal(canonical, data) {
 		return false, nil
 	}
-	if next.Revision <= original.Revision {
+	if !importing && next.Revision <= original.Revision {
 		return false, fmt.Errorf("изменение требует увеличения revision")
 	}
 	ignored, err := s.guard.StorageIgnored(ctx)

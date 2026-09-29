@@ -124,4 +124,66 @@ func TestBinaryCommands(t *testing.T) {
 	if err != nil || !strings.Contains(string(output), "task-001") || !strings.Contains(string(output), "active: feature") {
 		t.Fatalf("binary automatic without terminal: %v %s", err, output)
 	}
+	testBinaryTransfer(t, ctx, git, dir)
+}
+
+func testBinaryTransfer(t *testing.T, ctx context.Context, gitPath, execPath string) {
+	t.Helper()
+	c := testrepo.New(t)
+	source := filepath.Join(t.TempDir(), "чеклист с пробелами.md")
+	input := []byte("- [ ] Реальный импорт 🙂\n- [x] Готово\n")
+	if err := os.WriteFile(source, input, 0600); err != nil {
+		t.Fatal(err)
+	}
+	run := func(repoDir string, env []string, code int, args ...string) ([]byte, []byte) {
+		t.Helper()
+		cmd := exec.CommandContext(ctx, gitPath, append([]string{"--exec-path=" + execPath, "task"}, args...)...)
+		cmd.Dir, cmd.Env = repoDir, env
+		var out, diagnostic bytes.Buffer
+		cmd.Stdout, cmd.Stderr = &out, &diagnostic
+		err := cmd.Run()
+		actual := 0
+		if err != nil {
+			var exit *exec.ExitError
+			if !errors.As(err, &exit) {
+				t.Fatal(err)
+			}
+			actual = exit.ExitCode()
+		}
+		if actual != code {
+			t.Fatalf("git task %v: %d want %d: %s", args, actual, code, &diagnostic)
+		}
+		return out.Bytes(), diagnostic.Bytes()
+	}
+	run(c.Dir, c.Env, 0, "init")
+	planPath := filepath.Join(c.Dir, ".git-task", "plan.json")
+	before, err := os.ReadFile(planPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, diagnostic := run(c.Dir, c.Env, 1, "import", source)
+	after, err := os.ReadFile(planPath)
+	if err != nil || !bytes.Equal(before, after) || !bytes.Contains(diagnostic, []byte("--yes")) {
+		t.Fatalf("nonterminal import changed plan: %v %s", err, diagnostic)
+	}
+	run(c.Dir, c.Env, 0, "import", source, "--yes")
+	markdown, diagnostic := run(c.Dir, c.Env, 0, "export")
+	if !bytes.Equal(markdown, input) || !bytes.Contains(diagnostic, []byte("Предупреждение")) {
+		t.Fatalf("binary Markdown: %s %s", markdown, diagnostic)
+	}
+	jsonData, diagnostic := run(c.Dir, c.Env, 0, "export", "--format=json")
+	if len(diagnostic) != 0 || !bytes.Contains(jsonData, []byte(`"source": "imported"`)) {
+		t.Fatalf("binary JSON: %s %s", jsonData, diagnostic)
+	}
+	output := filepath.Join(t.TempDir(), "snapshot.json")
+	run(c.Dir, c.Env, 0, "export", "--format=json", "--output", output)
+	run(c.Dir, c.Env, 1, "export", "--format=json", "--output", output)
+	run(c.Dir, c.Env, 1, "import", source, "--yes")
+	second := testrepo.New(t)
+	run(second.Dir, second.Env, 0, "init", "--target=release")
+	run(second.Dir, second.Env, 0, "import", output, "--format=json", "--yes")
+	imported, _ := run(second.Dir, second.Env, 0, "export", "--format=json")
+	if !bytes.Equal(imported, jsonData) {
+		t.Fatalf("binary JSON round-trip lost data: %s", imported)
+	}
 }

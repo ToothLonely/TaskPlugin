@@ -71,6 +71,9 @@ func execute(ctx context.Context, args []string, version string, streams Streams
 		args = args[1:]
 	}
 	if command != "help" && command != "version" {
+		if command == "import" || command == "export" {
+			return runTransfer(ctx, command, args[1:], streams, open)
+		}
 		if command == "start" || command == "attach" {
 			return runStart(ctx, command, args[1:], streams, open)
 		}
@@ -78,7 +81,7 @@ func execute(ctx context.Context, args []string, version string, streams Streams
 			return runPlan(ctx, command, args[1:], streams, open)
 		}
 		if planned(command) {
-			return fmt.Errorf("команда %q ещё не реализована; доступны help, version, init, add, start, attach и status", command)
+			return fmt.Errorf("команда %q ещё не реализована; доступны help, version, init, add, start, attach, import, export и status", command)
 		}
 		return &usageError{fmt.Sprintf("неизвестная команда %q; используйте git task help", command)}
 	}

@@ -20,6 +20,8 @@ func writeHelp(out io.Writer, topic string) error {
   add             Добавить задачу
   start           Создать ветку и начать задачу
   attach          Привязать существующую ветку
+  import          Импортировать Markdown или полный JSON
+  export          Экспортировать снимок плана
   status          Показать сохранённый план
 
 Также доступны --help и --version без Git-репозитория.
@@ -39,6 +41,10 @@ Status пока показывает сохранённые данные без 
 		text = "Использование: git task start <branch> [--id <id> / --title <title> / --new <title> / --select] [--from <ref>] [--again]\nБез селектора выбирается первый todo; основание — target_branch. --again требует явного выбора done. --select открывает меню в терминале: номер задачи, n — новая, 0 — отмена.\n"
 	case "attach":
 		text = "Использование: git task attach <branch> --id <id> [--rebind]\nПривязать существующую локальную ветку без checkout. --rebind меняет связь active/paused.\n"
+	case "import":
+		text = "Использование: git task import <path> [--format markdown / --format json] [--yes]\nПредпросмотр и импорт в пустой инициализированный план. По умолчанию markdown. Подтверждение требует терминал или --yes. Источник не изменяется.\n"
+	case "export":
+		text = "Использование: git task export [--format markdown / --format json] [--output <path>]\nСнимок без sync; по умолчанию markdown в stdout. Существующий output не перезаписывается. JSON сохраняет полное состояние.\n"
 	default:
 		if planned(topic) {
 			return fmt.Errorf("команда %q ещё не реализована", topic)
