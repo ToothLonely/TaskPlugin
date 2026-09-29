@@ -47,6 +47,10 @@ type Snapshot struct {
 	dir              string
 }
 
+func (s Snapshot) SameVersion(other Snapshot) bool {
+	return s.dir == other.dir && bytes.Equal(s.raw, other.raw)
+}
+
 func (s *Store) check(ctx context.Context, holdingLock bool) error {
 	if err := ctx.Err(); err != nil {
 		return err

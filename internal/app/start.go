@@ -15,12 +15,13 @@ import (
 
 // StartOptions contains validated syntax, independent of any terminal UI.
 type StartOptions struct {
-	Branch string
-	ID     string
-	Title  string
-	New    string
-	From   string
-	Again  bool
+	Branch    string
+	ID        string
+	Title     string
+	New       string
+	From      string
+	Again     bool
+	Selection *StartSelection
 }
 
 type startIntent struct {
@@ -101,6 +102,17 @@ func (p *Plans) Start(ctx context.Context, options StartOptions) (result task.Ta
 		}
 		if base.PendingOperation {
 			return storage.ErrOperation
+		}
+		if options.Selection != nil {
+			if !base.SameVersion(options.Selection.snapshot) {
+				return fmt.Errorf("%w; повторите --select", storage.ErrConflict)
+			}
+			if err := p.unchangedBase(ctx, options.Selection.intent); err != nil {
+				return fmt.Errorf("основание меню изменилось; повторите --select: %w", err)
+			}
+			if err := p.sameHead(ctx, options.Selection.intent.Head); err != nil {
+				return fmt.Errorf("повторите --select: %w", err)
+			}
 		}
 		next := base.Plan
 		selected, err := selectStart(&next, options)

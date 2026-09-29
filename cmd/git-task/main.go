@@ -22,5 +22,6 @@ func run() int {
 	defer stop()
 	return cli.RunWithPlans(ctx, os.Args[1:], version, cli.Streams{
 		In: os.Stdin, Out: os.Stdout, Err: os.Stderr,
+		OpenDialogue: func() (cli.Dialogue, error) { return cli.OpenTerminalDialogue(os.Stdin, os.Stderr) },
 	}, func(ctx context.Context) (*app.Plans, error) { return app.Open(ctx, "") })
 }

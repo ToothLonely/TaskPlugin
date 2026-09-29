@@ -248,6 +248,42 @@ P06 использует общую блокировку хранения, ис�
 [Go Code Review Comments](https://go.dev/wiki/CodeReviewComments) и
 [Organizing a Go module](https://go.dev/doc/modules/layout).
 
+## D17 — Меню как подготовка общей операции start
+
+P07 вводит `PrepareSelection` и непрозрачный снимок для `StartOptions`.
+Снимок включает точные байты плана, основание и HEAD. Сравнение под существующей
+блокировкой происходит до доменного перехода и записи журнала. Проверяется
+весь план: это сохраняет выбор по ID и контекст порядка/названий, который
+пользователь видел. Изменившийся план требует нового явного запуска меню.
+Никакой lock не удерживается при ожидании ввода. Схема JSON не меняется.
+
+Граница CLI — небольшой Dialogue с ReadLine(context) и Close; фабрика
+передаётся вместе с потоками. Обычный start не открывает Dialogue. Реальная
+фабрика проверяет stdin и stderr средствами ОС; файлы, pipe и NUL не считаются
+терминалами. Полноэкранный интерфейс и смена режима терминала не нужны.
+
+Linux/macOS открывают собственный неблокирующий дескриптор /dev/tty; отмена
+контекста ставит deadline чтению. Callback отмены завершается до закрытия
+дескриптора. На Windows используется небольшой последовательный цикл чтения
+INPUT_RECORD через ReadConsoleInputExW с CONSOLE_READ_NOWAIT, с ожиданием до
+25 мс и проверкой контекста. Проверка доступности API возвращает обычную ошибку
+при неподдерживаемой среде. Нет гонки между проверкой числа событий и
+блокирующим чтением, если Ctrl+C очистил буфер. Цикл
+обрабатывает Unicode, повтор клавиши, Backspace, Enter и отмену; продвинутое
+редактирование строки не входит в этот интерфейс. Блокирующее ReadConsole
+ожидает Enter и усложняет гарантированное завершение по context. Отдельная
+горутина чтения и изменение консольного режима не требуются. Зависимости не
+добавлены: используемые системные границы малы и проверяются настоящими PTY
+на Linux и отдельной скрытой консолью Windows. Проверка macOS остаётся в
+платформенной матрице P15/P17.
+
+Просмотрены 2026-09-29: [os.File.SetReadDeadline](https://pkg.go.dev/os#File.SetReadDeadline),
+[ReadConsole](https://learn.microsoft.com/en-us/windows/console/readconsole),
+[ReadConsoleInput](https://learn.microsoft.com/en-us/windows/console/readconsoleinput),
+[ReadConsoleInputEx](https://learn.microsoft.com/en-us/windows/console/readconsoleinputex),
+[INPUT_RECORD](https://learn.microsoft.com/en-us/windows/console/input-record-str),
+[KEY_EVENT_RECORD](https://learn.microsoft.com/en-us/windows/console/key-event-record-str).
+
 ## Открытые технические вопросы следующих этапов
 
 Это детали реализации с назначенным этапом, а не разрешение менять пользовательские контракты:

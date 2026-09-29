@@ -22,7 +22,7 @@ func TestBinaryCommands(t *testing.T) {
 		suffix = ".exe"
 	}
 	binary := filepath.Join(dir, "git-task"+suffix)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 	build := exec.CommandContext(ctx, filepath.Join(runtime.GOROOT(), "bin", "go"+suffix), "build", "-o", binary, "-ldflags=-X=main.version=test-build", ".")
 	if output, err := build.CombinedOutput(); err != nil {
@@ -99,5 +99,29 @@ func TestBinaryCommands(t *testing.T) {
 		if err != nil || !strings.Contains(string(output), tc.want) {
 			t.Fatalf("binary %q: %v %s", tc.args, err, output)
 		}
+	}
+	planPath := filepath.Join(c.Dir, ".git-task", "plan.json")
+	before, err := os.ReadFile(planPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	selectCommand := exec.CommandContext(ctx, binary, "start", "feature", "--select")
+	selectCommand.Dir, selectCommand.Env = c.Dir, c.Env
+	selectCommand.Stdin = strings.NewReader("1\n")
+	output, err = selectCommand.CombinedOutput()
+	var exit *exec.ExitError
+	if !errors.As(err, &exit) || exit.ExitCode() != 1 || !strings.Contains(string(output), "требует терминал") {
+		t.Fatalf("binary select without terminal: %v %s", err, output)
+	}
+	after, err := os.ReadFile(planPath)
+	if err != nil || !bytes.Equal(before, after) {
+		t.Fatalf("nonterminal select changed plan: %v", err)
+	}
+	testrepo.Commit(t, c)
+	startCommand := exec.CommandContext(ctx, binary, "start", "feature")
+	startCommand.Dir, startCommand.Env = c.Dir, c.Env
+	output, err = startCommand.CombinedOutput()
+	if err != nil || !strings.Contains(string(output), "task-001") || !strings.Contains(string(output), "active: feature") {
+		t.Fatalf("binary automatic without terminal: %v %s", err, output)
 	}
 }

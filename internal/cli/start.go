@@ -108,7 +108,9 @@ func runStart(ctx context.Context, command string, args []string, streams Stream
 		return writeHelp(streams.Out, command)
 	}
 	if parsed.selectMenu {
-		return fmt.Errorf("меню --select пока недоступно; используйте --id или --title")
+		if streams.OpenDialogue == nil {
+			return fmt.Errorf("--select требует терминал ввода и диагностики; используйте --id, --title или --new")
+		}
 	}
 	if open == nil {
 		return fmt.Errorf("операции плана не подключены")
@@ -119,6 +121,12 @@ func runStart(ctx context.Context, command string, args []string, streams Stream
 	}
 	var result task.Task
 	if command == "start" {
+		if parsed.selectMenu {
+			parsed.options, err = chooseStart(ctx, plans, parsed.options, streams)
+			if err != nil {
+				return err
+			}
+		}
 		result, err = plans.Start(ctx, parsed.options)
 	} else {
 		result, err = plans.Attach(ctx, parsed.options.Branch, parsed.options.ID, parsed.rebind)

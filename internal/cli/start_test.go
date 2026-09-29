@@ -15,6 +15,8 @@ func TestStartSyntaxBeforeRepositoryOrMenu(t *testing.T) {
 		{"start", "one", "two"}, {"start", "-b", "one"}, {"start", " "}, {"start", "--", "-bad"},
 		{"start", "one", "--id", "a", "--title", "b"}, {"start", "one", "--id", "a", "--id", "a"},
 		{"start", "one", "--title", "a", "--title", "a"}, {"start", "one", "--select", "--new", "a"},
+		{"start", "one", "--select", "--id", "a"}, {"start", "one", "--select", "--title", "a"},
+		{"start", "one", "two", "--select"}, {"start", "-b", "one", "--select"}, {"start", "one", "--select", "--select"},
 		{"start", "one", "--again"}, {"start", "one", "--new", "a", "--again"}, {"start", "one", "--select", "--again"},
 		{"start", "one", "--title="}, {"start", "one", "--from="}, {"start", "one", "--again=true"}, {"start", "one", "--id"},
 		{"attach", "one"}, {"attach", "--id", "a"}, {"attach", "one", "--title", "a"}, {"attach", "one", "--from", "main"}, {"attach", "one", "--id", "a", "--again"},

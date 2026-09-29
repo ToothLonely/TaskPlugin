@@ -12,9 +12,10 @@ import (
 
 // Streams holds the command's input, result output, and diagnostics.
 type Streams struct {
-	In  io.Reader
-	Out io.Writer
-	Err io.Writer
+	In           io.Reader
+	Out          io.Writer
+	Err          io.Writer
+	OpenDialogue func() (Dialogue, error)
 }
 
 type usageError struct{ message string }

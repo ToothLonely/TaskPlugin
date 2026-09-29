@@ -36,7 +36,7 @@ Status пока показывает сохранённые данные без 
 	case "status":
 		text = "Использование: git task status\nПоказать сохранённый план. Сверка с Git и --json пока недоступны.\n"
 	case "start":
-		text = "Использование: git task start <branch> [--id <id> / --title <title> / --new <title>] [--from <ref>] [--again]\nБез селектора выбирается первый todo; основание — target_branch. --again требует явного выбора done. Меню --select пока недоступно.\n"
+		text = "Использование: git task start <branch> [--id <id> / --title <title> / --new <title> / --select] [--from <ref>] [--again]\nБез селектора выбирается первый todo; основание — target_branch. --again требует явного выбора done. --select открывает меню в терминале: номер задачи, n — новая, 0 — отмена.\n"
 	case "attach":
 		text = "Использование: git task attach <branch> --id <id> [--rebind]\nПривязать существующую локальную ветку без checkout. --rebind меняет связь active/paused.\n"
 	default:
