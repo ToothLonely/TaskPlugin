@@ -34,6 +34,8 @@ type startIntent struct {
 	Target       string   `json:"target"`
 	TargetCommit string   `json:"target_commit"`
 	Head         git.Head `json:"head"`
+	HeadLog      string   `json:"head_log,omitempty"`
+	BranchLog    string   `json:"branch_log,omitempty"`
 }
 
 func newOperationID() (string, error) {
@@ -287,6 +289,19 @@ func (p *Plans) unchangedBase(ctx context.Context, in startIntent) error {
 func (p *Plans) verifyEffect(ctx context.Context, in startIntent) error {
 	if err := p.unchangedBase(ctx, in); err != nil {
 		return err
+	}
+	if in.Kind == "resume" {
+		if err := p.verifyResumeBranch(ctx, in); err != nil {
+			return err
+		}
+		owned, err := p.git.OwnsResume(ctx, in.Branch, in.Base, in.ID)
+		if err != nil {
+			return err
+		}
+		if !owned {
+			return fmt.Errorf("переключение resume не подтверждено: %w", storage.ErrOperation)
+		}
+		return nil
 	}
 	if in.Kind == "start" {
 		owned, err := p.git.OwnsBranch(ctx, in.Branch, in.Base, in.ID)

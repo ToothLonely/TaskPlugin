@@ -125,6 +125,7 @@ func TestBinaryCommands(t *testing.T) {
 		t.Fatalf("binary automatic without terminal: %v %s", err, output)
 	}
 	testBinaryTransfer(t, ctx, git, dir)
+	testBinaryLifecycle(t, ctx, git, dir)
 }
 
 func testBinaryTransfer(t *testing.T, ctx context.Context, gitPath, execPath string) {

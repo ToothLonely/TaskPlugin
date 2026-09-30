@@ -20,6 +20,11 @@ func writeHelp(out io.Writer, topic string) error {
   add             Добавить задачу
   start           Создать ветку и начать задачу
   attach          Привязать существующую ветку
+  edit            Изменить название и описание
+  move            Переместить задачу в плане
+  pause           Приостановить текущую работу
+  resume          Переключиться на ветку и продолжить работу
+  archive         Архивировать задачу с сохранением истории
   import          Импортировать Markdown или полный JSON
   export          Экспортировать снимок плана
   sync            Сверить план с локальным Git
@@ -45,10 +50,20 @@ func writeHelp(out io.Writer, topic string) error {
 		text = "Использование: git task hooks install / uninstall\nЛокальная интеграция post-commit, post-merge, post-checkout и post-rewrite. Общий hooksPath и сторонние менеджеры требуют ручного подключения; см. docs/HOOKS.md. Uninstall сохраняет план и чужие изменения.\n"
 	case "complete":
 		text = "Использование: git task complete --id <id> [--commit <oid>] [--yes]\nЯвное завершение с основанием manual; commit должен входить в target_branch. Подтверждение требует терминал или --yes.\n"
+	case "edit":
+		text = "Использование: git task edit --id <id> [--title <title>] [--description <text>]\nМеняет только указанные поля, сохраняя ID и историю. Без полевых флагов открывает JSON с title/description в редакторе: GIT_EDITOR, core.editor, VISUAL, EDITOR. Неизменённый документ — без записи; конфликт сохраняет результат по указанному пути. Правила кавычек и запуска: docs/LIFECYCLE.md.\n"
+	case "move":
+		text = "Использование: git task move --id <id> (--after <id> / --before <id> / --end)\nИзменить порядок без изменения ID и номера. Требуется ровно один способ позиционирования.\n"
+	case "pause":
+		text = "Использование: git task pause --id <id>\nПриостановить active, сохранив подход и ветку. Повтор для paused — без записи.\n"
+	case "resume":
+		text = "Использование: git task resume --id <id>\nПродолжить paused на связанной существующей ветке; требуется чистое рабочее дерево и обычный HEAD. При потере связи используйте attach <branch> --id <id> --rebind.\n"
+	case "archive":
+		text = "Использование: git task archive --id <id>\nАрхивировать задачу; код, ветка и история сохраняются. Незавершённый подход замораживается, ветка освобождается для attach. Повтор — без записи; unarchive отсутствует.\n"
 	case "start":
 		text = "Использование: git task start <branch> [--id <id> / --title <title> / --new <title> / --select] [--from <ref>] [--again]\nБез селектора выбирается первый todo; основание — target_branch. --again требует явного выбора done. --select открывает меню в терминале: номер задачи, n — новая, 0 — отмена.\n"
 	case "attach":
-		text = "Использование: git task attach <branch> --id <id> [--rebind]\nПривязать существующую локальную ветку без checkout. --rebind меняет связь active/paused.\n"
+		text = "Использование: git task attach <branch> --id <id> [--rebind]\nПривязать существующую локальную ветку к todo без checkout. --rebind меняет связь active/paused, сохраняя ID подхода и историю связей; чужая занятая ветка запрещена. Повтор подтверждённой связи — без записи. Для done используйте start --again.\n"
 	case "import":
 		text = "Использование: git task import <path> [--format markdown / --format json] [--yes]\nПредпросмотр и импорт в пустой инициализированный план. По умолчанию markdown. Подтверждение требует терминал или --yes. Источник не изменяется.\n"
 	case "export":

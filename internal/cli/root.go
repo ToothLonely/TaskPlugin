@@ -16,6 +16,7 @@ type Streams struct {
 	Out          io.Writer
 	Err          io.Writer
 	OpenDialogue func() (Dialogue, error)
+	RunEditor    func(context.Context, string, string, string) error
 }
 
 type usageError struct{ message string }
@@ -75,6 +76,9 @@ func execute(ctx context.Context, args []string, version string, streams Streams
 		args = args[1:]
 	}
 	if command != "help" && command != "version" {
+		if command == "edit" || command == "move" || command == "pause" || command == "resume" || command == "archive" {
+			return runLifecycle(ctx, command, args[1:], streams, open)
+		}
 		if command == "hooks" {
 			return runHooks(ctx, args[1:], streams)
 		}
@@ -91,7 +95,7 @@ func execute(ctx context.Context, args []string, version string, streams Streams
 			return runPlan(ctx, command, args[1:], streams, open)
 		}
 		if planned(command) {
-			return fmt.Errorf("команда %q ещё не реализована; доступны help, version, init, add, start, attach, import, export, complete, sync и status", command)
+			return fmt.Errorf("команда %q ещё не реализована; доступные команды: git task help", command)
 		}
 		return &usageError{fmt.Sprintf("неизвестная команда %q; используйте git task help", command)}
 	}

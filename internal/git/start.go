@@ -151,7 +151,7 @@ func (c *Client) checkState(ctx context.Context, switching, postMerge bool) erro
 			return err
 		}
 		if len(r.Stdout) != 0 {
-			return fmt.Errorf("start требует чистого индекса и рабочего дерева")
+			return fmt.Errorf("start/resume требуют чистого индекса и рабочего дерева")
 		}
 	}
 	return nil

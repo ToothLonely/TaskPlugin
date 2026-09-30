@@ -25,11 +25,18 @@ func (p *Plans) RecoverStart(ctx context.Context) (recovered bool, err error) {
 		if err = json.Unmarshal(journal.Intent, &in); err != nil {
 			return err
 		}
-		if in.ID == "" || in.TaskID == "" || (in.Kind != "start" && in.Kind != "attach" && in.Kind != "rebind") {
+		if in.ID == "" || in.TaskID == "" || (in.Kind != "start" && in.Kind != "attach" && in.Kind != "rebind" && in.Kind != "resume") {
 			return fmt.Errorf("неизвестное намерение операции")
 		}
 		if err = p.git.CheckStart(ctx, false); err != nil {
 			return err
+		}
+		if in.Kind == "resume" && !installed && p.resumeUnchanged(ctx, in) == nil {
+			if err = op.Close(journal); err != nil {
+				return err
+			}
+			recovered = true
+			return nil
 		}
 		if in.Kind == "start" && !installed {
 			branch, err := p.git.BranchCommit(ctx, in.Branch)
