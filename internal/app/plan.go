@@ -69,6 +69,6 @@ func (p *Plans) StatusState(ctx context.Context) (task.Plan, bool, error) {
 	if err != nil || snapshot.PendingOperation {
 		return snapshot.Plan, snapshot.PendingOperation, err
 	}
-	plan, _, err := p.sync(ctx, snapshot)
+	plan, _, err := p.sync(ctx, snapshot, false)
 	return plan, false, err
 }

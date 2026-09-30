@@ -112,6 +112,10 @@ func hexID(s string) bool {
 
 // CheckStart rejects unfinished Git operations and, for switching, dirty trees.
 func (c *Client) CheckStart(ctx context.Context, switching bool) error {
+	return c.checkState(ctx, switching, false)
+}
+
+func (c *Client) checkState(ctx context.Context, switching, postMerge bool) error {
 	repo, err := c.Discover(ctx)
 	if err != nil {
 		return err
@@ -119,6 +123,15 @@ func (c *Client) CheckStart(ctx context.Context, switching bool) error {
 	for _, name := range []string{"MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-apply", "sequencer", "BISECT_START", "index.lock"} {
 		_, err := os.Lstat(filepath.Join(repo.GitDir, name))
 		if err == nil {
+			if name == "MERGE_HEAD" && postMerge {
+				completed, err := c.completedMerge(ctx, repo)
+				if err != nil {
+					return err
+				}
+				if completed {
+					continue
+				}
+			}
 			return fmt.Errorf("%w: %s", ErrInProgress, name)
 		}
 		if !os.IsNotExist(err) {

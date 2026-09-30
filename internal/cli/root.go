@@ -30,6 +30,10 @@ func Run(ctx context.Context, args []string, version string, streams Streams) in
 
 // RunWithPlans connects repository operations while preserving lazy discovery.
 func RunWithPlans(ctx context.Context, args []string, version string, streams Streams, open OpenPlans) int {
+	if len(args) > 0 && args[0] == "_hook" {
+		runHook(ctx, args[1:], streams, open)
+		return 0
+	}
 	err := execute(ctx, args, version, streams, open)
 	if err == nil {
 		return 0
@@ -71,6 +75,9 @@ func execute(ctx context.Context, args []string, version string, streams Streams
 		args = args[1:]
 	}
 	if command != "help" && command != "version" {
+		if command == "hooks" {
+			return runHooks(ctx, args[1:], streams)
+		}
 		if command == "complete" {
 			return runComplete(ctx, args[1:], streams, open)
 		}

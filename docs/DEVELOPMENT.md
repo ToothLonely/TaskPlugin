@@ -51,9 +51,9 @@ $env:GOTELEMETRY = 'off'
 
 - `cmd/git-task/main.go` соединяет сигналы отмены, потоки процесса и CLI.
   `os.Exit` вызывается после возврата `run`, когда его defer уже выполнены.
-- `internal/cli` реализует help/version/init/add/start/attach/import/export и текстовый status, синтаксические
+- `internal/cli` реализует help/version/init/add/start/attach/import/export/complete/sync/hooks и текстовый status, синтаксические
   ошибки, коды выхода и явные потоки. Справка не открывает репозиторий.
-  Status пока читает сохранённый план; tracking и --json — P09/P12.
+  Status выполняет общую сверку; --json остаётся P12.
 - `internal/app` соединяет Git, модель задач и сохранение. Зависимости собираются
   через функцию открытия, переданную из main; при ошибке синтаксиса она не вызывается.
 - `internal/storage` читает/пишет единственный plan.json с проверкой снимка,
@@ -87,6 +87,14 @@ $env:GOTELEMETRY = 'off'
 пишет файлы. `complete` явно создаёт manual-историю после preview/подтверждения.
 Baseline start/attach/rebind, условия done и неопределённости, бюджеты и
 ограничения reflog описаны в [TRACKING.md](TRACKING.md).
+
+`internal/hooks` устанавливает/удаляет локальную интеграцию и проверяет контракт
+событий; внутренний `_hook` подключает ту же app.Sync без диалога. Обёртки,
+цепочка с чужими hooks, stdin post-rewrite, scope hooksPath, журнал установки
+и ограничения описаны в [HOOKS.md](HOOKS.md). Ошибка собственного обработчика
+предупреждает и сохраняет результат чужого hook. Тесты запускает только
+проверяющий по действующим AGENTS.md/PLAN.md; исполнитель может выполнять
+форматирование, vet и build.
 
 ## Тесты
 

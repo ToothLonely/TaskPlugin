@@ -34,6 +34,14 @@ func (p *Plans) baseline(ctx context.Context, branch, tip, target, targetCommit 
 }
 
 func (p *Plans) Sync(ctx context.Context) (task.Plan, bool, error) {
+	return p.syncCurrent(ctx, false)
+}
+
+func (p *Plans) SyncAfterMerge(ctx context.Context) (task.Plan, bool, error) {
+	return p.syncCurrent(ctx, true)
+}
+
+func (p *Plans) syncCurrent(ctx context.Context, postMerge bool) (task.Plan, bool, error) {
 	snapshot, err := p.store.Load(ctx)
 	if err != nil {
 		return task.Plan{}, false, err
@@ -41,10 +49,10 @@ func (p *Plans) Sync(ctx context.Context) (task.Plan, bool, error) {
 	if snapshot.PendingOperation {
 		return snapshot.Plan, false, storage.ErrOperation
 	}
-	return p.sync(ctx, snapshot)
+	return p.sync(ctx, snapshot, postMerge)
 }
 
-func (p *Plans) sync(ctx context.Context, snapshot storage.Snapshot) (task.Plan, bool, error) {
+func (p *Plans) sync(ctx context.Context, snapshot storage.Snapshot, postMerge bool) (task.Plan, bool, error) {
 	needsTracking := false
 	for _, t := range snapshot.Plan.Tasks {
 		if t.Status == task.Active || t.Status == task.Paused {
@@ -60,7 +68,13 @@ func (p *Plans) sync(ctx context.Context, snapshot storage.Snapshot) (task.Plan,
 		return snapshot.Plan, false, nil
 	}
 	var blocked error
-	if err := p.git.CheckStart(ctx, false); err != nil {
+	checkState := func() error {
+		if postMerge {
+			return p.git.CheckPostMerge(ctx)
+		}
+		return p.git.CheckStart(ctx, false)
+	}
+	if err := checkState(); err != nil {
 		if !errors.Is(err, git.ErrInProgress) {
 			return task.Plan{}, false, err
 		}
@@ -121,7 +135,7 @@ func (p *Plans) sync(ctx context.Context, snapshot storage.Snapshot) (task.Plan,
 		}
 	}
 	if blocked == nil {
-		if err := p.git.CheckStart(ctx, false); err != nil {
+		if err := checkState(); err != nil {
 			return task.Plan{}, false, fmt.Errorf("Git изменён во время сверки: %w", err)
 		}
 	}
