@@ -22,10 +22,11 @@ func writeHelp(out io.Writer, topic string) error {
   attach          Привязать существующую ветку
   import          Импортировать Markdown или полный JSON
   export          Экспортировать снимок плана
-  status          Показать сохранённый план
+  sync            Сверить план с локальным Git
+  complete        Явно завершить задачу
+  status          Сверить и показать план
 
 Также доступны --help и --version без Git-репозитория.
-Status пока показывает сохранённые данные без сверки с Git.
 `
 	case "help":
 		text = "Использование: git task help [command]\nПоказать справку. Флаг --help разрешён до и после имени команды.\n"
@@ -36,7 +37,11 @@ Status пока показывает сохранённые данные без 
 	case "add":
 		text = "Использование: git task add <title> [--description <text>] [--after <id> / --before <id> / --end]\nДобавить задачу todo.\n"
 	case "status":
-		text = "Использование: git task status\nПоказать сохранённый план. Сверка с Git и --json пока недоступны.\n"
+		text = "Использование: git task status\nСверить и показать план. --json пока недоступен.\n"
+	case "sync":
+		text = "Использование: git task sync\nСверить active/paused с локальным Git без сети и вопросов. Недостаточные доказательства выводятся как предупреждения.\n"
+	case "complete":
+		text = "Использование: git task complete --id <id> [--commit <oid>] [--yes]\nЯвное завершение с основанием manual; commit должен входить в target_branch. Подтверждение требует терминал или --yes.\n"
 	case "start":
 		text = "Использование: git task start <branch> [--id <id> / --title <title> / --new <title> / --select] [--from <ref>] [--again]\nБез селектора выбирается первый todo; основание — target_branch. --again требует явного выбора done. --select открывает меню в терминале: номер задачи, n — новая, 0 — отмена.\n"
 	case "attach":

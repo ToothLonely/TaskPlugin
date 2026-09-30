@@ -161,10 +161,11 @@ func TestBindingArchiveAndRebind(t *testing.T) {
 	if a.ID != "active" || a.OriginalBranch != "feature" || len(a.Rebindings) != 1 || a.Branch != "other" || p.Tasks[0].Status != Paused {
 		t.Fatalf("rebind lost history: %+v", a)
 	}
-	before = snapshot(t, p)
 	changed, err = p.Rebind("task-a", "other", testOID, testTime)
-	if changed || err != nil || before != snapshot(t, p) {
-		t.Fatal("same binding is not no-op")
+	requireChange(t, changed, err)
+	a = p.Tasks[0].ActiveAttempt
+	if len(a.Rebindings) != 2 || a.Rebindings[1].From != "other" || a.Rebindings[1].To != "other" || a.BaseCommit != testOID || a.ID != "active" || p.Tasks[0].Status != Paused {
+		t.Fatalf("same-name renewal lost binding history: %+v", a)
 	}
 	changed, err = p.Archive("task-a")
 	requireChange(t, changed, err)

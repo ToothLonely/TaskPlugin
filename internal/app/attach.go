@@ -2,11 +2,14 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"git-task/internal/git"
 	"git-task/internal/storage"
 	"git-task/internal/task"
+	"git-task/internal/tracking"
 )
 
 // Attach binds an existing branch without switching, or explicitly rebinds an
@@ -42,6 +45,20 @@ func (p *Plans) Attach(ctx context.Context, branch, id string, rebind bool) (res
 		changed := false
 		if rebind {
 			in.Kind = "rebind"
+			bound, findErr := next.FindID(id)
+			if findErr != nil {
+				return findErr
+			}
+			if (bound.Status == task.Active || bound.Status == task.Paused) && bound.ActiveAttempt.Branch == branch {
+				log, logErr := p.git.BranchLog(ctx, branch)
+				if logErr != nil && !errors.Is(logErr, git.ErrHistoryUnavailable) {
+					return logErr
+				}
+				if logErr == nil && tracking.BindingContinuous(*bound.ActiveAttempt, log, commit) {
+					result = bound
+					return nil
+				}
+			}
 			changed, err = next.Rebind(id, branch, commit, now)
 		} else {
 			changed, err = next.Attach(id, task.Attempt{ID: in.ID, Branch: branch, OriginalBranch: branch, TargetBranch: in.Target, BaseCommit: commit, StartedAt: &now})
@@ -52,6 +69,14 @@ func (p *Plans) Attach(ctx context.Context, branch, id string, rebind bool) (res
 		if !changed {
 			result, _ = next.FindID(id)
 			return nil
+		}
+		observation, err := p.baseline(ctx, branch, commit, in.Target, in.TargetCommit)
+		if err != nil {
+			return err
+		}
+		bound, _ := next.FindID(id)
+		if _, err = next.Observe(id, bound.ActiveAttempt.ID, observation, nil); err != nil {
+			return err
 		}
 		journal, err := op.Prepare(ctx, base, next, in)
 		if err != nil {

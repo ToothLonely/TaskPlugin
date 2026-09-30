@@ -57,14 +57,18 @@ func (p *Plans) Add(ctx context.Context, title, description string, pos task.Pos
 	return added, nil
 }
 
-// Status reads the saved state; Git tracking is introduced in P09.
+// Status reconciles the plan with local Git before returning its state.
 func (p *Plans) Status(ctx context.Context) (task.Plan, error) {
-	snapshot, err := p.store.Load(ctx)
-	return snapshot.Plan, err
+	plan, _, err := p.StatusState(ctx)
+	return plan, err
 }
 
 // StatusState also reports an unfinished operation without repairing it.
 func (p *Plans) StatusState(ctx context.Context) (task.Plan, bool, error) {
 	snapshot, err := p.store.Load(ctx)
-	return snapshot.Plan, snapshot.PendingOperation, err
+	if err != nil || snapshot.PendingOperation {
+		return snapshot.Plan, snapshot.PendingOperation, err
+	}
+	plan, _, err := p.sync(ctx, snapshot)
+	return plan, false, err
 }

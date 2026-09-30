@@ -122,6 +122,22 @@ func runPlan(ctx context.Context, command string, args []string, streams Streams
 		return err
 	}
 	switch command {
+	case "sync":
+		plan, changed, err := plans.Sync(ctx)
+		if err != nil {
+			return err
+		}
+		if err = writeWarnings(streams.Err, plan); err != nil {
+			return fmt.Errorf("сверка выполнена; ошибка вывода: %w", err)
+		}
+		message := "План согласован с Git; изменений нет."
+		if changed {
+			message = "План обновлён по локальным данным Git."
+		}
+		if _, err = fmt.Fprintln(streams.Out, message); err != nil {
+			return fmt.Errorf("сверка выполнена; ошибка вывода: %w", err)
+		}
+		return nil
 	case "init":
 		created, unborn, err := plans.Init(ctx, parsed.target)
 		if err != nil {
@@ -161,9 +177,24 @@ func runPlan(ctx context.Context, command string, args []string, streams Streams
 				return err
 			}
 		}
+		if err = writeWarnings(streams.Err, plan); err != nil {
+			return err
+		}
 		return writeStatus(streams.Out, plan)
 	}
 	return &usageError{"неизвестная команда плана"}
+}
+
+func writeWarnings(out io.Writer, plan task.Plan) error {
+	for _, id := range plan.Order {
+		t, _ := plan.FindID(id)
+		for _, warning := range t.Warnings {
+			if _, err := fmt.Fprintf(out, "Предупреждение [%s] %s: %s\n", warning.Code, id, warning.Message); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func writeStatus(out io.Writer, plan task.Plan) error {

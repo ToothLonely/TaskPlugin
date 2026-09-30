@@ -215,13 +215,24 @@ func TestJSONImportExportPreservesStateWithoutChangingGit(t *testing.T) {
 	if err = p.ApplyImport(ctx, preview); err != nil {
 		t.Fatal(err)
 	}
-	got, err := p.Status(ctx)
-	if err != nil || !reflect.DeepEqual(got, plan) {
-		t.Fatalf("lost data: %+v %v", got, err)
+	stored, err := p.store.Load(ctx)
+	if err != nil || !reflect.DeepEqual(stored.Plan, plan) {
+		t.Fatalf("lost data: %+v %v", stored.Plan, err)
 	}
 	exported, err := p.Export(ctx, "json")
 	if err != nil || !bytes.Equal(exported, data) {
 		t.Fatalf("round-trip: %s %v", exported, err)
+	}
+	synced, err := p.Status(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"task-001", "task-002"} {
+		before, _ := plan.FindID(id)
+		after, _ := synced.FindID(id)
+		if after.Status != before.Status || !reflect.DeepEqual(after.ActiveAttempt, before.ActiveAttempt) || !reflect.DeepEqual(after.Attempts, before.Attempts) || len(after.Warnings) != 1 || after.Warnings[0].Code != "branch_missing" {
+			t.Fatalf("imported bindings trusted or history changed: %+v", after)
+		}
 	}
 	refsAfter, err := c.Run(ctx, "show-ref")
 	if err != nil || !bytes.Equal(refsAfter.Stdout, refs.Stdout) {

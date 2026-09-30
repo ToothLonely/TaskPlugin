@@ -2,11 +2,14 @@ package git
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 )
+
+var ErrInProgress = errors.New("незавершённая Git-операция")
 
 // Head records both symbolic identity and commit, including detached HEAD.
 type Head struct {
@@ -116,7 +119,7 @@ func (c *Client) CheckStart(ctx context.Context, switching bool) error {
 	for _, name := range []string{"MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-apply", "sequencer", "BISECT_START", "index.lock"} {
 		_, err := os.Lstat(filepath.Join(repo.GitDir, name))
 		if err == nil {
-			return fmt.Errorf("незавершённая Git-операция: %s", name)
+			return fmt.Errorf("%w: %s", ErrInProgress, name)
 		}
 		if !os.IsNotExist(err) {
 			return err
@@ -127,7 +130,7 @@ func (c *Client) CheckStart(ctx context.Context, switching bool) error {
 		return err
 	}
 	if len(unmerged.Stdout) != 0 {
-		return fmt.Errorf("в индексе остались неразрешённые конфликты")
+		return fmt.Errorf("%w: в индексе остались неразрешённые конфликты", ErrInProgress)
 	}
 	if switching {
 		r, err := c.Run(ctx, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=none")

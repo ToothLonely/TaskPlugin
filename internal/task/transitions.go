@@ -83,11 +83,9 @@ func (p *Plan) Rebind(id, branch, base string, observed time.Time) (bool, error)
 			return false, fmt.Errorf("%w: rebind из %s", ErrTransition, t.Status)
 		}
 		a := t.ActiveAttempt
-		if a.Branch == branch {
-			return false, nil
-		}
 		a.Rebindings = append(a.Rebindings, Rebinding{From: a.Branch, To: branch, BaseCommit: base, ObservedAt: observed})
 		a.Branch, a.BaseCommit = branch, base
+		a.Observation = nil
 		t.Warnings = nil
 		return true, nil
 	})

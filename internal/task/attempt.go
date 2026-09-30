@@ -21,14 +21,23 @@ const (
 
 // Attempt is active when Completion is nil; only completed attempts enter history.
 type Attempt struct {
-	ID             string      `json:"id"`
-	Branch         string      `json:"branch,omitempty"`
-	OriginalBranch string      `json:"original_branch,omitempty"`
-	TargetBranch   string      `json:"target_branch,omitempty"`
-	BaseCommit     string      `json:"base_commit,omitempty"`
-	StartedAt      *time.Time  `json:"started_at,omitempty"`
-	Rebindings     []Rebinding `json:"rebindings,omitempty"`
-	Completion     *Completion `json:"completion,omitempty"`
+	ID             string       `json:"id"`
+	Branch         string       `json:"branch,omitempty"`
+	OriginalBranch string       `json:"original_branch,omitempty"`
+	TargetBranch   string       `json:"target_branch,omitempty"`
+	BaseCommit     string       `json:"base_commit,omitempty"`
+	StartedAt      *time.Time   `json:"started_at,omitempty"`
+	Rebindings     []Rebinding  `json:"rebindings,omitempty"`
+	Completion     *Completion  `json:"completion,omitempty"`
+	Observation    *Observation `json:"observation,omitempty"`
+}
+
+type Observation struct {
+	Tip          string `json:"tip"`
+	TargetCommit string `json:"target_commit"`
+	WorkCommit   string `json:"work_commit,omitempty"`
+	BranchLog    string `json:"branch_log,omitempty"`
+	TargetLog    string `json:"target_log,omitempty"`
 }
 
 // Rebinding preserves the previous binding and records its replacement baseline.
@@ -61,6 +70,10 @@ func cloneTime(t *time.Time) *time.Time {
 }
 
 func (a Attempt) clone() Attempt {
+	if a.Observation != nil {
+		o := *a.Observation
+		a.Observation = &o
+	}
 	a.StartedAt = cloneTime(a.StartedAt)
 	a.Rebindings = append([]Rebinding(nil), a.Rebindings...)
 	if a.Completion != nil {

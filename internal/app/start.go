@@ -138,6 +138,10 @@ func (p *Plans) Start(ctx context.Context, options StartOptions) (result task.Ta
 		}
 		now := time.Now().UTC()
 		attempt := task.Attempt{ID: intent.ID, Branch: intent.Branch, OriginalBranch: intent.Branch, TargetBranch: intent.Target, BaseCommit: intent.Base, StartedAt: &now}
+		attempt.Observation, err = p.baseline(ctx, "", intent.Base, intent.Target, intent.TargetCommit)
+		if err != nil {
+			return err
+		}
 		if _, err = next.Start(selected.ID, attempt, options.Again); err != nil {
 			return err
 		}

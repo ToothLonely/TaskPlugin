@@ -197,6 +197,14 @@ func (a Attempt) validate() error {
 		return invalid("ID или дата подхода")
 	}
 	bound := a.Branch != ""
+	if o := a.Observation; o != nil {
+		if !bound || !validOID(o.Tip) || !validOID(o.TargetCommit) || o.WorkCommit != "" && !validOID(o.WorkCommit) || o.BranchLog != "" && !validDigest(o.BranchLog) || o.TargetLog != "" && !validDigest(o.TargetLog) {
+			return invalid("некорректное наблюдение подхода")
+		}
+		if o.WorkCommit != "" && (o.BranchLog == "" || o.TargetLog == "") {
+			return invalid("работа требует непрерывных журналов")
+		}
+	}
 	if bound {
 		if !validBranch(a.Branch) || !validBranch(a.OriginalBranch) || !validBranch(a.TargetBranch) || a.Branch == a.TargetBranch || a.OriginalBranch == a.TargetBranch || !validOID(a.BaseCommit) || a.StartedAt == nil {
 			return invalid("неполная привязка подхода %q", a.ID)
@@ -206,7 +214,7 @@ func (a Attempt) validate() error {
 	}
 	branch := a.OriginalBranch
 	for _, r := range a.Rebindings {
-		if r.From != branch || !validBranch(r.To) || r.From == r.To || r.To == a.TargetBranch || !validOID(r.BaseCommit) || r.ObservedAt.IsZero() || !validTime(&r.ObservedAt) {
+		if r.From != branch || !validBranch(r.To) || r.To == a.TargetBranch || !validOID(r.BaseCommit) || r.ObservedAt.IsZero() || !validTime(&r.ObservedAt) {
 			return invalid("некорректная история перепривязок")
 		}
 		branch = r.To
@@ -246,4 +254,16 @@ func (a Attempt) validate() error {
 		return invalid("неизвестное основание завершения %q", c.Source)
 	}
 	return nil
+}
+
+func validDigest(s string) bool {
+	if len(s) != 64 {
+		return false
+	}
+	for _, c := range s {
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+			return false
+		}
+	}
+	return true
 }
