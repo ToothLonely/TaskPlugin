@@ -167,20 +167,6 @@ func runPlan(ctx context.Context, command string, args []string, streams Streams
 			return fmt.Errorf("задача %s уже добавлена; не удалось вывести результат: %w", added.ID, err)
 		}
 		return err
-	case "status":
-		plan, pending, err := plans.StatusState(ctx)
-		if err != nil {
-			return err
-		}
-		if pending {
-			if _, err = fmt.Fprintln(streams.Err, "Предупреждение: незавершённая операция в operation.json; изменения заблокированы до явного восстановления."); err != nil {
-				return err
-			}
-		}
-		if err = writeWarnings(streams.Err, plan); err != nil {
-			return err
-		}
-		return writeStatus(streams.Out, plan)
 	}
 	return &usageError{"неизвестная команда плана"}
 }
@@ -195,21 +181,4 @@ func writeWarnings(out io.Writer, plan task.Plan) error {
 		}
 	}
 	return nil
-}
-
-func writeStatus(out io.Writer, plan task.Plan) error {
-	var text strings.Builder
-	fmt.Fprintf(&text, "Целевая ветка: %s\n", plan.TargetBranch)
-	if len(plan.Order) == 0 {
-		text.WriteString("План пуст.\n")
-	}
-	for _, id := range plan.Order {
-		t, err := plan.FindID(id)
-		if err != nil {
-			return err
-		}
-		fmt.Fprintf(&text, "%s [%s] %s — %s\n", t.Number, t.ID, t.Status, t.Title)
-	}
-	_, err := io.WriteString(out, text.String())
-	return err
 }

@@ -91,7 +91,13 @@ func execute(ctx context.Context, args []string, version string, streams Streams
 		if command == "start" || command == "attach" {
 			return runStart(ctx, command, args[1:], streams, open)
 		}
-		if command == "init" || command == "add" || command == "status" || command == "sync" {
+		if command == "status" {
+			return runStatus(ctx, args[1:], streams, open)
+		}
+		if command == "show" {
+			return runShow(ctx, args[1:], streams, open)
+		}
+		if command == "init" || command == "add" || command == "sync" {
 			return runPlan(ctx, command, args[1:], streams, open)
 		}
 		if planned(command) {

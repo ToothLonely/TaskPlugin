@@ -15,7 +15,7 @@ import (
 func TestPlanArgumentErrorsBeforeOpeningRepository(t *testing.T) {
 	for _, args := range [][]string{
 		{"init", "extra"}, {"init", "--target"}, {"init", "--target=main", "--target", "other"},
-		{"init", "--target="}, {"status", "extra"}, {"status", "--json"}, {"add"}, {"add", " "},
+		{"init", "--target="}, {"status", "extra"}, {"status", "--json=false"}, {"add"}, {"add", " "},
 		{"add", "one", "two"}, {"add", "x", "--description"}, {"add", "x", "--end=false"},
 		{"add", "x", "--before=a", "--after=b"}, {"add", "x", "--end", "--end"},
 		{"add", "x", "--after="}, {"add", "x", "--help", "--help"}, {"init", "--wat"},

@@ -30,6 +30,7 @@ func writeHelp(out io.Writer, topic string) error {
   sync            Сверить план с локальным Git
   complete        Явно завершить задачу
   status          Сверить и показать план
+  show            Показать задачу и историю без сверки
   hooks           Установить или удалить локальные hooks
 
 Также доступны --help и --version без Git-репозитория.
@@ -43,7 +44,9 @@ func writeHelp(out io.Writer, topic string) error {
 	case "add":
 		text = "Использование: git task add <title> [--description <text>] [--after <id> / --before <id> / --end]\nДобавить задачу todo.\n"
 	case "status":
-		text = "Использование: git task status\nСверить и показать план. --json пока недоступен.\n"
+		text = "Использование: git task status [--json]\nЛокальная сверка без сети; прогресс, все active/paused, последнее завершение и первый todo. JSON schema_version=1: docs/STATUS.md.\n"
+	case "show":
+		text = "Использование: git task show --id <id>\nПрочитать задачу, description, текущий подход и завершённую историю, включая archived. Без sync и записи; предупреждения сохранённые.\n"
 	case "sync":
 		text = "Использование: git task sync\nСверить active/paused с локальным Git без сети и вопросов. Недостаточные доказательства выводятся как предупреждения.\n"
 	case "hooks":
