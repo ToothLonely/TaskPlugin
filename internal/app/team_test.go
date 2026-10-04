@@ -21,6 +21,7 @@ type teamFixture struct {
 	ca, cb *git.Client
 	remote string
 	id     string
+	clone  func(string) (*Plans, *git.Client)
 }
 
 func teamNetwork(t *testing.T, c *git.Client, args ...string) []byte {
@@ -78,7 +79,7 @@ func newTeamFixture(t *testing.T) teamFixture {
 	if err := b.Connect(ctx, "origin"); err != nil {
 		t.Fatal(err)
 	}
-	return teamFixture{a: a, b: b, ca: ca, cb: cb, remote: remote, id: item.ID}
+	return teamFixture{a: a, b: b, ca: ca, cb: cb, remote: remote, id: item.ID, clone: openClone}
 }
 
 func TestTeamTwoRealClonesOfflineStartsAndAllDone(t *testing.T) {

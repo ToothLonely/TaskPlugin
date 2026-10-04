@@ -1,4 +1,5 @@
-param([string]$Docker = 'docker', [switch]$UseExistingImage)
+param([string]$Docker = 'docker', [switch]$UseExistingImage,
+    [ValidateSet('P15', 'P18')][string]$Stage = 'P15')
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
@@ -20,9 +21,10 @@ $dockerArgs = @(
     '--mount', "type=bind,source=$projectRoot/go.mod,target=/source/go.mod,readonly",
     '--mount', "type=bind,source=$projectRoot/cmd,target=/source/cmd,readonly",
     '--mount', "type=bind,source=$projectRoot/internal,target=/source/internal,readonly",
+    '--mount', "type=bind,source=$projectRoot/scripts,target=/source/scripts,readonly",
     '--mount', "type=bind,source=$PSScriptRoot/check-linux.sh,target=/check.sh,readonly",
     '--entrypoint', 'bash',
-    $checkImage, '-c', "set -o pipefail; tr -d '\r' < /check.sh | bash"
+    $checkImage, '-c', "set -o pipefail; tr -d '\r' < /check.sh | bash -s -- $Stage"
 )
 $ErrorActionPreference = 'Continue'
 & $Docker @dockerArgs

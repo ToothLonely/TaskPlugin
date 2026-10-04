@@ -1,0 +1,73 @@
+name: Integration matrix
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: P18 enables the final full test suite
+        type: choice
+        options: [P15, P18]
+        default: P15
+permissions:
+  contents: read
+jobs:
+  integration:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-15-intel]
+        go: ['1.26.0', '1.26.8']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version: ${{ matrix.go }}
+          cache: false
+      - name: Prepare minimum Git inside workspace
+        run: ./scripts/prepare-ci-git.ps1
+      - name: Selected integration checks (full only on explicit P18 dispatch)
+        run: ./scripts/check.ps1 -Stage '${{ inputs.stage || 'P15' }}'
+      - name: Selected race checks
+        if: runner.os != 'Windows'
+        env:
+          CGO_ENABLED: '1'
+        run: ./scripts/check.ps1 -Mode Race
+      - name: Fuzz strict parsers
+        if: runner.os == 'Linux' && matrix.go == '1.26.8'
+        run: ./scripts/check.ps1 -Mode Fuzz
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.26.8'
+          cache: false
+      - name: Prepare security tool locally
+        shell: pwsh
+        run: |
+          $env:GOBIN = "$PWD/.tools/security/bin"
+          $env:GOMODCACHE = "$PWD/.tools/security/modcache"
+          $env:GOCACHE = "$PWD/.tools/security/cache"
+          $env:GOTOOLCHAIN = 'local'
+          go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+          if ($LASTEXITCODE -ne 0) { throw 'govulncheck preparation failed' }
+      - name: Prepare minimum Git inside workspace
+        shell: pwsh
+        run: ./scripts/prepare-ci-git.ps1
+      - name: Check reachable vulnerabilities (public database)
+        shell: pwsh
+        run: |
+          ./scripts/check.ps1 -Mode Security -Govulncheck "$PWD/.tools/security/bin/govulncheck"
