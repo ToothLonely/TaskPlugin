@@ -56,7 +56,8 @@ func TestLifecycleAndDelayedCompletion(t *testing.T) {
 	}
 	changed, err = p.Resume("task-a")
 	requireChange(t, changed, err)
-	if !reflect.DeepEqual(before.ActiveAttempt, p.Tasks[0].ActiveAttempt) || len(p.Tasks[0].Attempts) != 0 {
+	before.ActiveAttempt.Status = Active
+	if !reflect.DeepEqual(before.ActiveAttempt, p.Tasks[0].ActiveAttempt) || len(p.Tasks[0].Attempts) != 1 {
 		t.Fatal("pause/resume changed attempt")
 	}
 	c := Completion{Source: Merge, TargetBranch: "main", MergeKind: FastForward, Commit: testOID, WorkCommit: strings.Repeat("b", 40), ObservedAt: &testTime}
@@ -72,7 +73,7 @@ func TestLifecycleAndDelayedCompletion(t *testing.T) {
 	}
 	changed, err = p.Start("task-a", attempt("attempt-2", "feature-2"), true)
 	requireChange(t, changed, err)
-	if !reflect.DeepEqual(history, p.Tasks[0].Attempts) {
+	if !reflect.DeepEqual(history, p.Tasks[0].Attempts[:len(history)]) {
 		t.Fatal("restart altered history")
 	}
 	rev := p.Revision
@@ -96,13 +97,19 @@ func TestTransitionMatrix(t *testing.T) {
 		noops   map[Status]bool
 	}
 	actions := []action{
-		{"start", func(p *Plan) (bool, error) { return p.Start("task-a", attempt("new", "new-branch"), false) }, map[Status]bool{Todo: true}, nil},
+		{"start", func(p *Plan) (bool, error) { return p.Start("task-a", attempt("new", "new-branch"), false) }, map[Status]bool{Todo: true, Active: true, Paused: true}, nil},
 		{"again", func(p *Plan) (bool, error) { return p.Start("task-a", attempt("new", "new-branch"), true) }, map[Status]bool{Done: true}, nil},
-		{"attach", func(p *Plan) (bool, error) { return p.Attach("task-a", attempt("new", "new-branch")) }, map[Status]bool{Todo: true}, nil},
+		{"attach", func(p *Plan) (bool, error) { return p.Attach("task-a", attempt("new", "new-branch")) }, map[Status]bool{Todo: true, Active: true, Paused: true}, nil},
 		{"pause", func(p *Plan) (bool, error) { return p.Pause("task-a") }, map[Status]bool{Active: true, Paused: true}, map[Status]bool{Paused: true}},
 		{"resume", func(p *Plan) (bool, error) { return p.Resume("task-a") }, map[Status]bool{Paused: true}, nil},
 		{"archive", func(p *Plan) (bool, error) { return p.Archive("task-a") }, map[Status]bool{Todo: true, Active: true, Paused: true, Done: true, Archived: true}, map[Status]bool{Archived: true}},
-		{"manual", func(p *Plan) (bool, error) { return p.CompleteManual("task-a", "manual-1", "", testTime) }, map[Status]bool{Todo: true, Active: true, Paused: true, Done: true}, map[Status]bool{Done: true}},
+		{"manual", func(p *Plan) (bool, error) {
+			id := ""
+			if p.Tasks[0].Status == Todo {
+				id = "manual-1"
+			}
+			return p.CompleteManual("task-a", id, "", testTime)
+		}, map[Status]bool{Todo: true, Active: true, Paused: true, Done: true}, map[Status]bool{Done: true}},
 		{"rebind", func(p *Plan) (bool, error) { return p.Rebind("task-a", "replacement", testOID, testTime) }, map[Status]bool{Active: true, Paused: true}, nil},
 	}
 	for _, status := range []Status{Todo, Active, Paused, Done, Archived} {
@@ -171,7 +178,7 @@ func TestBindingArchiveAndRebind(t *testing.T) {
 	requireChange(t, changed, err)
 	changed, err = p.Attach("task-b", attempt("second", "other"))
 	requireChange(t, changed, err)
-	if p.Tasks[0].ActiveAttempt == nil || len(p.Tasks[0].Attempts) != 0 {
+	if p.Tasks[0].ActiveAttempt == nil || len(p.Tasks[0].Attempts) != 1 {
 		t.Fatal("archive fabricated completion or lost snapshot")
 	}
 }
@@ -200,7 +207,7 @@ func TestCompletionSourcesAndEventOrder(t *testing.T) {
 	}
 	changed, err = p.Start("task-b", attempt("again", "branch"), true)
 	requireChange(t, changed, err)
-	changed, err = p.CompleteManual("task-b", "ignored", testOID, testTime.Add(-time.Hour))
+	changed, err = p.CompleteManual("task-b", "", testOID, testTime.Add(-time.Hour))
 	requireChange(t, changed, err)
 	if p.LastEvent != 3 || p.Tasks[1].Attempts[1].ID != "again" {
 		t.Fatal("clock rollback affected event order")
@@ -307,7 +314,7 @@ func TestAgainThroughBothSelectors(t *testing.T) {
 			}
 			changed, err := p.Start(selected.ID, attempt("retry", "retry-branch"), true)
 			requireChange(t, changed, err)
-			if p.Tasks[0].Status != Active || len(p.Tasks[0].Attempts) != 1 {
+			if p.Tasks[0].Status != Active || len(p.Tasks[0].Attempts) != 2 {
 				t.Fatal("selector changed restart semantics")
 			}
 			first, err := p.FirstTodo()

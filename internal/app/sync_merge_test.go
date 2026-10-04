@@ -52,7 +52,7 @@ func TestSyncAfterMergeUsesCommonTracking(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if item.Status != task.Active || !reflect.DeepEqual(item.ActiveAttempt, active.ActiveAttempt) || len(item.Attempts) != 0 || len(item.Warnings) != 1 || item.Warnings[0].Code != "git_in_progress" {
+		if item.Status != task.Active || !reflect.DeepEqual(item.ActiveAttempt, active.ActiveAttempt) || len(item.Attempts) != 1 || len(item.Warnings) != 1 || item.Warnings[0].Code != "git_in_progress" {
 			t.Fatalf("ordinary sync bypassed guard: %+v", item)
 		}
 	}

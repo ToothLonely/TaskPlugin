@@ -10,11 +10,12 @@ import (
 )
 
 func runComplete(ctx context.Context, args []string, streams Streams, open OpenPlans) error {
-	var id, commit string
+	var id, commit, attemptID string
 	var yes, help bool
 	fs := flag.NewFlagSet("complete", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	fs.StringVar(&id, "id", "", "ID задачи")
+	fs.StringVar(&attemptID, "attempt", "", "ID подхода")
 	fs.StringVar(&commit, "commit", "", "commit завершения")
 	fs.BoolVar(&yes, "yes", false, "подтвердить завершение")
 	fs.BoolVar(&help, "help", false, "показать справку")
@@ -39,7 +40,7 @@ func runComplete(ctx context.Context, args []string, streams Streams, open OpenP
 			if err := fs.Parse([]string{name}); err != nil {
 				return &usageError{err.Error()}
 			}
-		case "--id", "--commit":
+		case "--id", "--commit", "--attempt":
 			if !valued {
 				i++
 				if i == len(args) || strings.HasPrefix(args[i], "--") {
@@ -70,7 +71,7 @@ func runComplete(ctx context.Context, args []string, streams Streams, open OpenP
 	if err != nil {
 		return err
 	}
-	preview, err := plans.PrepareComplete(ctx, id, commit)
+	preview, err := plans.PrepareComplete(ctx, id, commit, attemptID)
 	if err != nil {
 		return err
 	}
@@ -92,7 +93,7 @@ func runComplete(ctx context.Context, args []string, streams Streams, open OpenP
 	if err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(streams.Out, "%s [%s] done — %s\n", item.Number, item.ID, item.Title); err != nil {
+	if _, err := fmt.Fprintf(streams.Out, "%s [%s] %s — %s\n", item.Number, item.ID, item.Status, item.Title); err != nil {
 		return fmt.Errorf("задача уже завершена; ошибка вывода: %w", err)
 	}
 	return nil

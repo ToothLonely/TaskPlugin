@@ -30,7 +30,7 @@ func TestJSONLifecycleRoundTrip(t *testing.T) {
 		}
 		_, hasHistory := raw.Tasks[0]["attempts"]
 		_, hasActive := raw.Tasks[0]["active_attempt"]
-		if hasHistory != history || hasActive != active {
+		if hasHistory != (history || active) || hasActive {
 			t.Fatalf("unexpected JSON fields: %s", data)
 		}
 		var decoded Plan
@@ -57,7 +57,7 @@ func TestJSONLifecycleRoundTrip(t *testing.T) {
 	changed, err = p.Rebind("task-a", "replacement", testOID, testTime)
 	requireChange(t, changed, err)
 	check(false, true)
-	changed, err = p.CompleteManual("task-a", "ignored", "", testTime)
+	changed, err = p.CompleteManual("task-a", "", "", testTime)
 	requireChange(t, changed, err)
 	check(true, false)
 	changed, err = p.Start("task-a", attempt("second", "next"), true)
@@ -99,7 +99,7 @@ func TestJSONRejectsMalformedWithoutReplacingReceiver(t *testing.T) {
 	cases := map[string]string{
 		"unknown status":    strings.Replace(base, `"status":"todo"`, `"status":"pending"`, 1),
 		"null status":       strings.Replace(base, `"status":"todo"`, `"status":null`, 1),
-		"unknown schema":    strings.Replace(base, `"schema_version":1`, `"schema_version":2`, 1),
+		"unknown schema":    strings.Replace(base, `"schema_version":2`, `"schema_version":99`, 1),
 		"foreign format":    strings.Replace(base, `"format":"git-task"`, `"format":"other"`, 1),
 		"duplicate key":     strings.Replace(base, `"status":"todo"`, `"status":"done","status":"todo"`, 1),
 		"unknown field":     strings.Replace(base, `"status":"todo"`, `"status":"todo","typo":true`, 1),
@@ -145,7 +145,7 @@ func TestValidateInvalidSnapshots(t *testing.T) {
 		{"unknown tail", func(p *Plan) { p.InsertionTail = "unknown" }},
 		{"bad status", func(p *Plan) { p.Tasks[0].Status = "TODO" }},
 		{"done without history", func(p *Plan) { p.Tasks[0].Status = Done; p.Tasks[0].ActiveAttempt = nil }},
-		{"active without attempt", func(p *Plan) { p.Tasks[0].ActiveAttempt = nil }},
+		{"active without attempt", func(p *Plan) { p.Tasks[0].Attempts = nil; p.Tasks[0].ActiveAttempt = nil }},
 		{"todo with attempt", func(p *Plan) { p.Tasks[0].Status = Todo }},
 		{"history without completion", func(p *Plan) { p.Tasks[0].Attempts = []Attempt{attempt("old", "old-branch")} }},
 		{"target mismatch", func(p *Plan) { p.TargetBranch = "other" }},
@@ -194,16 +194,16 @@ func TestInvalidCompletionIsAtomic(t *testing.T) {
 }
 
 func FuzzPlanJSON(f *testing.F) {
-	const todo = `{"format":"git-task","schema_version":1,"revision":0,"target_branch":"main","order":["task-a"],"tasks":[{"id":"task-a","number":"T-001","title":"original","revision":0,"status":"todo"}],"last_event":0}`
+	const todo = `{"format":"git-task","schema_version":2,"revision":0,"target_branch":"main","order":["task-a"],"tasks":[{"id":"task-a","number":"T-001","title":"original","revision":0,"status":"todo"}],"last_event":0}`
 	for _, title := range []string{`\ud800`, `\udc00`, `\ud800X`, `\ud83d\ude80`, `\ufffd`, `\\ud800`} {
 		f.Add([]byte(strings.Replace(todo, `"original"`, `"`+title+`"`, 1)))
 	}
 	for _, offset := range []string{"+24:00", "+03:60", "+03:30", "-23:59"} {
-		data := strings.Replace(todo, `"status":"todo"`, `"status":"done","attempts":[{"id":"imported","completion":{"event":1,"source":"imported","target_branch":"main","observed_at":"2026-09-27T10:00:00`+offset+`"}}]`, 1)
+		data := strings.Replace(todo, `"status":"todo"`, `"status":"done","attempts":[{"id":"imported","status":"done","completion":{"event":1,"source":"imported","target_branch":"main","observed_at":"2026-09-27T10:00:00`+offset+`"}}]`, 1)
 		data = strings.Replace(data, `"last_event":0`, `"last_event":1,"insertion_tail":"task-a"`, 1)
 		f.Add([]byte(data))
 	}
-	f.Add([]byte(`{"format":"git-task","schema_version":1,"revision":0,"target_branch":"main","order":[],"tasks":[],"last_event":0}`))
+	f.Add([]byte(`{"format":"git-task","schema_version":2,"revision":0,"target_branch":"main","order":[],"tasks":[],"last_event":0}`))
 	f.Add([]byte(`{"tasks":[{"attempts":null}]}`))
 	f.Fuzz(func(t *testing.T, data []byte) {
 		var p Plan

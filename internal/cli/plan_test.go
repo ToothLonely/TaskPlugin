@@ -74,12 +74,15 @@ func TestPlanCommandsFromNestedDirectory(t *testing.T) {
 		t.Helper()
 		var out, diagnostic bytes.Buffer
 		code := RunWithPlans(context.Background(), args, "test", Streams{Out: &out, Err: &diagnostic}, open)
+		if code == 0 && len(args) > 0 && args[0] == "add" {
+			testrepo.FixturePlanFile(t, c)
+		}
 		return code, out.String(), diagnostic.String()
 	}
 	if code, out, err := run("init"); code != 0 || !strings.Contains(out, "План создан") || !strings.Contains(err, "ещё нет commit") {
 		t.Fatalf("init: %d %q %q", code, out, err)
 	}
-	if code, out, err := run("add", "Первая", "--description", "Описание"); code != 0 || !strings.Contains(out, "task-001") || err != "" {
+	if code, out, err := run("add", "Первая", "--description", "Описание"); code != 0 || !strings.Contains(out, "T-001") || err != "" {
 		t.Fatalf("add: %d %q %q", code, out, err)
 	}
 	if code, out, err := run("add", "--before", "task-001", "Вторая"); code != 0 || err != "" {
@@ -96,9 +99,10 @@ func TestPlanCommandsFromNestedDirectory(t *testing.T) {
 	}
 	var failedDiagnostic bytes.Buffer
 	code := RunWithPlans(context.Background(), []string{"add", "Успешно сохранена"}, "test", Streams{Out: failedWriter{}, Err: &failedDiagnostic}, open)
-	if code != 1 || !strings.Contains(failedDiagnostic.String(), "task-003 уже добавлена") {
+	if code != 1 || !strings.Contains(failedDiagnostic.String(), "уже добавлена") {
 		t.Fatalf("write failure: %d %q", code, &failedDiagnostic)
 	}
+	testrepo.FixturePlanFile(t, c)
 	plans, err := open(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -115,7 +119,7 @@ func TestPlanCommandsFromNestedDirectory(t *testing.T) {
 		t.Fatalf("metadata in nested cwd: %v", err)
 	}
 	testrepo.Commit(t, c)
-	if code, out, diagnostic := run("start", "profile", "--title", "Первая"); code != 0 || !strings.Contains(out, "task-001") || diagnostic != "" {
+	if code, out, diagnostic := run("start", "profile", "--title", "Первая"); code != 0 || !strings.Contains(out, "T-001") || diagnostic != "" {
 		t.Fatalf("start title: %d %q %q", code, out, diagnostic)
 	}
 	if code, out, diagnostic := run("start", "next"); code != 0 || !strings.Contains(out, "task-002") || diagnostic != "" {

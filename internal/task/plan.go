@@ -8,20 +8,23 @@ import (
 // Format and SchemaVersion identify this plan representation.
 const (
 	Format        = "git-task"
-	SchemaVersion = 1
+	SchemaVersion = 2
 )
 
 // Plan keeps explicit order separate from stable task identities.
 // Callers must serialize access; Revision does not replace a storage lock.
 type Plan struct {
-	Format        string   `json:"format"`
-	SchemaVersion int      `json:"schema_version"`
-	Revision      uint64   `json:"revision"`
-	TargetBranch  string   `json:"target_branch"`
-	Order         []string `json:"order"`
-	Tasks         []Task   `json:"tasks"`
-	LastEvent     uint64   `json:"last_event"`
-	InsertionTail string   `json:"insertion_tail,omitempty"`
+	Format        string        `json:"format"`
+	SchemaVersion int           `json:"schema_version"`
+	Revision      uint64        `json:"revision"`
+	TargetBranch  string        `json:"target_branch"`
+	Order         []string      `json:"order"`
+	Tasks         []Task        `json:"tasks"`
+	LastEvent     uint64        `json:"last_event"`
+	InsertionTail string        `json:"insertion_tail,omitempty"`
+	Team          *TeamState    `json:"team,omitempty"`
+	Actions       []Receipt     `json:"actions,omitempty"`
+	ServerEvents  []ServerEvent `json:"server_events,omitempty"`
 }
 
 // NewPlan returns an empty plan for a literal local target branch.
@@ -93,6 +96,12 @@ func (p *Plan) change(id string, apply func(*Plan, *Task) (bool, error)) (bool, 
 		return false, err
 	}
 	next := *p
+	if p.Team != nil {
+		team := *p.Team
+		team.Pending = append([]Action(nil), p.Team.Pending...)
+		team.LocalAttempts = append([]string(nil), p.Team.LocalAttempts...)
+		next.Team = &team
+	}
 	next.Tasks = append([]Task(nil), p.Tasks...)
 	next.Tasks[i] = p.Tasks[i].clone()
 	changed, err := apply(&next, &next.Tasks[i])

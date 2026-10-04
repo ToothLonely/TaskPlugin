@@ -30,6 +30,7 @@ func parseStartArgs(command string, args []string) (startArgs, error) {
 		fs.BoolVar(&result.selectMenu, "select", false, "")
 	} else {
 		fs.BoolVar(&result.rebind, "rebind", false, "")
+		fs.StringVar(&result.options.AttemptID, "attempt", "", "")
 	}
 	seen := map[string]bool{}
 	var positionals []string
@@ -96,6 +97,9 @@ func parseStartArgs(command string, args []string) (startArgs, error) {
 	if command == "attach" && !result.help && !seen["--id"] {
 		return result, &usageError{"attach требует --id"}
 	}
+	if seen["--attempt"] && !result.rebind {
+		return result, &usageError{"--attempt требует attach --rebind"}
+	}
 	return result, nil
 }
 
@@ -129,12 +133,12 @@ func runStart(ctx context.Context, command string, args []string, streams Stream
 		}
 		result, err = plans.Start(ctx, parsed.options)
 	} else {
-		result, err = plans.Attach(ctx, parsed.options.Branch, parsed.options.ID, parsed.rebind)
+		result, err = plans.Attach(ctx, parsed.options.Branch, parsed.options.ID, parsed.rebind, parsed.options.AttemptID)
 	}
 	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(streams.Out, "Задача %s [%s] active: %s\n", result.Number, result.ID, result.ActiveAttempt.Branch)
+	_, err = fmt.Fprintf(streams.Out, "Задача %s [%s] %s: %s\n", result.Number, result.ID, result.Status, parsed.options.Branch)
 	if err != nil {
 		return fmt.Errorf("операция выполнена; не удалось вывести результат: %w", err)
 	}

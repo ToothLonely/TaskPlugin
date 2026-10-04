@@ -92,6 +92,7 @@ func newHookFixture(t *testing.T, binary string) hookFixture {
 	f.commit("base")
 	f.cli("init")
 	f.cli("add", "Задача hooks")
+	testrepo.FixturePlanFile(t, c)
 	return f
 }
 
@@ -249,7 +250,7 @@ func TestRealHooks(t *testing.T) {
 		}
 		out := f.cli("_hook", "post-merge", "0")
 		item := f.saved()
-		if item.Status != task.Active || item.ActiveAttempt == nil || item.ActiveAttempt.ID != active.ActiveAttempt.ID || len(item.Attempts) != 0 || len(item.Warnings) != 1 || item.Warnings[0].Code != "git_in_progress" || !strings.Contains(string(out), "Предупреждение") {
+		if item.Status != task.Active || item.ActiveAttempt == nil || item.ActiveAttempt.ID != active.ActiveAttempt.ID || len(item.Attempts) != 1 || len(item.Warnings) != 1 || item.Warnings[0].Code != "git_in_progress" || !strings.Contains(string(out), "Предупреждение") {
 			t.Fatalf("unfinished merge accepted: %+v\n%s", item, out)
 		}
 		after, err := os.ReadFile(mergePath)
@@ -280,7 +281,7 @@ func TestRealHooks(t *testing.T) {
 			t.Fatal("conflict prematurely completed task")
 		}
 		f.cli("_hook", "post-merge", "0")
-		if item := f.saved(); item.Status != task.Active || len(item.Attempts) != 0 || len(item.Warnings) != 1 || item.Warnings[0].Code != "git_in_progress" {
+		if item := f.saved(); item.Status != task.Active || len(item.Attempts) != 1 || len(item.Warnings) != 1 || item.Warnings[0].Code != "git_in_progress" {
 			t.Fatalf("hook bypassed conflict: %+v", item)
 		}
 		f.write("base.txt", "resolved\n")
@@ -298,7 +299,7 @@ func TestRealHooks(t *testing.T) {
 		f.runGit("checkout", "main")
 		f.runGit("merge", "--squash", "feature")
 		f.commit("squashed")
-		if got := f.saved(); got.Status != task.Active || len(got.Attempts) != 0 {
+		if got := f.saved(); got.Status != task.Active || len(got.Attempts) != 1 {
 			t.Fatalf("false squash completion: %+v", got)
 		}
 	})
@@ -432,7 +433,7 @@ cat > foreign-rewrite-input`)
 		if data, err := os.ReadFile(filepath.Join(f.git.Dir, "foreign-rewrite-args")); err != nil || string(data) != "rebase\n" {
 			t.Fatalf("rebase argv: %q %v", data, err)
 		}
-		if got := f.saved(); got.Status != task.Active || len(got.Attempts) != 0 {
+		if got := f.saved(); got.Status != task.Active || len(got.Attempts) != 1 {
 			t.Fatalf("rebase falsely completed: %+v", got)
 		}
 	})

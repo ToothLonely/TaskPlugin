@@ -22,6 +22,8 @@ const (
 // Attempt is active when Completion is nil; only completed attempts enter history.
 type Attempt struct {
 	ID             string       `json:"id"`
+	Author         string       `json:"author,omitempty"`
+	Status         Status       `json:"status"`
 	Branch         string       `json:"branch,omitempty"`
 	OriginalBranch string       `json:"original_branch,omitempty"`
 	TargetBranch   string       `json:"target_branch,omitempty"`
@@ -59,6 +61,7 @@ type Completion struct {
 	Commit       string     `json:"commit,omitempty"`
 	MergeKind    MergeKind  `json:"merge_kind,omitempty"`
 	WorkCommit   string     `json:"work_commit,omitempty"`
+	TargetBefore string     `json:"target_before,omitempty"`
 }
 
 func cloneTime(t *time.Time) *time.Time {

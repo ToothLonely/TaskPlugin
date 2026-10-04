@@ -89,7 +89,7 @@ func TestBinaryCommands(t *testing.T) {
 		want string
 	}{
 		{[]string{"init"}, "План создан"},
-		{[]string{"add", "Реальная задача"}, "task-001"},
+		{[]string{"add", "Реальная задача"}, "T-001"},
 		{[]string{"status"}, "todo — Реальная задача"},
 		{[]string{"init"}, "уже инициализирован"},
 	} {
@@ -121,7 +121,7 @@ func TestBinaryCommands(t *testing.T) {
 	startCommand := exec.CommandContext(ctx, binary, "start", "feature")
 	startCommand.Dir, startCommand.Env = c.Dir, c.Env
 	output, err = startCommand.CombinedOutput()
-	if err != nil || !strings.Contains(string(output), "task-001") || !strings.Contains(string(output), "active: feature") {
+	if err != nil || !strings.Contains(string(output), "T-001") || !strings.Contains(string(output), "active: feature") {
 		t.Fatalf("binary automatic without terminal: %v %s", err, output)
 	}
 	testBinaryTransfer(t, ctx, git, dir)

@@ -22,8 +22,12 @@ func (p *Plan) Add(title, description string, pos Position) (Task, error) {
 	if err != nil {
 		return Task{}, err
 	}
+	id, err := NewID()
+	if err != nil {
+		return Task{}, err
+	}
 	t := Task{
-		ID: fmt.Sprintf("task-%03d", n), Number: fmt.Sprintf("T-%03d", n),
+		ID: id, Number: fmt.Sprintf("T-%03d", n),
 		Title: title, Description: description, Status: Todo, Revision: 1,
 	}
 	if p.Revision == math.MaxUint64 {

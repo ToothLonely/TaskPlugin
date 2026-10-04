@@ -101,6 +101,7 @@ func (p *Plans) ApplyImport(ctx context.Context, preview *ImportPreview) error {
 	if err != nil {
 		return err
 	}
-	_, err = p.store.Import(ctx, preview.base, next)
+	_, id, err := p.store.ImportWithAction(ctx, preview.base, next)
+	p.recordAction(id)
 	return err
 }

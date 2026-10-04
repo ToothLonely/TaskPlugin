@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"git-task/internal/app"
 )
 
 // Streams holds the command's input, result output, and diagnostics.
@@ -35,7 +37,39 @@ func RunWithPlans(ctx context.Context, args []string, version string, streams St
 		runHook(ctx, args[1:], streams, open)
 		return 0
 	}
-	err := execute(ctx, args, version, streams, open)
+	var opened *app.Plans
+	command := ""
+	if len(args) > 0 {
+		command = args[0]
+		if command == "--" && len(args) > 1 {
+			command = args[1]
+		}
+	}
+	wrapped := open
+	if open != nil {
+		wrapped = func(ctx context.Context) (*app.Plans, error) {
+			if opened != nil {
+				return opened, nil
+			}
+			p, err := open(ctx)
+			if err == nil {
+				opened = p.ForCommand()
+				return opened, nil
+			}
+			return p, err
+		}
+	}
+	err := execute(ctx, args, version, streams, wrapped)
+	if opened != nil && mutatesPlan(command) {
+		if publishErr := opened.PublishRecordedActions(ctx); publishErr != nil {
+			fmt.Fprintf(streams.Err, "Предупреждение: публикация не подтверждена, локальная очередь сохранена: %v; git task team publish.\n", publishErr)
+		}
+		for _, n := range opened.TakeNotices() {
+			if _, writeErr := fmt.Fprintf(streams.Err, "Уведомление [%s]: %s\n", n.Code, n.Message); writeErr != nil {
+				err = errors.Join(err, writeErr)
+			}
+		}
+	}
 	if err == nil {
 		return 0
 	}
@@ -76,6 +110,9 @@ func execute(ctx context.Context, args []string, version string, streams Streams
 		args = args[1:]
 	}
 	if command != "help" && command != "version" {
+		if command == "team" || command == "migrate" {
+			return runTeam(ctx, command, args[1:], streams, open)
+		}
 		if command == "edit" || command == "move" || command == "pause" || command == "resume" || command == "archive" {
 			return runLifecycle(ctx, command, args[1:], streams, open)
 		}
@@ -171,6 +208,14 @@ func planned(command string) bool {
 	switch command {
 	case "init", "add", "start", "attach", "edit", "move", "pause", "resume",
 		"complete", "archive", "status", "show", "sync", "import", "export", "hooks", "doctor":
+		return true
+	}
+	return false
+}
+
+func mutatesPlan(command string) bool {
+	switch command {
+	case "add", "start", "attach", "edit", "move", "pause", "resume", "complete", "archive", "import":
 		return true
 	}
 	return false

@@ -61,6 +61,7 @@ func testBinaryLifecycle(t *testing.T, ctx context.Context, gitPath, execPath st
 	run(0, "init")
 	run(0, "add", "Первая")
 	run(0, "add", "Вторая")
+	testrepo.FixturePlanFile(t, c)
 	run(0, "edit", "--id=task-001", "--title=Точное имя 🙂", "--description=Описание")
 	run(0, "move", "--id=task-001", "--end")
 	if plan := read(); !reflect.DeepEqual(plan.Order, []string{"task-002", "task-001"}) || item().Number != "T-001" {
@@ -82,7 +83,7 @@ func testBinaryLifecycle(t *testing.T, ctx context.Context, gitPath, execPath st
 	run(1, "start", "refused", "--id=task-001")
 	run(0, "start", "second", "--title=Точное имя 🙂", "--again")
 	run(0, "sync")
-	if got := item(); got.Status != task.Active || len(got.Attempts) != 1 || !reflect.DeepEqual(got.Attempts[0], manual) {
+	if got := item(); got.Status != task.Active || len(got.Attempts) != 2 || !reflect.DeepEqual(got.Attempts[0], manual) {
 		t.Fatalf("old manual proof closed new attempt: %+v", got)
 	}
 	testrepo.Commit(t, c)

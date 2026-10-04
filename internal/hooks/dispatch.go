@@ -39,6 +39,23 @@ func Validate(event string, args []string, input io.Reader) error {
 		if err := scanner.Err(); err != nil {
 			return fmt.Errorf("чтение stdin post-rewrite: %w", err)
 		}
+	case "reference-transaction":
+		if len(args) != 1 || args[0] != "prepared" && args[0] != "committed" && args[0] != "aborted" {
+			return fmt.Errorf("неверная фаза reference-transaction")
+		}
+		if input == nil {
+			return fmt.Errorf("reference-transaction требует stdin")
+		}
+		scanner := bufio.NewScanner(input)
+		for scanner.Scan() {
+			parts := strings.Split(scanner.Text(), " ")
+			if len(parts) != 3 || !oid(parts[0]) || !oid(parts[1]) || len(parts[0]) != len(parts[1]) || parts[2] == "" {
+				return fmt.Errorf("неверная запись reference-transaction")
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("неизвестное событие hook %q", event)
 	}

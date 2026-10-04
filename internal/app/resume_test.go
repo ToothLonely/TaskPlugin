@@ -6,7 +6,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -32,7 +31,7 @@ func TestResumePreservesAttemptAndBinding(t *testing.T) {
 	}
 	testrepo.Run(t, c, "checkout", "main")
 	resumed, err := p.Resume(ctx, started.ID)
-	if err != nil || resumed.Status != task.Active || !reflect.DeepEqual(resumed.ActiveAttempt, paused.ActiveAttempt) || !reflect.DeepEqual(resumed.Attempts, paused.Attempts) {
+	if err != nil || resumed.Status != task.Active || !sameAttemptBinding(resumed.ActiveAttempt, paused.ActiveAttempt) || !sameAttemptBindings(resumed.Attempts, paused.Attempts) {
 		t.Fatalf("resume changed attempt/history: %+v %v", resumed, err)
 	}
 	head, err := c.HeadState(ctx)
@@ -145,7 +144,7 @@ func TestResumeRecoveryAtBoundaries(t *testing.T) {
 					want = task.Paused
 				}
 				item := savedTask(t, p, started.ID)
-				if item.Status != want || !reflect.DeepEqual(item.ActiveAttempt, paused.ActiveAttempt) || len(item.Attempts) != 0 {
+				if item.Status != want || !sameAttemptBinding(item.ActiveAttempt, paused.ActiveAttempt) || len(item.Attempts) != 1 {
 					t.Fatalf("recovery changed attempt: %+v", item)
 				}
 				installed := planBytes(t, c)

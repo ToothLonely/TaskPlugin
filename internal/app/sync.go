@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"git-task/internal/git"
@@ -42,6 +43,9 @@ func (p *Plans) SyncAfterMerge(ctx context.Context) (task.Plan, bool, error) {
 }
 
 func (p *Plans) syncCurrent(ctx context.Context, postMerge bool) (task.Plan, bool, error) {
+	if err := p.ReceiveCached(ctx); err != nil {
+		return task.Plan{}, false, err
+	}
 	snapshot, err := p.store.Load(ctx)
 	if err != nil {
 		return task.Plan{}, false, err
@@ -60,7 +64,7 @@ func (p *Plans) sync(ctx context.Context, snapshot storage.Snapshot, postMerge b
 		}
 		if t.Status == task.Done {
 			for _, a := range t.Attempts {
-				needsTracking = needsTracking || a.Completion.Source == task.Merge
+				needsTracking = needsTracking || a.Completion != nil && a.Completion.Source == task.Merge
 			}
 		}
 	}
@@ -90,6 +94,15 @@ func (p *Plans) sync(ctx context.Context, snapshot storage.Snapshot, postMerge b
 	for _, id := range snapshot.Plan.Order {
 		t, _ := snapshot.Plan.FindID(id)
 		if t.Status == task.Done {
+			if snapshot.Plan.Team != nil {
+				local := t.Attempts[:0:0]
+				for _, a := range t.Attempts {
+					if slices.Contains(snapshot.Plan.Team.LocalAttempts, a.ID) {
+						local = append(local, a)
+					}
+				}
+				t.Attempts = local
+			}
 			warnings, err := p.completedWarnings(ctx, t)
 			if err != nil {
 				return task.Plan{}, false, err
@@ -102,25 +115,32 @@ func (p *Plans) sync(ctx context.Context, snapshot storage.Snapshot, postMerge b
 		if t.Status != task.Active && t.Status != task.Paused {
 			continue
 		}
-		a := *t.ActiveAttempt
-		var result tracking.Result
-		var err error
-		if blocked != nil {
-			result = tracking.Result{Observation: a.Observation, Warnings: []task.Warning{{Code: "git_in_progress", Message: blocked.Error()}}}
-		} else {
-			result, err = tracking.Observe(ctx, p.git, a, now)
+		for _, a := range t.Attempts {
+			if a.Status == task.Done {
+				continue
+			}
+			if snapshot.Plan.Team != nil && !slices.Contains(snapshot.Plan.Team.LocalAttempts, a.ID) {
+				continue
+			}
+			var result tracking.Result
+			var err error
+			if blocked != nil {
+				result = tracking.Result{Observation: a.Observation, Warnings: []task.Warning{{Code: "git_in_progress", Message: blocked.Error()}}}
+			} else {
+				result, err = tracking.Observe(ctx, p.git, a, now)
+				if err != nil {
+					return task.Plan{}, false, err
+				}
+				checks = append(checks, checked{attempt: a, result: result})
+			}
+			if result.Completion != nil {
+				_, err = next.Complete(id, a.ID, *result.Completion)
+			} else {
+				_, err = next.Observe(id, a.ID, result.Observation, result.Warnings)
+			}
 			if err != nil {
 				return task.Plan{}, false, err
 			}
-			checks = append(checks, checked{attempt: a, result: result})
-		}
-		if result.Completion != nil {
-			_, err = next.Complete(id, a.ID, *result.Completion)
-		} else {
-			_, err = next.Observe(id, a.ID, result.Observation, result.Warnings)
-		}
-		if err != nil {
-			return task.Plan{}, false, err
 		}
 	}
 	if err := p.point(ctx, "sync-observed"); err != nil {
@@ -139,7 +159,7 @@ func (p *Plans) sync(ctx context.Context, snapshot storage.Snapshot, postMerge b
 			return task.Plan{}, false, fmt.Errorf("Git изменён во время сверки: %w", err)
 		}
 	}
-	changed, err := p.store.Save(ctx, snapshot, next)
+	changed, err := p.save(ctx, snapshot, next)
 	return next, changed, err
 }
 
@@ -147,7 +167,7 @@ func (p *Plans) completedWarnings(ctx context.Context, t task.Task) ([]task.Warn
 	var warnings []task.Warning
 	for _, a := range t.Attempts {
 		c := a.Completion
-		if c.Source != task.Merge {
+		if c == nil || c.Source != task.Merge {
 			continue
 		}
 		target, err := p.git.BranchCommit(ctx, c.TargetBranch)

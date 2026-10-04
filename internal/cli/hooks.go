@@ -53,7 +53,7 @@ func runHooks(ctx context.Context, args []string, streams Streams) error {
 }
 
 func runHook(ctx context.Context, args []string, streams Streams, open OpenPlans) {
-	if os.Getenv("GIT_TASK_OPERATION") != "" {
+	if os.Getenv("GIT_TASK_OPERATION") != "" || os.Getenv("GIT_TASK_TRANSPORT") != "" {
 		return
 	}
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
@@ -68,12 +68,26 @@ func runHook(ctx context.Context, args []string, streams Streams, open OpenPlans
 		if err := hooks.Validate(args[0], args[1:], streams.In); err != nil {
 			return err
 		}
+		if args[0] == "reference-transaction" && args[1] != "committed" {
+			return nil
+		}
 		if open == nil {
 			return fmt.Errorf("tracking недоступен")
 		}
 		plans, err := open(ctx)
 		if err != nil {
 			return err
+		}
+		if args[0] == "reference-transaction" {
+			if err := plans.ReceiveCached(ctx); err != nil {
+				return err
+			}
+			for _, n := range plans.TakeNotices() {
+				if _, err := fmt.Fprintf(streams.Err, "Уведомление [%s]: %s\n", n.Code, n.Message); err != nil {
+					return err
+				}
+			}
+			return nil
 		}
 		sync := plans.Sync
 		if args[0] == "post-merge" && args[1] == "0" {

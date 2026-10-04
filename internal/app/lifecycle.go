@@ -15,7 +15,7 @@ func (p *Plans) changeTask(ctx context.Context, id string, change func(*task.Pla
 	if _, err = change(&next); err != nil {
 		return task.Task{}, false, err
 	}
-	changed, err := p.store.Save(ctx, base, next)
+	changed, err := p.save(ctx, base, next)
 	if err != nil {
 		return task.Task{}, false, err
 	}
@@ -27,8 +27,18 @@ func (p *Plans) Move(ctx context.Context, id string, pos task.Position) (task.Ta
 	return p.changeTask(ctx, id, func(plan *task.Plan) (bool, error) { return plan.Move(id, pos) })
 }
 
-func (p *Plans) Pause(ctx context.Context, id string) (task.Task, bool, error) {
-	return p.changeTask(ctx, id, func(plan *task.Plan) (bool, error) { return plan.Pause(id) })
+func (p *Plans) Pause(ctx context.Context, id string, attemptIDs ...string) (task.Task, bool, error) {
+	return p.changeTask(ctx, id, func(plan *task.Plan) (bool, error) {
+		item, err := plan.FindID(id)
+		if err != nil {
+			return false, err
+		}
+		a, err := p.selectAttempt(ctx, *plan, item, attemptIDs)
+		if err != nil {
+			return false, err
+		}
+		return plan.Pause(id, a.ID)
+	})
 }
 
 func (p *Plans) Archive(ctx context.Context, id string) (task.Task, bool, error) {

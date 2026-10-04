@@ -29,7 +29,7 @@ func TestStartPostCheckoutFailureRecordsActualEffect(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "уже запущена") {
 		t.Fatalf("start: %v", err)
 	}
-	if got.Status != task.Active || len(got.Attempts) != 1 {
+	if got.Status != task.Active || len(got.Attempts) != 2 {
 		t.Fatalf("actual effect not saved: %+v", got)
 	}
 	if _, err = os.Stat(filepath.Join(c.Dir, ".git-task", "operation.json")); !os.IsNotExist(err) {
@@ -251,7 +251,7 @@ func TestStartExcludesConcurrentWriters(t *testing.T) {
 	finished := make(chan error, 1)
 	go func() { _, err := p.Start(ctx, StartOptions{Branch: "serialized"}); finished <- err }()
 	<-entered
-	_, err := p.Add(ctx, "concurrent", "", task.Position{})
+	_, err := addFixtureTask(t, p, ctx, "concurrent", "", task.Position{})
 	close(release)
 	if startErr := <-finished; startErr != nil {
 		t.Fatal(startErr)

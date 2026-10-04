@@ -1,0 +1,25 @@
+#!/bin/sh
+
+git_task_worker=${GIT_TASK_WORKER:?set the isolated worker checkout}
+git_task_binary=${GIT_TASK_BINARY:?set the git-task executable}
+git_task_target=${GIT_TASK_TARGET:-main}
+
+while read -r git_task_before git_task_after git_task_ref; do
+    if [ "$git_task_ref" != "refs/heads/$git_task_target" ]; then
+        continue
+    fi
+    case "$git_task_before:$git_task_after" in
+        0000000000000000000000000000000000000000:*|*:0000000000000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000:*|*:0000000000000000000000000000000000000000000000000000000000000000)
+            continue
+            ;;
+    esac
+    (
+        unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
+        unset GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_PREFIX
+        unset GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT
+        cd "$git_task_worker" || exit 1
+        "$git_task_binary" team reconcile --before "$git_task_before" --after "$git_task_after"
+    ) || printf 'git-task: server reconciliation pending for %s %s %s; inspect the worker plan and retry team reconcile --before %s --after %s.\n' "$git_task_before" "$git_task_after" "$git_task_ref" "$git_task_before" "$git_task_after" >&2
+done
+
+exit 0

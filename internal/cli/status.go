@@ -115,7 +115,10 @@ func writeStatusReport(out io.Writer, r app.StatusReport) error {
 			continue
 		}
 		count++
-		fmt.Fprintf(&text, "  %s [%s] %s — %s; ветка: %s; цель: %s\n", t.Number, t.ID, t.Status, lineText(t.Title), t.ActiveAttempt.Branch, t.ActiveAttempt.TargetBranch)
+		fmt.Fprintf(&text, "  %s [%s] %s — %s\n", t.Number, t.ID, t.Status, lineText(t.Title))
+		for i, a := range t.OrderedAttempts() {
+			fmt.Fprintf(&text, "    Подход %d [%s] %s; автор: %s; ветка: %s; цель: %s\n", i+1, a.ID, a.Status, lineText(known(a.Author)), a.Branch, a.TargetBranch)
+		}
 		if t.Description != "" {
 			fmt.Fprintf(&text, "    Контекст: %s\n", lineText(t.Description))
 		}

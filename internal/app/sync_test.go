@@ -75,12 +75,12 @@ func TestSyncMergeFastForwardAndAgain(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if len(started.Attempts) != round {
+				if len(started.Attempts) != round+1 {
 					t.Fatal("start changed prior history")
 				}
 				testrepo.Commit(t, c)
 				work := syncTask(t, p, started.ID)
-				if work.Status != task.Active || work.ActiveAttempt.Observation.WorkCommit == "" || len(work.Attempts) != round {
+				if work.Status != task.Active || work.ActiveAttempt.Observation.WorkCommit == "" || len(work.Attempts) != round+1 {
 					t.Fatalf("work observation: %+v", work)
 				}
 				mergeBranch(t, c, branch, ff)
@@ -148,7 +148,7 @@ func TestSyncEmptyUpdatesAndMissedObservations(t *testing.T) {
 				mergeBranch(t, c, "work", true)
 			}
 			item := syncTask(t, p, "task-001")
-			if item.Status != task.Active || len(item.Attempts) != 0 || item.ActiveAttempt == nil {
+			if item.Status != task.Active || len(item.Attempts) != 1 || item.ActiveAttempt == nil {
 				t.Fatalf("false done: %+v", item)
 			}
 			if scenario == "all-observations-missed" && (len(item.Warnings) == 0 || item.Warnings[0].Code != "unobserved_work") {
@@ -230,7 +230,7 @@ func TestSyncRejectsStaleWorkAndUnsupportedIntegration(t *testing.T) {
 				}
 			}
 			item := syncTask(t, p, started.ID)
-			if item.Status != task.Active || len(item.Attempts) != 0 || item.ActiveAttempt.ID != started.ActiveAttempt.ID {
+			if item.Status != task.Active || len(item.Attempts) != 1 || item.ActiveAttempt.ID != started.ActiveAttempt.ID {
 				t.Fatalf("false done: %+v", item)
 			}
 			if item.ActiveAttempt.Observation.WorkCommit == "" {
@@ -321,7 +321,7 @@ func TestSyncPreservesWorkAcrossIntermediateTargetUpdate(t *testing.T) {
 			} else {
 				intermediate = syncTask(t, p, started.ID)
 			}
-			if intermediate.Status != task.Active || len(intermediate.Attempts) != 0 || len(intermediate.Warnings) != 0 || *intermediate.ActiveAttempt.Observation != proof || !bytes.Equal(before, planBytes(t, c)) {
+			if intermediate.Status != task.Active || len(intermediate.Attempts) != 1 || len(intermediate.Warnings) != 0 || *intermediate.ActiveAttempt.Observation != proof || !bytes.Equal(before, planBytes(t, c)) {
 				t.Fatalf("intermediate update lost proof or wrote no-op: %+v", intermediate)
 			}
 			current, err := c.BranchCommit(ctx, "work")
@@ -412,7 +412,7 @@ func TestSyncPlanConflictCancellationAndGitRace(t *testing.T) {
 				t.Fatal(err)
 			}
 			item, _ := plan.FindID(started.ID)
-			if item.Status != task.Active || item.ActiveAttempt == nil || len(item.Attempts) != 0 {
+			if item.Status != task.Active || item.ActiveAttempt == nil || len(item.Attempts) != 1 {
 				t.Fatalf("partial completion: %+v", item)
 			}
 		})

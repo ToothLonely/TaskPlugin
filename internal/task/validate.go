@@ -1,6 +1,7 @@
 package task
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -78,6 +79,56 @@ func (p Plan) Validate() error {
 	if !validBranch(p.TargetBranch) {
 		return invalid("недопустимая target_branch")
 	}
+	seenActions := map[string]bool{}
+	for _, event := range p.ServerEvents {
+		if !validOID(event.Before) || !validOID(event.After) {
+			return invalid("неверное серверное событие")
+		}
+	}
+	for _, receipt := range p.Actions {
+		if !identity(receipt.ID) || !validDigest(receipt.Digest) || seenActions[receipt.ID] {
+			return invalid("неверная квитанция действия")
+		}
+		seenActions[receipt.ID] = true
+	}
+	if p.Team != nil {
+		if p.Team.BaseCommit != "" && !validOID(p.Team.BaseCommit) {
+			return invalid("неверный commit общей базы")
+		}
+		if !identity(p.Team.Remote) || len(p.Team.Base) == 0 {
+			return invalid("неполное подключение командного режима")
+		}
+		var base Plan
+		if err := json.Unmarshal(p.Team.Base, &base); err != nil {
+			return invalid("повреждена общая база: %v", err)
+		}
+		if base.Team != nil {
+			return invalid("локальные настройки в общей базе")
+		}
+		pending := map[string]bool{}
+		for _, a := range p.Team.Pending {
+			if !identity(a.ID) || pending[a.ID] {
+				return invalid("неверный ID действия")
+			}
+			pending[a.ID] = true
+			for _, data := range []json.RawMessage{a.Before, a.After} {
+				var snapshot Plan
+				if err := json.Unmarshal(data, &snapshot); err != nil {
+					return invalid("повреждено действие %s: %v", a.ID, err)
+				}
+				if snapshot.Team != nil {
+					return invalid("локальные данные в действии")
+				}
+			}
+		}
+		locals := map[string]bool{}
+		for _, id := range p.Team.LocalAttempts {
+			if !identity(id) || locals[id] {
+				return invalid("неверная локальная связь")
+			}
+			locals[id] = true
+		}
+	}
 	if p.Tasks == nil || p.Order == nil {
 		return invalid("tasks и order должны быть массивами")
 	}
@@ -96,36 +147,30 @@ func (p Plan) Validate() error {
 		if err := t.validate(); err != nil {
 			return fmt.Errorf("задача %q: %w", t.ID, err)
 		}
-		all := append([]Attempt(nil), t.Attempts...)
-		if t.ActiveAttempt != nil {
-			all = append(all, *t.ActiveAttempt)
-		}
-		var previous uint64
-		for _, a := range all {
+		for _, a := range t.Attempts {
 			if attempts[a.ID] {
 				return invalid("повтор ID подхода %q", a.ID)
 			}
 			attempts[a.ID] = true
 			if a.Completion != nil {
 				e := a.Completion.Event
-				if events[e] || e <= previous {
-					return invalid("повтор или нарушение порядка событий")
+				if events[e] {
+					return invalid("повтор номера события")
 				}
-				events[e], previous = true, e
+				events[e] = true
 				if e > last {
 					last = e
 				}
 			}
-		}
-		if t.Status == Active || t.Status == Paused {
-			a := t.ActiveAttempt
-			if a.TargetBranch != p.TargetBranch {
-				return invalid("цель активного подхода отличается от target_branch")
+			if t.Status != Archived && a.Status != Done {
+				if a.TargetBranch != p.TargetBranch {
+					return invalid("неверная цель подхода")
+				}
+				if owner, ok := branches[a.Branch]; ok {
+					return fmt.Errorf("%w: %q (%s, %s)", ErrBranchInUse, a.Branch, owner, t.ID)
+				}
+				branches[a.Branch] = t.ID
 			}
-			if owner, ok := branches[a.Branch]; ok {
-				return fmt.Errorf("%w: %q (%s, %s)", ErrBranchInUse, a.Branch, owner, t.ID)
-			}
-			branches[a.Branch] = t.ID
 		}
 	}
 	if p.LastEvent != last {
@@ -134,8 +179,12 @@ func (p Plan) Validate() error {
 	if p.InsertionTail != "" && !ids[p.InsertionTail] {
 		return invalid("неизвестный insertion_tail")
 	}
-	if last > 0 && p.InsertionTail == "" {
-		return invalid("нет insertion_tail после завершения")
+	if p.InsertionTail == "" {
+		for _, t := range p.Tasks {
+			if t.Status == Done {
+				return invalid("нет insertion_tail после завершения задачи")
+			}
+		}
 	}
 	if len(p.Order) != len(ids) {
 		return invalid("order не содержит все задачи")
@@ -151,40 +200,30 @@ func (p Plan) Validate() error {
 }
 
 func (t Task) validate() error {
-	switch t.Status {
-	case Todo:
-		if t.ActiveAttempt != nil || len(t.Attempts) != 0 {
-			return invalid("todo не имеет подходов")
-		}
-	case Active, Paused:
-		if t.ActiveAttempt == nil {
-			return invalid("нет текущего подхода")
-		}
-	case Done:
-		if t.ActiveAttempt != nil || len(t.Attempts) == 0 {
-			return invalid("done требует историю без active_attempt")
-		}
-	case Archived:
-	default:
-		return invalid("неизвестный status %q", t.Status)
+	if t.Status != Todo && t.Status != Active && t.Status != Paused && t.Status != Done && t.Status != Archived {
+		return invalid("неизвестный status")
 	}
-	if t.ActiveAttempt != nil {
-		if t.ActiveAttempt.Completion != nil {
-			return invalid("active_attempt уже завершён")
-		}
-		if err := t.ActiveAttempt.validate(); err != nil {
-			return err
-		}
+	if t.Status != t.AggregateStatus() {
+		return invalid("статус задачи не соответствует подходам")
 	}
 	for _, a := range t.Attempts {
-		if a.Completion == nil {
-			return invalid("незавершённый подход в attempts")
+		if a.Status != Active && a.Status != Paused && a.Status != Done {
+			return invalid("неизвестный статус подхода")
+		}
+		if (a.Status == Done) != (a.Completion != nil) {
+			return invalid("статус подхода не соответствует завершению")
+		}
+		if a.Author != "" && !identity(a.Author) {
+			return invalid("неверный author")
 		}
 		if err := a.validate(); err != nil {
 			return err
 		}
 	}
 	for _, w := range t.Warnings {
+		if w.AttemptID != "" && !identity(w.AttemptID) {
+			return invalid("неверный ID подхода предупреждения")
+		}
 		if !identity(w.Code) || blank(w.Message) || !utf8.ValidString(w.Message) {
 			return invalid("пустое предупреждение")
 		}
@@ -238,12 +277,18 @@ func (a Attempt) validate() error {
 	if c.Commit != "" && !validOID(c.Commit) {
 		return invalid("недопустимый commit завершения")
 	}
+	if c.TargetBefore != "" && !validOID(c.TargetBefore) {
+		return invalid("неверный target_before")
+	}
 	switch c.Source {
 	case Merge:
 		if !bound || c.ObservedAt == nil || !validOID(c.Commit) || !validOID(c.WorkCommit) || (c.MergeKind != MergeCommit && c.MergeKind != FastForward) {
 			return invalid("неполное merge-доказательство")
 		}
 	case Manual, Imported:
+		if c.TargetBefore != "" {
+			return invalid("Git-доказательство у manual/imported")
+		}
 		if c.MergeKind != "" || c.WorkCommit != "" {
 			return invalid("Git-доказательство у manual/imported")
 		}

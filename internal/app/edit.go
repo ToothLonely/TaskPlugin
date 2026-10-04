@@ -38,7 +38,7 @@ func (p *Plans) ApplyEdit(ctx context.Context, preview *EditPreview, opts task.E
 	if _, err := next.Edit(preview.id, opts); err != nil {
 		return task.Task{}, false, err
 	}
-	changed, err := p.store.Save(ctx, preview.base, next)
+	changed, err := p.save(ctx, preview.base, next)
 	if err != nil {
 		return task.Task{}, false, err
 	}

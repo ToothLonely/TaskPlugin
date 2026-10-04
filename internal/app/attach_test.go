@@ -171,12 +171,12 @@ func TestSameNameRebindAfterBranchRecreation(t *testing.T) {
 				t.Fatalf("confirmed rebind not no-op: %v", err)
 			}
 			fresh := syncTask(t, p, started.ID)
-			if fresh.Status != status || fresh.ActiveAttempt.Observation.WorkCommit != "" || len(fresh.Attempts) != 0 || len(fresh.Warnings) != 0 {
+			if fresh.Status != status || fresh.ActiveAttempt.Observation.WorkCommit != "" || len(fresh.Attempts) != 1 || len(fresh.Warnings) != 0 {
 				t.Fatalf("old work inherited by new binding: %+v", fresh)
 			}
 			mergeBranch(t, c, "work", true)
 			fresh = syncTask(t, p, started.ID)
-			if fresh.Status != status || fresh.ActiveAttempt.Observation.WorkCommit != "" || len(fresh.Attempts) != 0 {
+			if fresh.Status != status || fresh.ActiveAttempt.Observation.WorkCommit != "" || len(fresh.Attempts) != 1 {
 				t.Fatalf("old work integration completed renewed binding: %+v", fresh)
 			}
 			testrepo.Run(t, c, "checkout", "work")
@@ -233,7 +233,7 @@ func TestSameNameRebindRecovery(t *testing.T) {
 				t.Fatalf("recover renewal: %v %v", recovered, err)
 			}
 			recovered := savedTask(t, p, started.ID)
-			if recovered.ActiveAttempt.ID != started.ActiveAttempt.ID || len(recovered.ActiveAttempt.Rebindings) != 1 || recovered.ActiveAttempt.Observation.WorkCommit != "" || len(recovered.Attempts) != 0 {
+			if recovered.ActiveAttempt.ID != started.ActiveAttempt.ID || len(recovered.ActiveAttempt.Rebindings) != 1 || recovered.ActiveAttempt.Observation.WorkCommit != "" || len(recovered.Attempts) != 1 {
 				t.Fatalf("recovery lost identity or reused evidence: %+v", recovered)
 			}
 			before = planBytes(t, c)

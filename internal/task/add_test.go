@@ -13,8 +13,8 @@ func TestAddIdentityAndText(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := Task{ID: "task-001", Number: "T-001", Title: "  Профиль 🐈  ", Description: "строка 1\nстрока 2", Status: Todo, Revision: 1}
-	if !reflect.DeepEqual(first, want) || !reflect.DeepEqual(p.Tasks, []Task{want}) || p.Revision != 1 {
+	want := Task{ID: first.ID, Number: "T-001", Title: "  Профиль 🐈  ", Description: "строка 1\nстрока 2", Status: Todo, Revision: 1}
+	if len(first.ID) != 32 || !reflect.DeepEqual(first, want) || !reflect.DeepEqual(p.Tasks, []Task{want}) || p.Revision != 1 {
 		t.Fatalf("Add returned %+v, plan=%+v; want %+v", first, p, want)
 	}
 	first.Title = "caller change"
@@ -27,7 +27,7 @@ func TestAddIdentityAndText(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if second.ID != "task-002" || second.Number != "T-002" || p.Order[0] != second.ID || p.InsertionTail != first.ID {
+	if len(second.ID) != 32 || second.ID == first.ID || second.Number != "T-002" || p.Order[0] != second.ID || p.InsertionTail != first.ID {
 		t.Fatalf("identity depends on position or reuses archived number: %+v", p)
 	}
 	if _, err := p.FindTitle(want.Title); !errors.Is(err, ErrAmbiguous) {
@@ -59,7 +59,7 @@ func TestAddImportedIdentities(t *testing.T) {
 			p.Tasks[0].Status = Archived
 			oldTask := p.Tasks[0]
 			added, err := p.Add("new", "", Position{})
-			if err != nil || added.ID != tt.wantID || added.Number != tt.wantNumber || !reflect.DeepEqual(p.Tasks[0], oldTask) {
+			if err != nil || len(added.ID) != 32 || added.ID == tt.id || added.Number != tt.wantNumber || !reflect.DeepEqual(p.Tasks[0], oldTask) {
 				t.Fatalf("added=%+v err=%v; want %s/%s and unchanged imported task", added, err, tt.wantID, tt.wantNumber)
 			}
 		})

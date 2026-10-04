@@ -67,7 +67,7 @@ func TestJSONTimestampOffsets(t *testing.T) {
 					changed, err := p.Rebind("task-a", "replacement", testOID, testTime)
 					requireChange(t, changed, err)
 				} else if field != "started_at" {
-					changed, err := p.CompleteManual("task-a", "ignored", "", testTime)
+					changed, err := p.CompleteManual("task-a", "", "", testTime)
 					requireChange(t, changed, err)
 				}
 				before := snapshot(t, p)

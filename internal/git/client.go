@@ -66,6 +66,18 @@ func (e *CommandError) Unwrap() error { return e.err }
 // raw CLI arguments here; validate operands and use command-specific option
 // boundaries. Run does not retry or roll back interrupted commands.
 func (c *Client) Run(ctx context.Context, args ...string) (Result, error) {
+	return c.run(ctx, nil, false, args...)
+}
+
+func (c *Client) RunNetwork(ctx context.Context, args ...string) (Result, error) {
+	return c.runCommand(ctx, nil, true, false, args...)
+}
+
+func (c *Client) run(ctx context.Context, input []byte, network bool, args ...string) (Result, error) {
+	return c.runCommand(ctx, input, network, network, args...)
+}
+
+func (c *Client) runCommand(ctx context.Context, input []byte, network, transport bool, args ...string) (Result, error) {
 	result := Result{ExitCode: -1}
 	if err := ctx.Err(); err != nil {
 		return result, err
@@ -73,6 +85,15 @@ func (c *Client) Run(ctx context.Context, args ...string) (Result, error) {
 	cmd := exec.CommandContext(ctx, c.executable, args...)
 	cmd.Dir = c.Dir
 	cmd.Env = c.environment()
+	if network {
+		cmd.Env[len(cmd.Env)-1] = "GIT_ALLOW_PROTOCOL=file:ssh:https:http:git"
+	}
+	if transport {
+		cmd.Env = append(cmd.Env, "GIT_TASK_TRANSPORT=1")
+	}
+	if input != nil {
+		cmd.Stdin = bytes.NewReader(input)
+	}
 	// A descendant may retain a pipe after cancellation. Bound pipe cleanup;
 	// CommandContext kills Git itself, not an arbitrary hook process tree.
 	cmd.WaitDelay = time.Second

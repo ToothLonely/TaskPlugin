@@ -116,6 +116,10 @@ func (o *Operation) Prepare(ctx context.Context, base Snapshot, next task.Plan, 
 	if err != nil {
 		return nil, err
 	}
+	next, err = task.Queue(original, next)
+	if err != nil {
+		return nil, err
+	}
 	result, err := encode(next)
 	if err != nil {
 		return nil, err
@@ -192,6 +196,21 @@ func (o *Operation) Commit(ctx context.Context, j *Journal) error {
 		return err
 	}
 	return o.store.install(ctx, j.Original, j.Result)
+}
+
+func (o *Operation) CommitWithAction(ctx context.Context, j *Journal) (string, error) {
+	before, err := decode(j.Original)
+	if err != nil {
+		return "", err
+	}
+	after, err := decode(j.Result)
+	if err != nil {
+		return "", err
+	}
+	if err := o.Commit(ctx, j); err != nil {
+		return "", err
+	}
+	return queuedActionID(before, after), nil
 }
 
 // Close removes only the unchanged journal, after the caller verifies Git facts.

@@ -63,21 +63,12 @@ func runShow(ctx context.Context, args []string, streams Streams, open OpenPlans
 	}
 	var text strings.Builder
 	fmt.Fprintf(&text, "%s [%s] %s — %s\nОписание: %s\n", item.Number, item.ID, item.Status, lineText(item.Title), lineText(known(item.Description)))
-	if item.ActiveAttempt == nil {
-		text.WriteString("Текущий подход: нет.\n")
-	} else {
-		label := "Текущий незавершённый подход"
-		if item.Status == task.Archived {
-			label = "Замороженный незавершённый подход (archived)"
-		}
-		fmt.Fprintf(&text, "%s:\n", label)
-		writeAttempt(&text, *item.ActiveAttempt)
-	}
-	text.WriteString("Завершённые подходы:\n")
+	text.WriteString("Подходы:\n")
 	if len(item.Attempts) == 0 {
 		text.WriteString("  нет.\n")
 	}
-	for _, a := range item.Attempts {
+	for i, a := range item.OrderedAttempts() {
+		fmt.Fprintf(&text, "Подход %d; статус %s; автор %s:\n", i+1, a.Status, lineText(known(a.Author)))
 		writeAttempt(&text, a)
 	}
 	text.WriteString("Предупреждения (сохранённые; show не выполняет сверку):\n")

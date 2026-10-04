@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"git-task/internal/task"
 )
 
 // inspectPath rejects symlinks (including Windows junctions reported by Lstat)
@@ -82,6 +84,19 @@ func (s *Store) inspect(holdingLock bool) error {
 			// Read-only access remains available for diagnosis. Writers reject
 			// the journal unless they explicitly enter operation recovery.
 		default:
+			if name == "plan.schema-1.json" {
+				data, err := readFile(filepath.Join(s.dir, name))
+				if err != nil {
+					return err
+				}
+				if _, err := task.MigrateV1(data); err != nil {
+					return err
+				}
+				continue
+			}
+			if strings.HasPrefix(name, "conflict-") && strings.HasSuffix(name, ".json") {
+				continue
+			}
 			if strings.HasPrefix(name, "pending-") {
 				return fmt.Errorf("%w: сохранён файл %s; требуется разбор прерванной записи", ErrInterrupted, filepath.Join(s.dir, name))
 			}

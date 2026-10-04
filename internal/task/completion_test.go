@@ -36,11 +36,12 @@ func TestHistoryAndEventValidation(t *testing.T) {
 		{"unknown source", func(p *Plan) { p.Tasks[0].Attempts[0].Completion.Source = "squash" }},
 		{"lost tail", func(p *Plan) { p.InsertionTail = "" }},
 		{"wrong last event", func(p *Plan) { p.LastEvent = 3 }},
-		{"reversed history", func(p *Plan) {
+		{"completed status mismatch", func(p *Plan) {
 			p.Tasks[0].Attempts = append(p.Tasks[0].Attempts, p.Tasks[1].Attempts[0])
 			p.Tasks[0].Attempts[0], p.Tasks[0].Attempts[1] = p.Tasks[0].Attempts[1], p.Tasks[0].Attempts[0]
 			p.Tasks[1].Attempts = nil
 			p.Tasks[1].Status = Todo
+			p.Tasks[0].Attempts[0].Status = Paused
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

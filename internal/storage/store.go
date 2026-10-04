@@ -77,6 +77,9 @@ func (s *Store) load() (Snapshot, error) {
 	if err != nil {
 		return Snapshot{}, err
 	}
+	if schemaVersion(data) == 1 {
+		return Snapshot{}, ErrMigration
+	}
 	plan, err := decode(data)
 	if err != nil {
 		return Snapshot{}, err
@@ -156,14 +159,34 @@ func (s *Store) Init(ctx context.Context, target string) (created bool, err erro
 // Save commits a validated result only against its exact source snapshot.
 // It returns false for a semantic no-op without rewriting plan or backup.
 func (s *Store) Save(ctx context.Context, base Snapshot, next task.Plan) (changed bool, err error) {
-	return s.save(ctx, base, next, false)
+	return s.save(ctx, base, next, false, nil)
 }
 
 func (s *Store) Import(ctx context.Context, base Snapshot, next task.Plan) (bool, error) {
-	return s.save(ctx, base, next, true)
+	return s.save(ctx, base, next, true, nil)
 }
 
-func (s *Store) save(ctx context.Context, base Snapshot, next task.Plan, importing bool) (changed bool, err error) {
+func (s *Store) SaveWithAction(ctx context.Context, base Snapshot, next task.Plan) (changed bool, actionID string, err error) {
+	changed, err = s.save(ctx, base, next, false, &actionID)
+	return changed, actionID, err
+}
+
+func (s *Store) ImportWithAction(ctx context.Context, base Snapshot, next task.Plan) (changed bool, actionID string, err error) {
+	changed, err = s.save(ctx, base, next, true, &actionID)
+	return changed, actionID, err
+}
+
+func (s *Store) save(ctx context.Context, base Snapshot, next task.Plan, importing bool, actionID *string) (changed bool, err error) {
+	if importing {
+		next.Team = base.Plan.Team
+	}
+	{
+		var queueErr error
+		next, queueErr = task.Queue(base.Plan, next)
+		if queueErr != nil {
+			return false, queueErr
+		}
+	}
 	data, err := encode(next)
 	if err != nil {
 		return false, err
@@ -222,7 +245,24 @@ func (s *Store) save(ctx context.Context, base Snapshot, next task.Plan, importi
 	if err = s.install(ctx, base.raw, data); err != nil {
 		return false, err
 	}
+	if actionID != nil {
+		*actionID = queuedActionID(base.Plan, next)
+	}
 	return true, nil
+}
+
+func queuedActionID(before, after task.Plan) string {
+	if after.Team == nil {
+		return ""
+	}
+	count := 0
+	if before.Team != nil {
+		count = len(before.Team.Pending)
+	}
+	if len(after.Team.Pending) > count {
+		return after.Team.Pending[len(after.Team.Pending)-1].ID
+	}
+	return ""
 }
 
 func (s *Store) compare(expected []byte) error {

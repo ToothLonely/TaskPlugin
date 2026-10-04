@@ -158,7 +158,7 @@ func TestImportConfirmationPreviewAndCancellation(t *testing.T) {
 
 func TestTransferJSONSettingsAndExportStreams(t *testing.T) {
 	p, c := transferFixture(t)
-	source := transferSource(t, `{"format":"git-task","schema_version":1,"revision":0,"target_branch":"release","order":[],"tasks":[],"last_event":0}`)
+	source := transferSource(t, `{"format":"git-task","schema_version":2,"revision":0,"target_branch":"release","order":[],"tasks":[],"last_event":0}`)
 	var out, diagnostic bytes.Buffer
 	open := func(context.Context) (*app.Plans, error) { return p, nil }
 	code := RunWithPlans(context.Background(), []string{"import", source, "--format", "json", "--yes"}, "test", Streams{Out: &out, Err: &diagnostic}, open)

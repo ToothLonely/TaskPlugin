@@ -21,7 +21,7 @@ func TestObservationValidationIsolationAndRebind(t *testing.T) {
 	if changed, err := p.Observe("task-a", "current", o, nil); err != nil || changed || !reflect.DeepEqual(p, before) {
 		t.Fatalf("no-op: %v %v", changed, err)
 	}
-	if _, err := p.Observe("task-a", "other", o, nil); !errors.Is(err, ErrTransition) {
+	if _, err := p.Observe("task-a", "other", o, nil); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("wrong attempt: %v", err)
 	}
 	o.Tip = strings.Repeat("e", 40)
@@ -84,7 +84,7 @@ func TestSameNameRebindPreservesCompletedHistory(t *testing.T) {
 	}
 	task := p.Tasks[0]
 	a := task.ActiveAttempt
-	if task.Status != Active || a.ID != "again" || a.OriginalBranch != "feature" || a.BaseCommit != testOID || a.Observation != nil || len(task.Warnings) != 0 || len(a.Rebindings) != 1 || a.Rebindings[0].From != "feature" || a.Rebindings[0].To != "feature" || !reflect.DeepEqual(task.Attempts, before.Tasks[0].Attempts) {
+	if task.Status != Active || a.ID != "again" || a.OriginalBranch != "feature" || a.BaseCommit != testOID || a.Observation != nil || len(task.Warnings) != 0 || len(a.Rebindings) != 1 || a.Rebindings[0].From != "feature" || a.Rebindings[0].To != "feature" || !reflect.DeepEqual(task.Attempts[0], before.Tasks[0].Attempts[0]) {
 		t.Fatalf("renewal changed identity or completed history: %+v", task)
 	}
 	if copy := cloneObservationPlan(t, p); !reflect.DeepEqual(copy, p) {

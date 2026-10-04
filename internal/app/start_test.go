@@ -37,6 +37,7 @@ func startFixture(t *testing.T) (*Plans, *git.Client) {
 				return err
 			}
 		}
+		testrepo.FixtureIDs(plan)
 		return nil
 	})
 	return p, c
@@ -62,6 +63,7 @@ func editPlan(t *testing.T, p *Plans, edit func(*task.Plan) error) {
 	if err = edit(&next); err != nil {
 		t.Fatal(err)
 	}
+	testrepo.FixtureIDs(&next)
 	if _, err = p.store.Save(ctx, s, next); err != nil {
 		t.Fatal(err)
 	}
@@ -168,16 +170,23 @@ func TestStartSelectorsAndAgain(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
-					if result.ID != "task-002" || result.Status != task.Active || !reflect.DeepEqual(old.Attempts, result.Attempts) {
+					if result.ID != "task-002" || result.Status != task.Active || len(old.Attempts) > 0 && !reflect.DeepEqual(old.Attempts, result.Attempts[:len(old.Attempts)]) {
 						t.Fatalf("bad result: %+v", result)
 					}
-					if !done && bytes.Contains(planBytes(t, c), []byte(`"attempts"`)) {
-						t.Fatal("start created completion history")
+					if len(result.Attempts) != len(old.Attempts)+1 || result.ActiveAttempt.Completion != nil {
+						t.Fatal("start lost or completed an approach")
 					}
 					after := planBytes(t, c)
 					options.Branch = "second-attempt"
-					if _, err = p.Start(ctx, options); err == nil {
-						t.Fatal("second active attempt accepted")
+					second, secondErr := p.Start(ctx, options)
+					if !done {
+						if secondErr != nil || len(second.Attempts) != len(result.Attempts)+1 {
+							t.Fatalf("parallel start: %+v %v", second, secondErr)
+						}
+						return
+					}
+					if secondErr == nil {
+						t.Fatal("--again accepted for active")
 					}
 					if !bytes.Equal(after, planBytes(t, c)) {
 						t.Fatal("repeat changed plan")
@@ -231,11 +240,11 @@ func TestStartInvalidSelectionPreservesState(t *testing.T) {
 	p, c := startFixture(t)
 	ctx := context.Background()
 	editPlan(t, p, func(plan *task.Plan) error {
-		_, err := plan.Add("Первая", "", task.Position{})
+		item, err := plan.Add("Первая", "", task.Position{})
 		if err != nil {
 			return err
 		}
-		_, err = plan.Archive("task-004")
+		_, err = plan.Archive(item.ID)
 		return err
 	})
 	before := planBytes(t, c)
@@ -267,7 +276,7 @@ func TestStartFromAndNew(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.ID != "task-004" || got.ActiveAttempt.BaseCommit != other || got.ActiveAttempt.TargetBranch != "main" {
+	if got.Number != "T-004" || got.ActiveAttempt.BaseCommit != other || got.ActiveAttempt.TargetBranch != "main" {
 		t.Fatalf("bad new task: %+v", got)
 	}
 	testrepo.Run(t, c, "tag", "ambiguous")
@@ -388,7 +397,7 @@ func TestStartRecoveryBoundaries(t *testing.T) {
 				if _, err := p.Start(ctx, options); !errors.Is(err, storage.ErrOperation) {
 					t.Fatalf("repeat: %v", err)
 				}
-				if _, err := p.Add(ctx, "blocked", "", task.Position{}); !errors.Is(err, storage.ErrOperation) {
+				if _, err := addFixtureTask(t, p, ctx, "blocked", "", task.Position{}); !errors.Is(err, storage.ErrOperation) {
 					t.Fatalf("add: %v", err)
 				}
 				if _, pending, err := p.StatusState(ctx); err != nil || !pending {
@@ -424,7 +433,7 @@ func TestStartRecoveryBoundaries(t *testing.T) {
 				if point != "prepared" {
 					plan, _ := p.Status(ctx)
 					got, _ := plan.FindID("task-002")
-					if got.Status != task.Active || len(got.Attempts) != map[bool]int{false: 0, true: 1}[done] {
+					if got.Status != task.Active || len(got.Attempts) != map[bool]int{false: 1, true: 2}[done] {
 						t.Fatalf("bad recovery: %+v", got)
 					}
 				}

@@ -19,7 +19,7 @@ func TestStatusReportMultipleTasksHistoryAndNoOp(t *testing.T) {
 	p, c := startFixture(t)
 	ctx := context.Background()
 	for _, title := range []string{"Завершённая", "Архивная"} {
-		if _, err := p.Add(ctx, title, "контекст", task.Position{End: true}); err != nil {
+		if _, err := addFixtureTask(t, p, ctx, title, "контекст", task.Position{End: true}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -95,7 +95,7 @@ func TestStatusReportMultipleTasksHistoryAndNoOp(t *testing.T) {
 		t.Fatal(err)
 	}
 	report, err = p.StatusReport(ctx)
-	if err != nil || report.Progress.Done != 0 || report.LastCompletion.TaskStatus != task.Active || len(report.Tasks[3].Attempts) != 1 || report.Tasks[3].ActiveAttempt == nil {
+	if err != nil || report.Progress.Done != 0 || report.LastCompletion.TaskStatus != task.Active || len(report.Tasks[3].Attempts) != 2 || report.Tasks[3].ActiveAttempt == nil {
 		t.Fatalf("again hides historical completion: %+v %v", report, err)
 	}
 	if _, _, err := p.Archive(ctx, "task-004"); err != nil {
@@ -126,7 +126,7 @@ func TestStatusReportUnbornEmptyAndOnlyArchived(t *testing.T) {
 	}
 	for _, archive := range []bool{false, true} {
 		if archive {
-			added, err := p.Add(ctx, "Архивная", "", task.Position{})
+			added, err := addFixtureTask(t, p, ctx, "Архивная", "", task.Position{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -170,7 +170,7 @@ func TestShowDoesNotSyncAndStatusCompletesObservedMerge(t *testing.T) {
 	mergeBranch(t, c, "work", true)
 	before := planBytes(t, c)
 	item, pending, err := p.Show(ctx, started.ID)
-	if err != nil || pending || item.Status != task.Active || item.ActiveAttempt == nil || len(item.Attempts) != 0 || !bytes.Equal(before, planBytes(t, c)) {
+	if err != nil || pending || item.Status != task.Active || item.ActiveAttempt == nil || len(item.Attempts) != 1 || !bytes.Equal(before, planBytes(t, c)) {
 		t.Fatalf("show performed sync: %+v %v", item, err)
 	}
 	if _, _, err := p.Show(ctx, "missing"); !errors.Is(err, task.ErrNotFound) {
@@ -236,6 +236,7 @@ func TestStatusProgressRoundingAndEventOrder(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	testrepo.FixtureIDs(&plan)
 	if _, err := plan.Complete("task-001", "import-one", task.Completion{Source: task.Imported, TargetBranch: "main"}); err != nil {
 		t.Fatal(err)
 	}

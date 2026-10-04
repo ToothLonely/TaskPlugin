@@ -7,14 +7,22 @@ import (
 )
 
 func DecodeJSON(data []byte) (task.Plan, error) {
+	var header struct {
+		Version int `json:"schema_version"`
+	}
+	if json.Unmarshal(data, &header) == nil && header.Version == 1 {
+		p, err := task.MigrateV1(data)
+		return task.Shared(p), err
+	}
 	var plan task.Plan
 	if err := json.Unmarshal(data, &plan); err != nil {
 		return task.Plan{}, err
 	}
-	return plan, nil
+	return task.Shared(plan), nil
 }
 
 func EncodeJSON(plan task.Plan) ([]byte, error) {
+	plan = task.Shared(plan)
 	data, err := json.MarshalIndent(plan, "", "  ")
 	if err != nil {
 		return nil, err

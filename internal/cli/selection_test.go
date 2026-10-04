@@ -81,6 +81,7 @@ func selectionFixture(t *testing.T) (*app.Plans, *git.Client) {
 			t.Fatal(err)
 		}
 	}
+	testrepo.FixtureIDs(&plan)
 	if _, err := s.Save(context.Background(), snapshot, plan); err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +138,7 @@ func TestSelectExistingAndNewUseStart(t *testing.T) {
 			}
 			base := strings.TrimSpace(string(testrepo.Run(t, c, "rev-parse", baseName)))
 			code, out, diagnostic, closed := selectionRun(context.Background(), p, tc.input, nil, args...)
-			if code != 0 || !closed || !strings.Contains(out, tc.id) || !strings.Contains(diagnostic, "Основание: "+baseName+" (") {
+			if code != 0 || !closed || !strings.Contains(out, tc.id) && tc.id != "task-004" || !strings.Contains(diagnostic, "Основание: "+baseName+" (") {
 				t.Fatalf("code=%d closed=%v out=%q diagnostic=%q", code, closed, out, diagnostic)
 			}
 			plan, err := p.Status(context.Background())
@@ -145,14 +146,17 @@ func TestSelectExistingAndNewUseStart(t *testing.T) {
 				t.Fatal(err)
 			}
 			selected, err := plan.FindID(tc.id)
-			if err != nil || selected.Title != tc.title || selected.Status != task.Active || selected.ActiveAttempt == nil || len(selected.Attempts) != 0 || selected.ActiveAttempt.BaseCommit != base || selected.ActiveAttempt.TargetBranch != "main" {
+			if tc.id == "task-004" {
+				selected, err = plan.FindTitle(tc.title)
+			}
+			if err != nil || selected.Title != tc.title || selected.Status != task.Active || selected.ActiveAttempt == nil || len(selected.Attempts) != 1 || selected.ActiveAttempt.BaseCommit != base || selected.ActiveAttempt.TargetBranch != "main" {
 				t.Fatalf("task=%+v err=%v", selected, err)
 			}
 			if strings.TrimSpace(string(testrepo.Run(t, c, "rev-parse", "HEAD"))) != base || strings.TrimSpace(string(testrepo.Run(t, c, "symbolic-ref", "--short", "HEAD"))) != "feature" {
 				t.Fatal("wrong Git branch/base")
 			}
-			if bytes.Contains(selectionBytes(t, c), []byte(`"attempts"`)) {
-				t.Fatal("unfinished attempt in history")
+			if !bytes.Contains(selectionBytes(t, c), []byte(`"attempts"`)) || bytes.Contains(selectionBytes(t, c), []byte(`"active_attempt"`)) {
+				t.Fatal("wrong attempts schema")
 			}
 		})
 	}

@@ -72,14 +72,14 @@ func TestStatusJSONSingleObjectWarningsAndReadOnlyShow(t *testing.T) {
 			t.Fatalf("missing field %s", name)
 		}
 	}
-	if string(raw["schema_version"]) != "1" || string(raw["current_task_id"]) != "null" || string(raw["last_completion"]) != "null" || string(raw["next_task_id"]) != `"task-002"` || !strings.Contains(diagnostic.String(), "branch_missing") {
+	if string(raw["schema_version"]) != "2" || string(raw["current_task_id"]) != "null" || string(raw["last_completion"]) != "null" || string(raw["next_task_id"]) != `"task-002"` || !strings.Contains(diagnostic.String(), "branch_missing") {
 		t.Fatalf("schema/diagnostics: %v %q", raw, &diagnostic)
 	}
 	var tasks []map[string]json.RawMessage
 	if err := json.Unmarshal(raw["tasks"], &tasks); err != nil {
 		t.Fatal(err)
 	}
-	if len(tasks) != 3 || tasks[0]["active_attempt"] == nil || tasks[0]["attempts"] != nil || tasks[1]["active_attempt"] != nil || tasks[1]["attempts"] != nil {
+	if len(tasks) != 3 || tasks[0]["active_attempt"] != nil || tasks[0]["attempts"] == nil || tasks[1]["active_attempt"] != nil || tasks[1]["attempts"] != nil {
 		t.Fatalf("attempt separation before first done: %v", tasks)
 	}
 	before := selectionBytes(t, c)
@@ -90,7 +90,7 @@ func TestStatusJSONSingleObjectWarningsAndReadOnlyShow(t *testing.T) {
 	}
 	out.Reset()
 	diagnostic.Reset()
-	if code := RunWithPlans(ctx, []string{"show", "--id=" + started.ID}, "test", Streams{Out: &out, Err: &diagnostic}, open); code != 0 || !strings.Contains(out.String(), "Текущий незавершённый подход") || !strings.Contains(out.String(), "lost") || !strings.Contains(out.String(), "Завершённые подходы:\n  нет.") || !strings.Contains(out.String(), "branch_missing") || !bytes.Equal(before, selectionBytes(t, c)) {
+	if code := RunWithPlans(ctx, []string{"show", "--id=" + started.ID}, "test", Streams{Out: &out, Err: &diagnostic}, open); code != 0 || !strings.Contains(out.String(), "Подходы:") || !strings.Contains(out.String(), "lost") || !strings.Contains(out.String(), "статус active; автор") || !strings.Contains(out.String(), started.ActiveAttempt.ID) || !strings.Contains(out.String(), "branch_missing") || !bytes.Equal(before, selectionBytes(t, c)) {
 		t.Fatalf("show: %d %q %q", code, &out, &diagnostic)
 	}
 	out.Reset()
@@ -136,8 +136,8 @@ func TestStatusDisplayContextAndHistoricalAttemptLabels(t *testing.T) {
 		Progress:   app.Progress{Done: 1, Total: 3, Percent: &percent}, CurrentTaskID: &current, NextTaskID: &next,
 		LastCompletion: &app.LastCompletion{TaskID: "b", TaskStatus: task.Active, AttemptID: "previous", Completion: c},
 		Tasks: []task.Task{
-			{ID: "a", Title: "First", Status: task.Paused, ActiveAttempt: &task.Attempt{Branch: "first", TargetBranch: "main"}},
-			{ID: "b", Title: "Second", Description: "Remember\ncontext\x1b", Status: task.Active, ActiveAttempt: &attempt, Attempts: []task.Attempt{{ID: "previous", Completion: &c}}},
+			{ID: "a", Title: "First", Status: task.Paused, Attempts: []task.Attempt{{Status: task.Paused, Branch: "first", TargetBranch: "main"}}},
+			{ID: "b", Title: "Second", Description: "Remember\ncontext\x1b", Status: task.Active, Attempts: []task.Attempt{{ID: "previous", Status: task.Done, Completion: &c}, attempt}},
 			{ID: "c", Title: "Next", Status: task.Todo},
 		},
 	}

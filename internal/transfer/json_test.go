@@ -12,7 +12,7 @@ import (
 )
 
 func TestJSONRoundTripPreservesFullState(t *testing.T) {
-	plan, err := DecodeMarkdown([]byte("- [x] История\n- [ ] Пауза\n- [ ] Архив\n- [ ] Не начато"), "main")
+	plan, err := decodeMarkdownFixture(t, []byte("- [x] История\n- [ ] Пауза\n- [ ] Архив\n- [ ] Не начато"), "main")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +42,7 @@ func TestJSONRoundTripPreservesFullState(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := DecodeJSON(data)
-	if err != nil || !reflect.DeepEqual(got, plan) {
+	if err != nil || !reflect.DeepEqual(got, task.Shared(plan)) {
 		t.Fatalf("round-trip: %v\n%+v\n%+v", err, got, plan)
 	}
 	var wire struct {
@@ -51,13 +51,13 @@ func TestJSONRoundTripPreservesFullState(t *testing.T) {
 	if err = json.Unmarshal(data, &wire); err != nil {
 		t.Fatal(err)
 	}
-	if wire.Tasks[0]["attempts"] == nil || wire.Tasks[0]["active_attempt"] == nil || wire.Tasks[3]["attempts"] != nil {
+	if wire.Tasks[0]["attempts"] == nil || wire.Tasks[0]["active_attempt"] != nil || wire.Tasks[3]["attempts"] != nil {
 		t.Fatalf("history separation: %s", data)
 	}
 }
 
 func TestJSONRejectsDamagedVersionIdentitiesAndInvariants(t *testing.T) {
-	plan, err := DecodeMarkdown([]byte("- [ ] One\n- [x] Two"), "main")
+	plan, err := decodeMarkdownFixture(t, []byte("- [ ] One\n- [x] Two"), "main")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func TestJSONRejectsDamagedVersionIdentitiesAndInvariants(t *testing.T) {
 	}
 	for name, invalid := range map[string][]byte{
 		"syntax":            data[:len(data)/2],
-		"version":           bytes.Replace(data, []byte(`"schema_version": 1`), []byte(`"schema_version": 2`), 1),
+		"version":           bytes.Replace(data, []byte(`"schema_version": 2`), []byte(`"schema_version": 99`), 1),
 		"duplicate ID":      bytes.ReplaceAll(data, []byte("task-002"), []byte("task-001")),
 		"duplicate number":  bytes.ReplaceAll(data, []byte("T-002"), []byte("T-001")),
 		"missing order ref": bytes.Replace(data, []byte(`"task-002"`), []byte(`"missing"`), 1),

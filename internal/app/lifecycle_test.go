@@ -46,7 +46,7 @@ func TestPlanChangesPreserveDirtyCodeAndIdentity(t *testing.T) {
 		t.Fatalf("move: %v %v", changed, err)
 	}
 	paused, changed, err := p.Pause(ctx, started.ID)
-	if err != nil || !changed || paused.Status != task.Paused || !reflect.DeepEqual(paused.ActiveAttempt, started.ActiveAttempt) {
+	if err != nil || !changed || paused.Status != task.Paused || paused.ActiveAttempt.Status != task.Paused || !sameAttemptBinding(paused.ActiveAttempt, started.ActiveAttempt) {
 		t.Fatalf("pause: %+v %v", paused, err)
 	}
 	before := planBytes(t, c)
@@ -65,7 +65,7 @@ func TestPlanChangesPreserveDirtyCodeAndIdentity(t *testing.T) {
 		t.Fatalf("no-op changed backup: %v", err)
 	}
 	archived, changed, err := p.Archive(ctx, started.ID)
-	if err != nil || !changed || archived.Status != task.Archived || !reflect.DeepEqual(archived.ActiveAttempt, started.ActiveAttempt) {
+	if err != nil || !changed || archived.Status != task.Archived || !reflect.DeepEqual(archived.ActiveAttempt, paused.ActiveAttempt) {
 		t.Fatalf("archive lost attempt: %+v %v", archived, err)
 	}
 	before = planBytes(t, c)

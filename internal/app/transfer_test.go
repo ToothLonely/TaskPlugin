@@ -137,7 +137,7 @@ func TestImportRejectsWholeDamagedInputAndStorage(t *testing.T) {
 			format := "markdown"
 			if mode == "broken json" || mode == "version" {
 				format = "json"
-				data = []byte(`{"format":"git-task","schema_version":2,"revision":0,"target_branch":"main","order":[],"tasks":[],"last_event":0}`)
+				data = []byte(`{"format":"git-task","schema_version":99,"revision":0,"target_branch":"main","order":[],"tasks":[],"last_event":0}`)
 				if mode == "broken json" {
 					data = data[:len(data)/2]
 				}
@@ -181,6 +181,7 @@ func TestJSONImportExportPreservesStateWithoutChangingGit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	testrepo.FixtureIDs(&plan)
 	now := time.Date(2026, 9, 30, 12, 0, 0, 0, time.UTC)
 	for i, id := range []string{"task-001", "task-002"} {
 		branch := "missing-" + id

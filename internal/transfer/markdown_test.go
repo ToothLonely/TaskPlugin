@@ -8,11 +8,12 @@ import (
 	"time"
 
 	"git-task/internal/task"
+	"git-task/internal/testrepo"
 )
 
 func TestMarkdownOrderUnicodeAndImportedHistory(t *testing.T) {
 	input := "\ufeff# План\r\n\r\n- [ ]  Одинаковая 🙂 \r\n- [x] Готово 日本語\r\n## Этап\r\n- [ ]  Одинаковая 🙂 \r\n- [X] Последняя\r\n- [ ] Хвост\r\n"
-	plan, err := DecodeMarkdown([]byte(input), "main")
+	plan, err := decodeMarkdownFixture(t, []byte(input), "main")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,6 +41,7 @@ func TestMarkdownOrderUnicodeAndImportedHistory(t *testing.T) {
 	if _, err = plan.Add("После последней готовой", "", task.Position{}); err != nil {
 		t.Fatal(err)
 	}
+	testrepo.FixtureIDs(&plan)
 	if !reflect.DeepEqual(plan.Order, []string{"task-001", "task-002", "task-003", "task-004", "task-006", "task-005"}) {
 		t.Fatalf("insertion: %v", plan.Order)
 	}
@@ -47,11 +49,11 @@ func TestMarkdownOrderUnicodeAndImportedHistory(t *testing.T) {
 
 func TestMarkdownTodoTailAndLongLine(t *testing.T) {
 	title := strings.Repeat("я", 70000)
-	plan, err := DecodeMarkdown([]byte("- [ ] Первый\n- [ ] "+title), "main")
+	plan, err := decodeMarkdownFixture(t, []byte("- [ ] Первый\n- [ ] "+title), "main")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = plan.Add("Третий", "", task.Position{}); err != nil || plan.Order[2] != "task-003" {
+	if _, err = plan.Add("Третий", "", task.Position{}); err != nil || plan.Tasks[2].Number != "T-003" {
 		t.Fatalf("tail: %v %v", plan.Order, err)
 	}
 	data, err := EncodeMarkdown(plan)
@@ -69,21 +71,21 @@ func TestMarkdownRejectsUnsupportedInputWithoutPartialPlan(t *testing.T) {
 		"bare CR": "- [ ] X\rY", "invalid UTF8": "- [ ] \xff", "heading": "#нет пробела",
 	} {
 		t.Run(name, func(t *testing.T) {
-			plan, err := DecodeMarkdown([]byte("- [ ] Первый\n"+line+"\n- [ ] Последний\n"), "main")
+			plan, err := decodeMarkdownFixture(t, []byte("- [ ] Первый\n"+line+"\n- [ ] Последний\n"), "main")
 			if err == nil || !strings.Contains(err.Error(), "строка 2") || len(plan.Tasks) != 0 {
 				t.Fatalf("partial=%+v err=%v", plan, err)
 			}
 		})
 	}
 	for _, input := range []string{"", "\ufeff# План\n\t\n", "- [ ] X\r"} {
-		if _, err := DecodeMarkdown([]byte(input), "main"); err == nil {
+		if _, err := decodeMarkdownFixture(t, []byte(input), "main"); err == nil {
 			t.Fatalf("accepted %q", input)
 		}
 	}
 }
 
 func TestMarkdownExportUsesOrderAndCurrentStatus(t *testing.T) {
-	plan, err := DecodeMarkdown([]byte("- [ ] Первый\n- [x] Готовый\n- [ ] Архив"), "main")
+	plan, err := decodeMarkdownFixture(t, []byte("- [ ] Первый\n- [x] Готовый\n- [ ] Архив"), "main")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +114,7 @@ func FuzzMarkdown(f *testing.F) {
 		f.Add([]byte(input))
 	}
 	f.Fuzz(func(t *testing.T, data []byte) {
-		plan, err := DecodeMarkdown(data, "main")
+		plan, err := decodeMarkdownFixture(t, data, "main")
 		if err != nil {
 			if len(plan.Tasks) != 0 {
 				t.Fatal("partial plan on error")
@@ -126,15 +128,31 @@ func FuzzMarkdown(f *testing.F) {
 		if err != nil {
 			return
 		}
-		again, err := DecodeMarkdown(encoded, "main")
-		if err != nil || !reflect.DeepEqual(again, plan) {
+		again, err := decodeMarkdownFixture(t, encoded, "main")
+		if err != nil {
 			t.Fatalf("round-trip: %v", err)
+		}
+		if len(again.Tasks) != len(plan.Tasks) {
+			t.Fatal("round-trip task count changed")
+		}
+		for i, old := range plan.Tasks {
+			next := again.Tasks[i]
+			if old.Title != next.Title || old.Status != next.Status || old.Number != next.Number || len(old.Attempts) != len(next.Attempts) {
+				t.Fatal("checklist meaning changed")
+			}
+			if next.Status == task.Done && (next.Attempts[0].ID == "" || next.Attempts[0].Completion.Source != task.Imported) {
+				t.Fatal("imported completion lost")
+			}
+		}
+		reencoded, err := EncodeMarkdown(again)
+		if err != nil || !bytes.Equal(encoded, reencoded) {
+			t.Fatalf("checklist not stable: %v", err)
 		}
 	})
 }
 
 func TestMarkdownExportForEveryStatus(t *testing.T) {
-	plan, err := DecodeMarkdown([]byte("- [x] Done\n- [ ] Todo\n- [ ] Active\n- [ ] Paused\n- [ ] Archived\n- [x] Again"), "main")
+	plan, err := decodeMarkdownFixture(t, []byte("- [x] Done\n- [ ] Todo\n- [ ] Active\n- [ ] Paused\n- [ ] Archived\n- [x] Again"), "main")
 	if err != nil {
 		t.Fatal(err)
 	}

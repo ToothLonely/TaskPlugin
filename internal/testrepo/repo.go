@@ -35,6 +35,7 @@ func New(t *testing.T) *git.Client {
 	}
 	home := filepath.Join(base, "home")
 	c.Env = append(c.Env, "HOME="+home, "USERPROFILE="+home, "XDG_CONFIG_HOME="+home,
+		"GIT_AUTHOR_NAME=Test", "GIT_AUTHOR_EMAIL=test@example.invalid", "GIT_COMMITTER_NAME=Test", "GIT_COMMITTER_EMAIL=test@example.invalid",
 		"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_SYSTEM="+os.DevNull, "GIT_ATTR_NOSYSTEM=1",
 		"GIT_CEILING_DIRECTORIES="+filepath.Dir(base))
 	Run(t, c, "init", "--initial-branch=main", "--template="+filepath.Join(base, "template"))

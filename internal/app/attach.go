@@ -14,7 +14,7 @@ import (
 
 // Attach binds an existing branch without switching, or explicitly rebinds an
 // active/paused attempt. A repeated ordinary attach is rejected by the model.
-func (p *Plans) Attach(ctx context.Context, branch, id string, rebind bool) (result task.Task, err error) {
+func (p *Plans) Attach(ctx context.Context, branch, id string, rebind bool, attemptIDs ...string) (result task.Task, err error) {
 	err = p.store.WithOperation(ctx, func(op *storage.Operation) error {
 		base, err := op.Load()
 		if err != nil {
@@ -49,19 +49,30 @@ func (p *Plans) Attach(ctx context.Context, branch, id string, rebind bool) (res
 			if findErr != nil {
 				return findErr
 			}
-			if (bound.Status == task.Active || bound.Status == task.Paused) && bound.ActiveAttempt.Branch == branch {
+			a, selectErr := p.selectAttempt(ctx, next, bound, attemptIDs)
+			if selectErr != nil {
+				return selectErr
+			}
+			if a.Branch == branch {
 				log, logErr := p.git.BranchLog(ctx, branch)
 				if logErr != nil && !errors.Is(logErr, git.ErrHistoryUnavailable) {
 					return logErr
 				}
-				if logErr == nil && tracking.BindingContinuous(*bound.ActiveAttempt, log, commit) {
+				if logErr == nil && tracking.BindingContinuous(a, log, commit) {
 					result = bound
 					return nil
 				}
 			}
-			changed, err = next.Rebind(id, branch, commit, now)
+			changed, err = next.Rebind(id, branch, commit, now, a.ID)
+			in.ID = a.ID
+			markLocal(&next, in.ID)
 		} else {
-			changed, err = next.Attach(id, task.Attempt{ID: in.ID, Branch: branch, OriginalBranch: branch, TargetBranch: in.Target, BaseCommit: commit, StartedAt: &now})
+			author, authorErr := p.author(ctx)
+			if authorErr != nil {
+				return authorErr
+			}
+			changed, err = next.Attach(id, task.Attempt{ID: in.ID, Author: author, Branch: branch, OriginalBranch: branch, TargetBranch: in.Target, BaseCommit: commit, StartedAt: &now})
+			markLocal(&next, in.ID)
 		}
 		if err != nil {
 			return err
@@ -74,8 +85,7 @@ func (p *Plans) Attach(ctx context.Context, branch, id string, rebind bool) (res
 		if err != nil {
 			return err
 		}
-		bound, _ := next.FindID(id)
-		if _, err = next.Observe(id, bound.ActiveAttempt.ID, observation, nil); err != nil {
+		if _, err = next.Observe(id, in.ID, observation, nil); err != nil {
 			return err
 		}
 		journal, err := op.Prepare(ctx, base, next, in)
@@ -88,7 +98,7 @@ func (p *Plans) Attach(ctx context.Context, branch, id string, rebind bool) (res
 		if err = p.verifyEffect(ctx, in); err != nil {
 			return err
 		}
-		if err = op.Commit(ctx, journal); err != nil {
+		if err = p.commit(ctx, op, journal); err != nil {
 			return err
 		}
 		result, _ = next.FindID(id)

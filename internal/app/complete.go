@@ -10,16 +10,17 @@ import (
 )
 
 type CompletionPreview struct {
-	Task     task.Task
-	Commit   string
-	NoChange bool
-	base     storage.Snapshot
-	id       string
-	commit   string
-	target   string
+	Task      task.Task
+	Commit    string
+	NoChange  bool
+	base      storage.Snapshot
+	id        string
+	commit    string
+	target    string
+	attemptID string
 }
 
-func (p *Plans) PrepareComplete(ctx context.Context, id, commit string) (*CompletionPreview, error) {
+func (p *Plans) PrepareComplete(ctx context.Context, id, commit string, attemptIDs ...string) (*CompletionPreview, error) {
 	base, err := p.store.Load(ctx)
 	if err != nil {
 		return nil, err
@@ -32,6 +33,11 @@ func (p *Plans) PrepareComplete(ctx context.Context, id, commit string) (*Comple
 		return nil, err
 	}
 	if item.Status == task.Done {
+		if len(attemptIDs) > 0 && attemptIDs[0] != "" {
+			if _, err := item.Attempt(attemptIDs[0]); err != nil {
+				return nil, err
+			}
+		}
 		if commit != "" {
 			return nil, fmt.Errorf("%w: история done не переписывается", task.ErrTransition)
 		}
@@ -44,6 +50,15 @@ func (p *Plans) PrepareComplete(ctx context.Context, id, commit string) (*Comple
 		return nil, err
 	}
 	preview := &CompletionPreview{Task: item, base: base, id: id}
+	if item.Status != task.Todo {
+		a, err := p.selectAttempt(ctx, base.Plan, item, attemptIDs)
+		if err != nil {
+			return nil, err
+		}
+		preview.attemptID = a.ID
+	} else if len(attemptIDs) > 0 && attemptIDs[0] != "" {
+		return nil, task.ErrNotFound
+	}
 	if commit != "" {
 		preview.commit, _, err = p.git.ResolveBase(ctx, commit)
 		if err != nil {
@@ -72,7 +87,7 @@ func (p *Plans) ApplyComplete(ctx context.Context, preview *CompletionPreview) (
 	if preview == nil {
 		return task.Task{}, fmt.Errorf("отсутствует подготовленное завершение")
 	}
-	current, err := p.PrepareComplete(ctx, preview.id, preview.commit)
+	current, err := p.PrepareComplete(ctx, preview.id, preview.commit, preview.attemptID)
 	if err != nil {
 		return task.Task{}, err
 	}
@@ -82,8 +97,8 @@ func (p *Plans) ApplyComplete(ctx context.Context, preview *CompletionPreview) (
 	if current.NoChange {
 		return current.Task, nil
 	}
-	id := ""
-	if current.Task.ActiveAttempt == nil {
+	id := current.attemptID
+	if id == "" {
 		id, err = newOperationID()
 		if err != nil {
 			return task.Task{}, err
@@ -93,7 +108,7 @@ func (p *Plans) ApplyComplete(ctx context.Context, preview *CompletionPreview) (
 	if _, err := next.CompleteManual(current.Task.ID, id, current.commit, time.Now().UTC()); err != nil {
 		return task.Task{}, err
 	}
-	if _, err := p.store.Save(ctx, current.base, next); err != nil {
+	if _, err := p.save(ctx, current.base, next); err != nil {
 		return task.Task{}, err
 	}
 	return next.FindID(current.Task.ID)

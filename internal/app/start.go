@@ -21,6 +21,7 @@ type StartOptions struct {
 	New       string
 	From      string
 	Again     bool
+	AttemptID string
 	Selection *StartSelection
 }
 
@@ -140,6 +141,10 @@ func (p *Plans) Start(ctx context.Context, options StartOptions) (result task.Ta
 		}
 		now := time.Now().UTC()
 		attempt := task.Attempt{ID: intent.ID, Branch: intent.Branch, OriginalBranch: intent.Branch, TargetBranch: intent.Target, BaseCommit: intent.Base, StartedAt: &now}
+		attempt.Author, err = p.author(ctx)
+		if err != nil {
+			return err
+		}
 		attempt.Observation, err = p.baseline(ctx, "", intent.Base, intent.Target, intent.TargetCommit)
 		if err != nil {
 			return err
@@ -147,6 +152,7 @@ func (p *Plans) Start(ctx context.Context, options StartOptions) (result task.Ta
 		if _, err = next.Start(selected.ID, attempt, options.Again); err != nil {
 			return err
 		}
+		markLocal(&next, attempt.ID)
 		if err = p.git.CheckStart(ctx, true); err != nil {
 			return err
 		}
@@ -212,7 +218,7 @@ func (p *Plans) Start(ctx context.Context, options StartOptions) (result task.Ta
 		if err = p.verifyEffect(ctx, intent); err != nil {
 			return errors.Join(checkoutErr, err, storage.ErrOperation)
 		}
-		if err = op.Commit(ctx, journal); err != nil {
+		if err = p.commit(ctx, op, journal); err != nil {
 			return errors.Join(checkoutErr, err)
 		}
 		result, _ = next.FindID(selected.ID)

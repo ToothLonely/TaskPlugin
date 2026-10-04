@@ -31,10 +31,10 @@ func TestManualCompleteAgainPauseResumeAndMergeHistory(t *testing.T) {
 					options.Title = manual.Title
 				}
 				started, err := p.Start(ctx, options)
-				if err != nil || started.Status != task.Active || len(started.Attempts) != 1 || !reflect.DeepEqual(started.Attempts[0], old) || started.ActiveAttempt.ID == old.ID {
+				if err != nil || started.Status != task.Active || len(started.Attempts) != 2 || !reflect.DeepEqual(started.Attempts[0], old) || started.ActiveAttempt.ID == old.ID {
 					t.Fatalf("again: %+v %v", started, err)
 				}
-				if empty := syncTask(t, p, manual.ID); empty.Status != task.Active || len(empty.Attempts) != 1 {
+				if empty := syncTask(t, p, manual.ID); empty.Status != task.Active || len(empty.Attempts) != 2 {
 					t.Fatalf("old integration completed empty new attempt: %+v", empty)
 				}
 				if _, _, err := p.Pause(ctx, manual.ID); err != nil {
@@ -44,7 +44,7 @@ func TestManualCompleteAgainPauseResumeAndMergeHistory(t *testing.T) {
 					t.Fatal(err)
 				}
 				commitFile(t, c, "new-work.txt", "new attempt\n")
-				if work := syncTask(t, p, manual.ID); work.Status != task.Active || len(work.Attempts) != 1 || work.ActiveAttempt.Observation.WorkCommit == "" {
+				if work := syncTask(t, p, manual.ID); work.Status != task.Active || len(work.Attempts) != 2 || work.ActiveAttempt.Observation.WorkCommit == "" {
 					t.Fatalf("new work: %+v", work)
 				}
 				mergeBranch(t, c, options.Branch, ff)

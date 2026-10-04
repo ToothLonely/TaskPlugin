@@ -46,6 +46,9 @@ func (p *Plan) UnmarshalJSON(data []byte) error {
 	if err := value.Validate(); err != nil {
 		return err
 	}
+	for i := range value.Tasks {
+		value.Tasks[i].project("")
+	}
 	*p = value
 	return nil
 }
@@ -141,7 +144,7 @@ func checkJSON(dec *json.Decoder) error {
 				return err
 			}
 		}
-		if seen["format"] && (!seen["revision"] || !seen["last_event"]) || seen["status"] && !seen["revision"] {
+		if seen["format"] && (!seen["revision"] || !seen["last_event"]) || seen["title"] && seen["status"] && !seen["revision"] {
 			return fmt.Errorf("отсутствует обязательный счётчик")
 		}
 	case '[':

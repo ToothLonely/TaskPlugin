@@ -3,6 +3,7 @@ package app
 
 import (
 	"context"
+	"errors"
 
 	"git-task/internal/git"
 	"git-task/internal/storage"
@@ -14,6 +15,8 @@ type Plans struct {
 	store      *storage.Store
 	git        *git.Client
 	checkpoint func(string) error
+	notices    []task.Warning
+	actionIDs  []string
 }
 
 // Open resolves paths without assuming the process runs in the repository root.
@@ -51,7 +54,7 @@ func (p *Plans) Add(ctx context.Context, title, description string, pos task.Pos
 	if err != nil {
 		return task.Task{}, err
 	}
-	if _, err = p.store.Save(ctx, snapshot, next); err != nil {
+	if _, err = p.save(ctx, snapshot, next); err != nil {
 		return task.Task{}, err
 	}
 	return added, nil
@@ -65,10 +68,16 @@ func (p *Plans) Status(ctx context.Context) (task.Plan, error) {
 
 // StatusState also reports an unfinished operation without repairing it.
 func (p *Plans) StatusState(ctx context.Context) (task.Plan, bool, error) {
+	receiveErr := p.ReceiveCached(ctx)
 	snapshot, err := p.store.Load(ctx)
 	if err != nil || snapshot.PendingOperation {
 		return snapshot.Plan, snapshot.PendingOperation, err
 	}
+	if receiveErr != nil {
+		return snapshot.Plan, false, errors.Join(ErrReceive, receiveErr)
+	}
 	plan, _, err := p.sync(ctx, snapshot, false)
 	return plan, false, err
 }
+
+var ErrReceive = errors.New("общая версия не применена; показан локальный план")

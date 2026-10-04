@@ -11,7 +11,7 @@ import (
 	"git-task/internal/tracking"
 )
 
-func (p *Plans) Resume(ctx context.Context, id string) (result task.Task, err error) {
+func (p *Plans) Resume(ctx context.Context, id string, attemptIDs ...string) (result task.Task, err error) {
 	err = p.store.WithOperation(ctx, func(op *storage.Operation) error {
 		base, err := op.Load()
 		if err != nil {
@@ -25,13 +25,17 @@ func (p *Plans) Resume(ctx context.Context, id string) (result task.Task, err er
 		if err != nil {
 			return err
 		}
-		if item.Status == task.Active {
-			return fmt.Errorf("задача %s уже запущена: %w", id, task.ErrTransition)
-		}
-		if _, err = next.Resume(id); err != nil {
+		a, err := p.selectAttempt(ctx, next, item, attemptIDs)
+		if err != nil {
 			return err
 		}
-		branch := item.ActiveAttempt.Branch
+		if a.Status == task.Active {
+			return fmt.Errorf("задача %s уже запущена: %w", id, task.ErrTransition)
+		}
+		if _, err = next.Resume(id, a.ID); err != nil {
+			return err
+		}
+		branch := a.Branch
 		commit, err := p.git.BranchCommit(ctx, branch)
 		if err != nil {
 			return err
@@ -43,7 +47,7 @@ func (p *Plans) Resume(ctx context.Context, id string) (result task.Task, err er
 		if err != nil {
 			return err
 		}
-		if !tracking.BindingContinuous(*item.ActiveAttempt, log, commit) {
+		if !tracking.BindingContinuous(a, log, commit) {
 			return fmt.Errorf("связь ветки %q не подтверждена; используйте attach <branch> --id %s --rebind", branch, id)
 		}
 		in, err := p.prepareIntent(ctx, "resume", id, branch, base.Plan.TargetBranch, "refs/heads/"+branch)
@@ -97,7 +101,7 @@ func (p *Plans) Resume(ctx context.Context, id string) (result task.Task, err er
 		if err = p.git.CheckStart(ctx, false); err != nil {
 			return errors.Join(checkoutErr, err, storage.ErrOperation)
 		}
-		if err = op.Commit(ctx, journal); err != nil {
+		if err = p.commit(ctx, op, journal); err != nil {
 			return fmt.Errorf("ветка уже переключена; требуется doctor: %w", errors.Join(checkoutErr, err, storage.ErrOperation))
 		}
 		result, _ = next.FindID(id)

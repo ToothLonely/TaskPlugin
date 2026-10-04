@@ -59,7 +59,7 @@ func TestCompletionWriteFailuresKeepWholeAttempt(t *testing.T) {
 				if changed || err != nil || !bytes.Equal(data, read(t, filepath.Join(s.dir, "plan.json"))) {
 					t.Fatalf("installed retry: %v %v", changed, err)
 				}
-			} else if item.Status != task.Active || item.ActiveAttempt == nil || len(item.Attempts) != 0 || !bytes.Equal(before, data) {
+			} else if item.Status != task.Active || item.ActiveAttempt == nil || len(item.Attempts) != 1 || !bytes.Equal(before, data) {
 				t.Fatalf("partial pre-install result: %+v", item)
 			}
 		})

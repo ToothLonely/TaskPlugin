@@ -57,7 +57,7 @@ func (p *Plans) RecoverStart(ctx context.Context) (recovered bool, err error) {
 		if err = p.verifyEffect(ctx, in); err != nil {
 			return err
 		}
-		if err = op.Commit(ctx, journal); err != nil {
+		if err = p.commit(ctx, op, journal); err != nil {
 			return err
 		}
 		if err = p.point(ctx, "recovered"); err != nil {

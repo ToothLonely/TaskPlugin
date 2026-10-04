@@ -15,7 +15,7 @@ import (
 	"git-task/internal/git"
 )
 
-var events = [...]string{"post-commit", "post-merge", "post-checkout", "post-rewrite"}
+var events = [...]string{"post-commit", "post-merge", "post-checkout", "post-rewrite", "reference-transaction"}
 
 type Installer struct {
 	Git    *git.Client

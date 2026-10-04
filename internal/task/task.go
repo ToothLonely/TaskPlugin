@@ -22,7 +22,7 @@ var (
 	ErrInvalid       = errors.New("некорректные данные плана")
 	ErrTransition    = errors.New("недопустимый переход задачи")
 	ErrNotFound      = errors.New("задача не найдена")
-	ErrAmbiguous     = errors.New("неоднозначный title; используйте --id")
+	ErrAmbiguous     = errors.New("неоднозначный выбор; используйте --id для задачи или --attempt для подхода")
 	ErrBranchInUse   = errors.New("ветка уже связана с активной задачей")
 	ErrAgainRequired = errors.New("задача выполнена; для нового подхода добавьте --again")
 )
@@ -35,15 +35,16 @@ type Task struct {
 	Description   string    `json:"description,omitempty"`
 	Revision      uint64    `json:"revision"`
 	Status        Status    `json:"status"`
-	ActiveAttempt *Attempt  `json:"active_attempt,omitempty"`
+	ActiveAttempt *Attempt  `json:"-"`
 	Attempts      []Attempt `json:"attempts,omitempty"`
 	Warnings      []Warning `json:"warnings,omitempty"`
 }
 
 // Warning records uncertainty without changing lifecycle state.
 type Warning struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
+	Code      string `json:"code"`
+	Message   string `json:"message"`
+	AttemptID string `json:"attempt_id,omitempty"`
 }
 
 func invalid(format string, args ...any) error {
@@ -60,5 +61,10 @@ func (t Task) clone() Task {
 		t.ActiveAttempt = &a
 	}
 	t.Warnings = append([]Warning(nil), t.Warnings...)
+	id := ""
+	if t.ActiveAttempt != nil {
+		id = t.ActiveAttempt.ID
+	}
+	t.project(id)
 	return t
 }

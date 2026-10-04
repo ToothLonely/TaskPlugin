@@ -11,10 +11,11 @@ import (
 )
 
 type lifecycleArgs struct {
-	id       string
-	edit     task.EditOptions
-	position task.Position
-	help     bool
+	id        string
+	attemptID string
+	edit      task.EditOptions
+	position  task.Position
+	help      bool
 }
 
 func parseLifecycleArgs(command string, args []string) (lifecycleArgs, error) {
@@ -23,6 +24,9 @@ func parseLifecycleArgs(command string, args []string) (lifecycleArgs, error) {
 	fs := flag.NewFlagSet(command, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	fs.StringVar(&result.id, "id", "", "ID задачи")
+	if command == "pause" || command == "resume" {
+		fs.StringVar(&result.attemptID, "attempt", "", "ID подхода")
+	}
 	fs.BoolVar(&result.help, "help", false, "показать справку")
 	if command == "edit" {
 		fs.StringVar(&title, "title", "", "название")
@@ -41,7 +45,7 @@ func parseLifecycleArgs(command string, args []string) (lifecycleArgs, error) {
 		}
 		name, value, hasValue := strings.Cut(arg, "=")
 		boolean := name == "--help" || command == "move" && name == "--end"
-		valued := name == "--id" || command == "edit" && (name == "--title" || name == "--description") || command == "move" && (name == "--after" || name == "--before")
+		valued := name == "--id" || (command == "pause" || command == "resume") && name == "--attempt" || command == "edit" && (name == "--title" || name == "--description") || command == "move" && (name == "--after" || name == "--before")
 		if !boolean && !valued {
 			return result, &usageError{fmt.Sprintf("%s: неизвестный флаг или лишний аргумент %q", command, arg)}
 		}
@@ -122,11 +126,11 @@ func runLifecycle(ctx context.Context, command string, args []string, streams St
 	case "move":
 		item, changed, err = plans.Move(ctx, parsed.id, parsed.position)
 	case "pause":
-		item, changed, err = plans.Pause(ctx, parsed.id)
+		item, changed, err = plans.Pause(ctx, parsed.id, parsed.attemptID)
 	case "archive":
 		item, changed, err = plans.Archive(ctx, parsed.id)
 	case "resume":
-		item, err = plans.Resume(ctx, parsed.id)
+		item, err = plans.Resume(ctx, parsed.id, parsed.attemptID)
 	}
 	if err != nil {
 		return err
