@@ -72,6 +72,7 @@ func TestPublicationDeadlineFailureKeepsActionIDsForNextPublish(t *testing.T) {
 	if err != nil || !before.SameVersion(after) {
 		t.Fatalf("deadline changed queued action: %v", err)
 	}
+	assertDoctorQueueReadOnly(t, f.a, f.ca)
 	f.a.checkpoint = nil
 	if err := f.a.Publish(ctx); err != nil {
 		t.Fatal(err)

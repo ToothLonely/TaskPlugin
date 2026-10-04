@@ -34,11 +34,14 @@ func writeHelp(out io.Writer, topic string) error {
   status          Сверить и показать план
   show            Показать задачу и историю без сверки
   hooks           Установить или удалить локальные hooks
+  doctor          Диагностика и явное восстановление
 
 Также доступны --help и --version без Git-репозитория.
 `
 	case "help":
 		text = "Использование: git task help [command]\nПоказать справку. Флаг --help разрешён до и после имени команды.\n"
+	case "doctor":
+		text = "Использование: git task doctor [--repair recover-start / restore-backup / unlock] [--yes]\nБез repair только локальное чтение, без сети и сверки. Явный repair показывает снимок и требует подтверждение; --yes не отменяет проверки. Очередь публикации: git task team publish, без повторного start/complete. Restore сохраняет повреждённый оригинал и предупреждает о свежих неопубликованных данных; unlock требует отсутствия PID этого компьютера. Подробности: docs/DOCTOR.md.\n"
 	case "migrate":
 		text = "Использование: git task migrate\nЯвно перейти со схемы 1 на схему 2; исходник сохраняется в plan.schema-1.json и backup. Незавершённая операция блокирует миграцию.\n"
 	case "team":

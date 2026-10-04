@@ -285,6 +285,7 @@ func TestTeamRepeatedRacesAreBoundedAndQueueSurvives(t *testing.T) {
 	if err != nil || len(s.Plan.Team.Pending) != 1 {
 		t.Fatalf("queue lost: %v", err)
 	}
+	assertDoctorQueueReadOnly(t, f.a, f.ca)
 	f.a.checkpoint = nil
 	if err := f.a.Publish(ctx); err != nil {
 		t.Fatal(err)

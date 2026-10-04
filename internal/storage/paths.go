@@ -80,6 +80,10 @@ func (s *Store) inspect(holdingLock bool) error {
 			if !holdingLock {
 				return ErrLocked
 			}
+		case "recovery.lock":
+			if !holdingLock {
+				return ErrLocked
+			}
 		case "operation.json":
 			// Read-only access remains available for diagnosis. Writers reject
 			// the journal unless they explicitly enter operation recovery.

@@ -9,6 +9,27 @@ import (
 )
 
 func (s *Store) lock() (func() error, error) {
+	gate := filepath.Join(s.dir, "recovery.lock")
+	if _, err := os.Lstat(gate); err == nil {
+		return nil, ErrLocked
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
+	unlock, err := s.lockFile()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := os.Lstat(gate); !errors.Is(err, os.ErrNotExist) {
+		return nil, errors.Join(ErrLocked, unlock())
+	}
+	return unlock, nil
+}
+
+func (s *Store) lockFile() (func() error, error) {
+	host, err := os.Hostname()
+	if err != nil {
+		return nil, err
+	}
 	path := filepath.Join(s.dir, "write.lock")
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if errors.Is(err, os.ErrExist) {
@@ -17,7 +38,7 @@ func (s *Store) lock() (func() error, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, writeErr := fmt.Fprintf(f, "git-task write lock\npid=%d\ncreated=%s\n", os.Getpid(), time.Now().UTC().Format(time.RFC3339Nano))
+	_, writeErr := fmt.Fprintf(f, "git-task write lock\npid=%d\ncreated=%s\nhost=%s\n", os.Getpid(), time.Now().UTC().Format(time.RFC3339Nano), host)
 	syncErr := f.Sync()
 	info, statErr := f.Stat()
 	closeErr := f.Close()

@@ -79,22 +79,26 @@ func (o *Operation) Journal() (*Journal, error) {
 	if err != nil {
 		return nil, err
 	}
+	return decodeJournal(data)
+}
+
+func decodeJournal(data []byte) (*Journal, error) {
 	var j Journal
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
-	if err = decoder.Decode(&j); err != nil {
+	if err := decoder.Decode(&j); err != nil {
 		return nil, fmt.Errorf("повреждён operation.json: %w", err)
 	}
-	if err = decoder.Decode(new(any)); err != io.EOF {
+	if err := decoder.Decode(new(any)); err != io.EOF {
 		return nil, fmt.Errorf("повреждён operation.json: лишние данные")
 	}
 	if j.Version != 1 || j.Digest != j.checksum() {
 		return nil, fmt.Errorf("повреждён operation.json: версия или контрольная сумма")
 	}
-	if _, err = decode(j.Original); err != nil {
+	if _, err := decode(j.Original); err != nil {
 		return nil, err
 	}
-	if _, err = decode(j.Result); err != nil {
+	if _, err := decode(j.Result); err != nil {
 		return nil, err
 	}
 	j.raw = data

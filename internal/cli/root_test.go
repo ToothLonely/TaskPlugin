@@ -55,15 +55,11 @@ func TestInvalidArguments(t *testing.T) {
 	}
 }
 
-func TestPlannedCommandsRefuseExecution(t *testing.T) {
-	for _, command := range []string{"doctor"} {
-		for _, args := range [][]string{{command}, {"help", command}} {
-			var out, diagnostic bytes.Buffer
-			code := Run(context.Background(), args, "test", Streams{Out: &out, Err: &diagnostic})
-			if code != 1 || out.Len() != 0 || !strings.Contains(diagnostic.String(), "ещё не реализована") {
-				t.Fatalf("Run(%q): code=%d, stdout=%q, stderr=%q", args, code, &out, &diagnostic)
-			}
-		}
+func TestDoctorRequiresConnectedOperations(t *testing.T) {
+	var out, diagnostic bytes.Buffer
+	code := Run(context.Background(), []string{"doctor"}, "test", Streams{Out: &out, Err: &diagnostic})
+	if code != 1 || out.Len() != 0 || !strings.Contains(diagnostic.String(), "не подключены") {
+		t.Fatalf("doctor: code=%d, stdout=%q, stderr=%q", code, &out, &diagnostic)
 	}
 }
 

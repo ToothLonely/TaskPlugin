@@ -12,7 +12,16 @@ import (
 // The caller is responsible for showing the diagnosis and obtaining consent.
 // It never creates, deletes, or switches branches, and never guesses ownership.
 func (p *Plans) RecoverStart(ctx context.Context) (recovered bool, err error) {
-	err = p.store.WithOperation(ctx, func(op *storage.Operation) error {
+	return p.recoverStart(ctx, nil)
+}
+
+func (p *Plans) recoverStart(ctx context.Context, preview *storage.Repair) (recovered bool, err error) {
+	recover := func(op *storage.Operation) error {
+		if preview != nil {
+			if err := p.store.CheckRepair(preview, true); err != nil {
+				return err
+			}
+		}
 		journal, err := op.Journal()
 		if err != nil || journal == nil {
 			return err
@@ -68,6 +77,11 @@ func (p *Plans) RecoverStart(ctx context.Context) (recovered bool, err error) {
 		}
 		recovered = true
 		return nil
-	})
+	}
+	if preview == nil {
+		err = p.store.WithOperation(ctx, recover)
+	} else {
+		err = p.store.WithRepairOperation(ctx, preview, recover)
+	}
 	return recovered, err
 }
