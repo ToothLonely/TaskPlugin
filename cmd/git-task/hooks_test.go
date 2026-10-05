@@ -28,6 +28,9 @@ type hookFixture struct {
 
 func buildHooksBinary(t *testing.T) string {
 	t.Helper()
+	if binary := candidateBinary(t); binary != "" {
+		return binary
+	}
 	suffix := ""
 	if runtime.GOOS == "windows" {
 		suffix = ".exe"

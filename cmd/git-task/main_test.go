@@ -22,11 +22,26 @@ func TestBinaryCommands(t *testing.T) {
 		suffix = ".exe"
 	}
 	binary := filepath.Join(dir, "git-task"+suffix)
+	version := "test-build"
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
-	build := exec.CommandContext(ctx, filepath.Join(runtime.GOROOT(), "bin", "go"+suffix), "build", "-o", binary, "-ldflags=-X=main.version=test-build", ".")
-	if output, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("build: %v\n%s", err, output)
+	if candidate := candidateBinary(t); candidate != "" {
+		data, err := os.ReadFile(candidate)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(binary, data, 0755); err != nil {
+			t.Fatal(err)
+		}
+		version = os.Getenv("GIT_TASK_ACCEPTANCE_VERSION")
+		if version == "" {
+			t.Fatal("GIT_TASK_ACCEPTANCE_VERSION is required")
+		}
+	} else {
+		build := exec.CommandContext(ctx, filepath.Join(runtime.GOROOT(), "bin", "go"+suffix), "build", "-o", binary, "-ldflags=-X=main.version=test-build", ".")
+		if output, err := build.CombinedOutput(); err != nil {
+			t.Fatalf("build: %v\n%s", err, output)
+		}
 	}
 	var env []string
 	for _, entry := range os.Environ() {
@@ -45,7 +60,7 @@ func TestBinaryCommands(t *testing.T) {
 		want string
 	}{
 		{nil, 0, "Доступные команды:"}, {[]string{"help"}, 0, "Доступные команды:"},
-		{[]string{"--version"}, 0, "git-task test-build\n"},
+		{[]string{"--version"}, 0, "git-task " + version + "\n"},
 		{[]string{"nonsense"}, 2, "неизвестная команда"}, {[]string{"sync"}, 1, "Git недоступен"},
 	} {
 		cmd := exec.CommandContext(ctx, binary, tc.args...)
@@ -79,7 +94,7 @@ func TestBinaryCommands(t *testing.T) {
 	cmd := exec.CommandContext(ctx, git, "--exec-path="+dir, "task", "version")
 	cmd.Dir, cmd.Env = dir, env
 	output, err := cmd.CombinedOutput()
-	if err != nil || string(output) != "git-task test-build\n" {
+	if err != nil || string(output) != "git-task "+version+"\n" {
 		t.Fatalf("git task version: %q, %v", output, err)
 	}
 
