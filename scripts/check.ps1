@@ -17,7 +17,7 @@ if (($P17Test -ne '' -or $P17Subtest -ne '') -and ($Stage -ne 'P17' -or $Mode -n
 if ($P17Subtest -ne '' -and $P17Test -eq '') { throw 'P17Subtest requires P17Test' }
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $projectRoot
-$goCommand = Get-Command -Name $Go -CommandType Application -ErrorAction Stop
+$goCommand = Get-Command -Name $Go -CommandType Application -ErrorAction Stop | Select-Object -First 1
 $Go = $goCommand.Source
 $goDirectory = Split-Path -Parent $Go
 $env:PATH = $goDirectory + [IO.Path]::PathSeparator + $env:PATH

@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-15-intel]
+        os: [windows-latest, ubuntu-latest, macos-15-intel, macos-15]
         go: ['1.26.0', '1.26.8']
     runs-on: ${{ matrix.os }}
     timeout-minutes: ${{ inputs.stage == 'P18' && 120 || 45 }}
@@ -32,6 +32,11 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
           cache: false
+      - name: Verify native macOS ARM64
+        if: matrix.os == 'macos-15'
+        run: |
+          $nativeArch = go env GOARCH
+          if ($LASTEXITCODE -ne 0 -or $nativeArch -ne 'arm64') { throw 'Expected native macOS ARM64 Go' }
       - name: Prepare minimum Git inside workspace
         run: ./scripts/prepare-ci-git.ps1
       - name: Selected integration checks (full only on explicit P18 dispatch)

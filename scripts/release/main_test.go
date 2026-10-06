@@ -77,6 +77,60 @@ func TestArchiveContentsAndModes(t *testing.T) {
 	}
 }
 
+func TestReleaseInputsExcludeLocalAgentFiles(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"cmd", "internal", "docs", "scripts/release"} {
+		if err := os.MkdirAll(filepath.Join(root, filepath.FromSlash(name)), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for name, data := range map[string]string{
+		"go.mod":          "module example\n",
+		"README.md":       "usage\n",
+		"docs/INSTALL.md": "installation\n",
+		"cmd/main.go":     "package main\n",
+	} {
+		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(name)), []byte(data), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	assets, sourceHash, err := inputs(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"PLAN.md", "AGENTS.md", "SKILLS.md"} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte("local instructions"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	withLocalFiles, withLocalHash, err := inputs(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sourceHash != withLocalHash || len(assets) != len(withLocalFiles) {
+		t.Fatal("local agent files changed release inputs")
+	}
+	found := make(map[string]bool)
+	for i, asset := range withLocalFiles {
+		if asset.name != assets[i].name || !bytes.Equal(asset.data, assets[i].data) {
+			t.Fatalf("release asset changed: %s", asset.name)
+		}
+		found[asset.name] = true
+		if asset.name == "INPUT-SHA256SUMS" {
+			for _, name := range []string{"PLAN.md", "AGENTS.md", "SKILLS.md", "LICENSE-STATUS.md"} {
+				if strings.Contains(string(asset.data), name) {
+					t.Fatalf("local document included in input hashes: %s", name)
+				}
+			}
+		}
+	}
+	for _, name := range []string{"README.md", "docs/INSTALL.md", "INPUT-SHA256SUMS", "GO-LICENSE", "GO-PATENTS"} {
+		if !found[name] {
+			t.Fatalf("release asset missing: %s", name)
+		}
+	}
+}
+
 func TestReleaseRejectsInvalidRequest(t *testing.T) {
 	for _, args := range [][]string{
 		nil,
