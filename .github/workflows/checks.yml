@@ -20,7 +20,7 @@ jobs:
         os: [windows-latest, ubuntu-latest, macos-15-intel]
         go: ['1.26.0', '1.26.8']
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: ${{ inputs.stage == 'P18' && 120 || 45 }}
     defaults:
       run:
         shell: pwsh

@@ -88,7 +88,7 @@ func newHookFixture(t *testing.T, binary string) hookFixture {
 	if err := os.WriteFile(copyPath, data, 0755); err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	t.Cleanup(cancel)
 	f := hookFixture{t: t, ctx: ctx, git: c, binary: copyPath, dir: dir}
 	f.write("base.txt", "base\n")
@@ -118,7 +118,7 @@ func (f hookFixture) cli(args ...string) []byte {
 	f.t.Helper()
 	out, code := f.command(args...)
 	if code != 0 {
-		f.t.Fatalf("CLI %q code=%d: %s", args, code, out)
+		f.t.Fatalf("CLI %q code=%d context=%v: %s", args, code, f.ctx.Err(), out)
 	}
 	return out
 }

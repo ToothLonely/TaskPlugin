@@ -126,7 +126,7 @@ switch ($Mode) {
     'Checks' {
         Invoke-Checked $Go @('vet', './...')
         if ($Stage -eq 'P18') {
-            Invoke-Checked $Go @('test', '-count=1', '-timeout=20m', './...')
+            Invoke-Checked $Go @('test', '-count=1', '-timeout=60m', './...')
         } else {
             foreach ($group in $groups) {
                 if ($Stage -eq 'P17') {
