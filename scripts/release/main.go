@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"regexp"
@@ -63,11 +62,19 @@ func run(ctx context.Context, args []string) error {
 	flags := flag.NewFlagSet("release", flag.ContinueOnError)
 	version := flags.String("version", "", "local candidate version")
 	out := flags.String("out", "", "new directory inside the project")
+	mode := flags.String("mode", "archives", "archives, native or bundle")
+	nativeDirectory := flags.String("installer-dir", "", "native installer artifacts for bundle")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
 	if flags.NArg() != 0 || !regexp.MustCompile(`^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?$`).MatchString(*version) || *out == "" {
 		return errors.New("usage: release -version 0.1.0-rc.1 -out .tools/releases/0.1.0-rc.1")
+	}
+	if *mode != "archives" && *mode != "native" && *mode != "bundle" {
+		return errors.New("unknown release mode")
+	}
+	if *mode == "bundle" && *nativeDirectory == "" {
+		return errors.New("bundle requires -installer-dir")
 	}
 	root, err := os.Getwd()
 	if err != nil {
@@ -81,16 +88,21 @@ func run(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	installationScripts, err := installers(root, *version)
-	if err != nil {
-		return err
+	var nativeInstallers []entry
+	if *mode == "bundle" {
+		nativeInstallers, err = installerInputs(*nativeDirectory, *version, sourceHash)
+		if err != nil {
+			return err
+		}
 	}
-	assets = append(assets, installationScripts...)
 	if err := os.MkdirAll(filepath.Dir(destination), 0755); err != nil {
 		return err
 	}
 	if err := os.Mkdir(destination, 0755); err != nil {
 		return fmt.Errorf("create new output directory: %w", err)
+	}
+	if *mode == "native" {
+		return nativePackages(ctx, root, destination, *version, sourceHash, assets)
 	}
 	result := manifest{Version: *version, Go: runtime.Version(), MinimumGit: "2.51.0", SourceSHA256: sourceHash}
 	var checksums strings.Builder
@@ -106,16 +118,8 @@ func run(ctx context.Context, args []string) error {
 			extension = ".zip"
 		}
 		binaryPath := filepath.Join(destination, operatingSystem+"-"+architecture+"-"+binaryName)
-		goName := "go"
-		if runtime.GOOS == "windows" {
-			goName += ".exe"
-		}
-		command := exec.CommandContext(ctx, filepath.Join(runtime.GOROOT(), "bin", goName), "build", "-trimpath", "-buildvcs=false", "-ldflags=-X=main.version="+*version, "-o", binaryPath, "./cmd/git-task")
-		command.Dir = root
-		command.Env = buildEnvironment(platform)
-		command.Stdout, command.Stderr = os.Stdout, os.Stderr
-		if err := command.Run(); err != nil {
-			return fmt.Errorf("build %s: %w", platform, err)
+		if err := buildBinary(ctx, root, binaryPath, *version, platform); err != nil {
+			return err
 		}
 		binary, err := os.ReadFile(binaryPath)
 		if err != nil {
@@ -143,7 +147,7 @@ func run(ctx context.Context, args []string) error {
 	if currentHash != sourceHash {
 		return errors.New("inputs changed during packaging; candidate is incomplete")
 	}
-	for _, installer := range installationScripts {
+	for _, installer := range nativeInstallers {
 		if err := os.WriteFile(filepath.Join(destination, installer.name), installer.data, fs.FileMode(installer.mode)); err != nil {
 			return err
 		}
@@ -218,22 +222,6 @@ func digest(data []byte) string {
 	return fmt.Sprintf("%x", sha256.Sum256(data))
 }
 
-func installers(root, version string) ([]entry, error) {
-	var result []entry
-	for _, name := range []string{"install.ps1", "install.sh"} {
-		data, err := os.ReadFile(filepath.Join(root, "scripts", name))
-		if err != nil {
-			return nil, err
-		}
-		if bytes.Count(data, []byte("__GIT_TASK_VERSION__")) != 1 {
-			return nil, fmt.Errorf("installer must contain exactly one version placeholder: %s", name)
-		}
-		data = bytes.Replace(data, []byte("__GIT_TASK_VERSION__"), []byte(version), 1)
-		result = append(result, entry{name, data, 0644})
-	}
-	return result, nil
-}
-
 func inputs(root string) ([]entry, string, error) {
 	var names []string
 	for _, directory := range []string{"cmd", "internal", "scripts/release"} {
@@ -257,7 +245,7 @@ func inputs(root string) ([]entry, string, error) {
 			return nil, "", err
 		}
 	}
-	names = append(names, "go.mod", "README.md", "scripts/install.ps1", "scripts/install.sh")
+	names = append(names, "go.mod", "README.md", "scripts/installer/build-windows.ps1")
 	sort.Strings(names)
 	var assets []entry
 	var snapshot strings.Builder

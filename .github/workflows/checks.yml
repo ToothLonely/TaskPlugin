@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-15-intel, macos-15]
+        os: [windows-latest, ubuntu-latest, macos-15]
         go: ['1.26.0', '1.26.8']
     runs-on: ${{ matrix.os }}
     timeout-minutes: ${{ inputs.stage == 'P18' && 120 || 45 }}
@@ -39,6 +39,12 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or $nativeArch -ne 'arm64') { throw 'Expected native macOS ARM64 Go' }
       - name: Prepare minimum Git inside workspace
         run: ./scripts/prepare-ci-git.ps1
+      - name: Prepare Linux packaging tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm cpio
+          if ($LASTEXITCODE -ne 0) { throw 'Packaging tools preparation failed' }
       - name: Selected integration checks (full only on explicit P18 dispatch)
         run: ./scripts/check.ps1 -Stage '${{ inputs.stage || 'P15' }}'
       - name: Selected race checks
