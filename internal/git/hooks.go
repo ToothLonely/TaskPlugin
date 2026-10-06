@@ -22,7 +22,7 @@ func (c *Client) HooksDirectory(ctx context.Context) (string, error) {
 	if err == nil {
 		scope, _, ok := strings.Cut(string(r.Stdout), "\t")
 		if !ok || scope != "local" {
-			return "", fmt.Errorf("core.hooksPath задан вне локальной конфигурации; используйте ручное подключение из docs/HOOKS.md, общий каталог не изменён")
+			return "", fmt.Errorf("core.hooksPath задан вне локальной конфигурации; используйте ручное подключение из README.md, общий каталог не изменён")
 		}
 	}
 	r, err = c.Run(ctx, "rev-parse", "--path-format=absolute", "--git-path", "hooks")
@@ -36,7 +36,7 @@ func (c *Client) HooksDirectory(ctx context.Context) (string, error) {
 	path = filepath.Clean(path)
 	rel, err := filepath.Rel(repo.GitDir, path)
 	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", fmt.Errorf("core.hooksPath находится вне каталога этого Git-репозитория; используйте ручное подключение из docs/HOOKS.md, каталог не изменён")
+		return "", fmt.Errorf("core.hooksPath находится вне каталога этого Git-репозитория; используйте ручное подключение из README.md, каталог не изменён")
 	}
 	return path, nil
 }

@@ -64,7 +64,7 @@ func (p *Plans) Doctor(ctx context.Context, diagnoseHooks func(context.Context, 
 	} else {
 		installed, err = diagnoseHooks(ctx, repo.Root)
 	}
-	add("hooks", fmt.Sprintf("установлены: %v; без hooks доступен git task sync", installed), "разберите hooks по docs/HOOKS.md; чужие обработчики сохраняются", err)
+	add("hooks", fmt.Sprintf("установлены: %v; без hooks доступен git task sync", installed), "разберите hooks по README.md; чужие обработчики сохраняются", err)
 	hasCommit, err := p.git.HasCommit(ctx)
 	if err == nil && hasCommit {
 		head, headErr := p.git.HeadState(ctx)

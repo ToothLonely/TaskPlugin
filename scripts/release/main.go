@@ -36,11 +36,17 @@ type artifact struct {
 }
 
 type manifest struct {
-	Version      string     `json:"version"`
-	Go           string     `json:"go"`
-	MinimumGit   string     `json:"minimum_git"`
-	SourceSHA256 string     `json:"source_sha256"`
-	Artifacts    []artifact `json:"artifacts"`
+	Version      string        `json:"version"`
+	Go           string        `json:"go"`
+	MinimumGit   string        `json:"minimum_git"`
+	SourceSHA256 string        `json:"source_sha256"`
+	Artifacts    []artifact    `json:"artifacts"`
+	Installers   []releaseFile `json:"installers"`
+}
+
+type releaseFile struct {
+	Name   string `json:"name"`
+	SHA256 string `json:"sha256"`
 }
 
 func main() {
@@ -75,6 +81,11 @@ func run(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
+	installationScripts, err := installers(root, *version)
+	if err != nil {
+		return err
+	}
+	assets = append(assets, installationScripts...)
 	if err := os.MkdirAll(filepath.Dir(destination), 0755); err != nil {
 		return err
 	}
@@ -83,17 +94,18 @@ func run(ctx context.Context, args []string) error {
 	}
 	result := manifest{Version: *version, Go: runtime.Version(), MinimumGit: "2.51.0", SourceSHA256: sourceHash}
 	var checksums strings.Builder
-	for _, platform := range []string{"windows", "linux", "darwin"} {
+	for _, platform := range []string{"windows/amd64", "linux/amd64", "darwin/amd64", "darwin/arm64"} {
+		operatingSystem, architecture, _ := strings.Cut(platform, "/")
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 		binaryName := "git-task"
 		extension := ".tar.gz"
-		if platform == "windows" {
+		if operatingSystem == "windows" {
 			binaryName += ".exe"
 			extension = ".zip"
 		}
-		binaryPath := filepath.Join(destination, platform+"-"+binaryName)
+		binaryPath := filepath.Join(destination, operatingSystem+"-"+architecture+"-"+binaryName)
 		goName := "go"
 		if runtime.GOOS == "windows" {
 			goName += ".exe"
@@ -103,22 +115,22 @@ func run(ctx context.Context, args []string) error {
 		command.Env = buildEnvironment(platform)
 		command.Stdout, command.Stderr = os.Stdout, os.Stderr
 		if err := command.Run(); err != nil {
-			return fmt.Errorf("build %s/amd64: %w", platform, err)
+			return fmt.Errorf("build %s: %w", platform, err)
 		}
 		binary, err := os.ReadFile(binaryPath)
 		if err != nil {
 			return err
 		}
 		entries := append([]entry{{binaryName, binary, 0755}}, assets...)
-		archive, err := pack(entries, platform == "windows")
+		archive, err := pack(entries, operatingSystem == "windows")
 		if err != nil {
 			return err
 		}
-		name := "git-task_" + *version + "_" + platform + "_amd64" + extension
+		name := "git-task_" + *version + "_" + operatingSystem + "_" + architecture + extension
 		if err := os.WriteFile(filepath.Join(destination, name), archive, 0644); err != nil {
 			return err
 		}
-		result.Artifacts = append(result.Artifacts, artifact{platform + "/amd64", name, digest(archive), digest(binary)})
+		result.Artifacts = append(result.Artifacts, artifact{platform, name, digest(archive), digest(binary)})
 		fmt.Fprintf(&checksums, "%s  %s\n", digest(archive), name)
 		if err := os.Remove(binaryPath); err != nil {
 			return err
@@ -130,6 +142,13 @@ func run(ctx context.Context, args []string) error {
 	}
 	if currentHash != sourceHash {
 		return errors.New("inputs changed during packaging; candidate is incomplete")
+	}
+	for _, installer := range installationScripts {
+		if err := os.WriteFile(filepath.Join(destination, installer.name), installer.data, fs.FileMode(installer.mode)); err != nil {
+			return err
+		}
+		result.Installers = append(result.Installers, releaseFile{installer.name, digest(installer.data)})
+		fmt.Fprintf(&checksums, "%s  %s\n", digest(installer.data), installer.name)
 	}
 	data, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
@@ -188,16 +207,36 @@ func buildEnvironment(platform string) []string {
 		}
 		env = append(env, value)
 	}
-	return append(env, "GOOS="+platform, "GOARCH=amd64", "CGO_ENABLED=0", "GOFLAGS=", "GOWORK=off", "GOTOOLCHAIN=local", "GOENV=off", "GOPROXY=off")
+	operatingSystem, architecture, ok := strings.Cut(platform, "/")
+	if !ok {
+		architecture = "amd64"
+	}
+	return append(env, "GOOS="+operatingSystem, "GOARCH="+architecture, "CGO_ENABLED=0", "GOFLAGS=", "GOWORK=off", "GOTOOLCHAIN=local", "GOENV=off", "GOPROXY=off")
 }
 
 func digest(data []byte) string {
 	return fmt.Sprintf("%x", sha256.Sum256(data))
 }
 
+func installers(root, version string) ([]entry, error) {
+	var result []entry
+	for _, name := range []string{"install.ps1", "install.sh"} {
+		data, err := os.ReadFile(filepath.Join(root, "scripts", name))
+		if err != nil {
+			return nil, err
+		}
+		if bytes.Count(data, []byte("__GIT_TASK_VERSION__")) != 1 {
+			return nil, fmt.Errorf("installer must contain exactly one version placeholder: %s", name)
+		}
+		data = bytes.Replace(data, []byte("__GIT_TASK_VERSION__"), []byte(version), 1)
+		result = append(result, entry{name, data, 0644})
+	}
+	return result, nil
+}
+
 func inputs(root string) ([]entry, string, error) {
 	var names []string
-	for _, directory := range []string{"cmd", "internal", "docs", "scripts/release"} {
+	for _, directory := range []string{"cmd", "internal", "scripts/release"} {
 		err := filepath.WalkDir(filepath.Join(root, directory), func(path string, item fs.DirEntry, err error) error {
 			if err != nil {
 				return err
@@ -205,7 +244,7 @@ func inputs(root string) ([]entry, string, error) {
 			if item.Type()&fs.ModeSymlink != 0 {
 				return fmt.Errorf("symlink input is unsupported: %s", path)
 			}
-			if !item.IsDir() && (strings.HasSuffix(path, ".go") || strings.HasSuffix(path, ".md")) {
+			if !item.IsDir() && strings.HasSuffix(path, ".go") {
 				name, err := filepath.Rel(root, path)
 				if err != nil {
 					return err
@@ -218,7 +257,7 @@ func inputs(root string) ([]entry, string, error) {
 			return nil, "", err
 		}
 	}
-	names = append(names, "go.mod", "README.md")
+	names = append(names, "go.mod", "README.md", "scripts/install.ps1", "scripts/install.sh")
 	sort.Strings(names)
 	var assets []entry
 	var snapshot strings.Builder
@@ -235,7 +274,7 @@ func inputs(root string) ([]entry, string, error) {
 			return nil, "", err
 		}
 		fmt.Fprintf(&snapshot, "%s  %s\n", digest(data), name)
-		if strings.HasSuffix(name, ".md") {
+		if name == "README.md" {
 			assets = append(assets, entry{name, data, 0644})
 		}
 	}

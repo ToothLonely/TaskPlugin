@@ -18,7 +18,7 @@ import (
 )
 
 func TestArchiveContentsAndModes(t *testing.T) {
-	entries := []entry{{"git-task", []byte("binary"), 0755}, {"docs/INSTALL.md", []byte("инструкция"), 0644}}
+	entries := []entry{{"git-task", []byte("binary"), 0755}, {"README.md", []byte("инструкция"), 0644}}
 	for _, windows := range []bool{false, true} {
 		name := "tar"
 		if windows {
@@ -79,16 +79,17 @@ func TestArchiveContentsAndModes(t *testing.T) {
 
 func TestReleaseInputsExcludeLocalAgentFiles(t *testing.T) {
 	root := t.TempDir()
-	for _, name := range []string{"cmd", "internal", "docs", "scripts/release"} {
+	for _, name := range []string{"cmd", "internal", "scripts/release"} {
 		if err := os.MkdirAll(filepath.Join(root, filepath.FromSlash(name)), 0755); err != nil {
 			t.Fatal(err)
 		}
 	}
 	for name, data := range map[string]string{
-		"go.mod":          "module example\n",
-		"README.md":       "usage\n",
-		"docs/INSTALL.md": "installation\n",
-		"cmd/main.go":     "package main\n",
+		"go.mod":              "module example\n",
+		"README.md":           "usage\n",
+		"cmd/main.go":         "package main\n",
+		"scripts/install.ps1": "version=__GIT_TASK_VERSION__\n",
+		"scripts/install.sh":  "version=__GIT_TASK_VERSION__\n",
 	} {
 		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(name)), []byte(data), 0644); err != nil {
 			t.Fatal(err)
@@ -98,8 +99,12 @@ func TestReleaseInputsExcludeLocalAgentFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"PLAN.md", "AGENTS.md", "SKILLS.md"} {
-		if err := os.WriteFile(filepath.Join(root, name), []byte("local instructions"), 0644); err != nil {
+	for _, name := range []string{"PLAN.md", "AGENTS.md", "SKILLS.md", "docs/RELEASE.md", "docs/INSTALL.md", "docs/DECISIONS.md", "docs/notes/new.md", "cmd/NOTES.md", "scripts/release/REVIEW.md"} {
+		path := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("local instructions"), 0644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -108,7 +113,7 @@ func TestReleaseInputsExcludeLocalAgentFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	if sourceHash != withLocalHash || len(assets) != len(withLocalFiles) {
-		t.Fatal("local agent files changed release inputs")
+		t.Fatal("local documents changed release inputs")
 	}
 	found := make(map[string]bool)
 	for i, asset := range withLocalFiles {
@@ -117,14 +122,14 @@ func TestReleaseInputsExcludeLocalAgentFiles(t *testing.T) {
 		}
 		found[asset.name] = true
 		if asset.name == "INPUT-SHA256SUMS" {
-			for _, name := range []string{"PLAN.md", "AGENTS.md", "SKILLS.md", "LICENSE-STATUS.md"} {
+			for _, name := range []string{"PLAN.md", "AGENTS.md", "SKILLS.md", "LICENSE-STATUS.md", "docs/", "cmd/NOTES.md", "scripts/release/REVIEW.md"} {
 				if strings.Contains(string(asset.data), name) {
 					t.Fatalf("local document included in input hashes: %s", name)
 				}
 			}
 		}
 	}
-	for _, name := range []string{"README.md", "docs/INSTALL.md", "INPUT-SHA256SUMS", "GO-LICENSE", "GO-PATENTS"} {
+	for _, name := range []string{"README.md", "INPUT-SHA256SUMS", "GO-LICENSE", "GO-PATENTS"} {
 		if !found[name] {
 			t.Fatalf("release asset missing: %s", name)
 		}

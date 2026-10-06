@@ -175,6 +175,9 @@ func TestSyncRejectsStaleWorkAndUnsupportedIntegration(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			if scenario == "squash" || scenario == "cherry-pick" {
+				c.Env = append(c.Env, "GIT_AUTHOR_DATE=2000-01-01T00:00:00Z", "GIT_COMMITTER_DATE=2000-01-01T00:00:00Z")
+			}
 			commitFile(t, c, "work.txt", "own work")
 			work := syncTask(t, p, started.ID)
 			tip := work.ActiveAttempt.Observation.Tip
@@ -209,9 +212,13 @@ func TestSyncRejectsStaleWorkAndUnsupportedIntegration(t *testing.T) {
 				testrepo.Run(t, c, "checkout", "main")
 				if scenario == "squash" {
 					testrepo.Run(t, c, "merge", "--squash", "work")
-					testrepo.Commit(t, c)
+					testrepo.Run(t, c, "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-m", "squashed work")
 				} else {
-					testrepo.Run(t, c, "-c", "user.name=Cherry", "-c", "user.email=test@example.invalid", "cherry-pick", tip)
+					testrepo.Run(t, c, "cherry-pick", "--no-commit", tip)
+					testrepo.Run(t, c, "-c", "user.name=Cherry", "-c", "user.email=test@example.invalid", "commit", "-m", "cherry-picked work")
+				}
+				if rewritten := string(bytes.TrimSpace(testrepo.Run(t, c, "rev-parse", "HEAD"))); rewritten == tip {
+					t.Fatal("fixture reused the original commit instead of rewriting it")
 				}
 			case "other-target":
 				testrepo.Run(t, c, "checkout", "-b", "other", "main")
