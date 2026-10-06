@@ -218,7 +218,7 @@ func inputs(root string) ([]entry, string, error) {
 			return nil, "", err
 		}
 	}
-	names = append(names, "go.mod", "README.md", "PLAN.md", "SKILLS.md", "AGENTS.md", "LICENSE-STATUS.md")
+	names = append(names, "go.mod", "README.md")
 	sort.Strings(names)
 	var assets []entry
 	var snapshot strings.Builder
