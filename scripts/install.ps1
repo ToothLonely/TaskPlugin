@@ -83,7 +83,7 @@ try {
     $reportedVersion = & $downloaded version
     if ($LASTEXITCODE -ne 0 -or $reportedVersion -ne "git-task $Version") { throw 'Downloaded binary version differs from requested version' }
     if ($oldAlias -and $oldBinary -ne $binary) {
-        throw 'Uninstall hooks with the old binary and remove its local task alias/install-path before switching versions; see INSTALL.md'
+        throw 'Uninstall hooks with the old binary and remove its local task alias/install-path before switching versions; see README.md'
     }
     New-Item -ItemType Directory -Path $destination | Out-Null
     Copy-Item -LiteralPath $downloaded -Destination $binary

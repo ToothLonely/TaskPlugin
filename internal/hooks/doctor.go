@@ -51,7 +51,7 @@ func (i Installer) Diagnose(ctx context.Context) ([]string, error) {
 		}
 		if !stored.exists && current.exists {
 			if !supported(current) {
-				return result, fmt.Errorf("hook %s требует ручного подключения по docs/HOOKS.md", event)
+				return result, fmt.Errorf("hook %s требует ручного подключения по README.md", event)
 			}
 			result = append(result, event+" (чужой обработчик сохранён; git-task не подключён)")
 		}

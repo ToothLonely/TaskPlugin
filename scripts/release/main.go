@@ -236,7 +236,7 @@ func installers(root, version string) ([]entry, error) {
 
 func inputs(root string) ([]entry, string, error) {
 	var names []string
-	for _, directory := range []string{"cmd", "internal", "docs", "scripts/release"} {
+	for _, directory := range []string{"cmd", "internal", "scripts/release"} {
 		err := filepath.WalkDir(filepath.Join(root, directory), func(path string, item fs.DirEntry, err error) error {
 			if err != nil {
 				return err
@@ -244,15 +244,12 @@ func inputs(root string) ([]entry, string, error) {
 			if item.Type()&fs.ModeSymlink != 0 {
 				return fmt.Errorf("symlink input is unsupported: %s", path)
 			}
-			if !item.IsDir() && (strings.HasSuffix(path, ".go") || strings.HasSuffix(path, ".md")) {
+			if !item.IsDir() && strings.HasSuffix(path, ".go") {
 				name, err := filepath.Rel(root, path)
 				if err != nil {
 					return err
 				}
-				name = filepath.ToSlash(name)
-				if !strings.EqualFold(name, "docs/RELEASE.md") {
-					names = append(names, name)
-				}
+				names = append(names, filepath.ToSlash(name))
 			}
 			return nil
 		})
@@ -277,7 +274,7 @@ func inputs(root string) ([]entry, string, error) {
 			return nil, "", err
 		}
 		fmt.Fprintf(&snapshot, "%s  %s\n", digest(data), name)
-		if strings.HasSuffix(name, ".md") {
+		if name == "README.md" {
 			assets = append(assets, entry{name, data, 0644})
 		}
 	}

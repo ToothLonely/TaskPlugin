@@ -108,7 +108,7 @@ func prepare(dir, binary string, install bool) ([]entry, error) {
 				return nil, fmt.Errorf("неизвестный или изменённый журнал hooks: %s", e.journal)
 			}
 			if !equal(e.current, r.installed()) && !equal(e.current, r.original()) {
-				return nil, fmt.Errorf("hook изменён после установки; сохранён без изменений: %s; используйте ручной разбор из docs/HOOKS.md", e.path)
+				return nil, fmt.Errorf("hook изменён после установки; сохранён без изменений: %s; используйте ручной разбор из README.md", e.path)
 			}
 			if install && binary != r.Binary {
 				return nil, fmt.Errorf("hooks привязаны к другому бинарнику; сначала выполните hooks uninstall")
@@ -118,7 +118,7 @@ func prepare(dir, binary string, install bool) ([]entry, error) {
 				continue
 			}
 			if !supported(e.current) {
-				return nil, fmt.Errorf("hook или сторонний менеджер не поддерживает автоматическую цепочку: %s; используйте ручное подключение из docs/HOOKS.md", e.path)
+				return nil, fmt.Errorf("hook или сторонний менеджер не поддерживает автоматическую цепочку: %s; используйте ручное подключение из README.md", e.path)
 			}
 			e.record = record{Version: 1, Event: event, Binary: binary, Original: e.current.data, OriginalExists: e.current.exists, Mode: e.current.mode}
 			e.record.Wrapper = wrapper(event, binary, e.current.data, enabled(e.current))

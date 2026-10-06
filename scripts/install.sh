@@ -27,7 +27,7 @@ if [ -n "$old_alias" ]; then
     old_binary=$(git config --local --get git-task.install-path || test "$?" -eq 1)
     case "$old_binary" in "$managed_root/"*) ;; *) echo 'Existing task alias belongs to another installation' >&2; exit 1 ;; esac
     [ "$old_alias" = "!$(quote_path "$old_binary")" ] || { echo 'Existing task alias is not managed by this installer' >&2; exit 1; }
-    echo 'Uninstall hooks with the old binary and remove its local task alias/install-path before switching versions; see INSTALL.md' >&2
+    echo 'Uninstall hooks with the old binary and remove its local task alias/install-path before switching versions; see README.md' >&2
     exit 1
 fi
 [ ! -e "$destination" ] && [ ! -L "$destination" ] || { echo 'This version already exists; inspect the installed directory' >&2; exit 1; }
