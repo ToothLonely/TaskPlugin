@@ -27,7 +27,7 @@ author из Git identity. Done требует непустого набора в
 | [STORAGE](STORAGE.md), [DOCTOR](DOCTOR.md) | Запись/backup/lock/журналы и безопасное восстановление |
 | [TRACKING](TRACKING.md), [HOOKS](HOOKS.md), [TRANSFER](TRANSFER.md) | Доказательства завершения, сохранение чужих hooks и обмен |
 | [CHECKS](CHECKS.md), [RELEASE-ACCEPTANCE](RELEASE-ACCEPTANCE.md), [ACCEPTANCE](ACCEPTANCE.md) | Финальный драйвер, точный R02, сценарии и границы доказательств |
-| [RELEASE](RELEASE.md), [INSTALL](INSTALL.md) | Упаковка, установка/удаление |
+| [INSTALL](INSTALL.md) | Установка, обновление и удаление |
 
 Пакеты `cli`/`hooks` обращаются к общим операциям `app`; модель `task` не
 зависит от терминала, Git и файлов. `git` выполняет процессы с отдельными

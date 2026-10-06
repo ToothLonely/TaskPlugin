@@ -154,3 +154,20 @@ manifest и выполняет адресные ordinary/race тесты без 
 [checkout](https://github.com/actions/checkout),
 [SHA-256 MinGit 2.51.0](https://github.com/git-for-windows/git/releases/tag/v2.51.0.windows.1),
 [govulncheck и параметр -db](https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck).
+
+## Установщики и регрессия быстрых Git-коммитов
+
+P15 manifest включает TestArchiveInstaller из scripts/release: сборка нативного
+CLI, установка из локального архива в изолированный Git-проект с пробелами,
+Unicode и апострофом в пути, запуск через git task и проверка info/exclude.
+Отрицательные сценарии проверяют сохранность Git config/файлов при неверной
+контрольной сумме, чужом alias, занятом или tracked-каталоге. На Windows
+запускается install.ps1, на Linux/macOS — install.sh. Rendering и ARM environment
+проверяются отдельно. Сеть и настоящие пользовательские проекты не нужны.
+
+TestSyncRejectsStaleWorkAndUnsupportedIntegration для squash/cherry-pick
+использует фиксированные даты и разные сообщения коммитов; проверяет, что OID
+переписанного коммита отличается, а задача остаётся active. Эти проверки не
+зависят от того, успели ли Git-процессы завершиться в одну секунду. Изменения
+нужно подтвердить новым CI-запуском на SHA исправления; прежние результаты
+PR/master не являются проверкой нового кандидата.
