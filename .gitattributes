@@ -1,1 +1,1 @@
-scripts/install.sh text eol=lf
+* text=auto eol=lf

@@ -85,12 +85,14 @@ func TestReleaseInputsExcludeLocalAgentFiles(t *testing.T) {
 		}
 	}
 	for name, data := range map[string]string{
-		"go.mod":              "module example\n",
-		"README.md":           "usage\n",
-		"cmd/main.go":         "package main\n",
-		"scripts/install.ps1": "version=__GIT_TASK_VERSION__\n",
-		"scripts/install.sh":  "version=__GIT_TASK_VERSION__\n",
+		"go.mod":                              "module example\n",
+		"README.md":                           "usage\n",
+		"cmd/main.go":                         "package main\n",
+		"scripts/installer/build-windows.ps1": "native installer template\n",
 	} {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, filepath.FromSlash(name))), 0755); err != nil {
+			t.Fatal(err)
+		}
 		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(name)), []byte(data), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -144,6 +146,8 @@ func TestReleaseRejectsInvalidRequest(t *testing.T) {
 		{"-version", "1.0.0", "-out", "../outside"},
 		{"-version", "1.0.0", "-out", "."},
 		{"-version", "1.0.0", "-out", ".tools/unused", "extra"},
+		{"-version", "1.0.0", "-out", ".tools/unused", "-mode", "unknown"},
+		{"-version", "1.0.0", "-out", ".tools/unused", "-mode", "bundle"},
 	} {
 		if err := run(context.Background(), args); err == nil {
 			t.Fatalf("accepted invalid request %q", args)
