@@ -1,96 +1,269 @@
 # Git Task
 
-`git task` связывает задачи с Git-ветками: хранит список работ, помогает начать
-следующую задачу и отмечает завершённые подходы после слияния. Команды и сообщения
-CLI — на русском.
+[English](#english) | [Русский](#russian)
 
-## Установка и подключение к проекту
+<a id="english"></a>
 
-Нужен Git 2.51.0 или новее. Установщик содержит готовый плагин: Go,
-клонирование репозитория и отдельное скачивание архива не нужны.
-Для самостоятельной сборки нужен Go 1.26.0 или новее.
-Для hooks нужны `sh`, `mktemp`, `cat` и `rm`; на Windows они входят в Git for Windows.
+Git Task extends Git with task tracking: the `git task` command links a task
+to a branch and updates its status as work progresses.
 
-### 1. Установите CLI из Release
+## 1. Install Git Task
 
-Откройте [Releases](https://github.com/ToothLonely/TaskPlugin/releases), выберите
-версию и скачайте **один установщик** своей ОС:
+You need Git 2.51.0 or later. Open
+[Releases](https://github.com/ToothLonely/TaskPlugin/releases), download the installer
+for your system, and run it:
 
-| ОС | Файл |
+| System | Installer |
 |---|---|
-| Windows x64 | `git-task_<версия>_windows_amd64.msi` |
-| macOS Apple Silicon | `git-task_<версия>_darwin_arm64.pkg` |
-| Linux x64, Debian/Ubuntu | `git-task_<версия>_linux_amd64.deb` |
-| Linux x64, Fedora/RHEL и другие RPM-дистрибутивы | `git-task_<версия>_linux_amd64.rpm` |
+| Windows x64, Intel/AMD | `.msi` with `windows` in its name |
+| macOS, Apple Silicon | `.pkg` with `darwin_arm64` in its name |
+| Debian/Ubuntu x64, Intel/AMD | `.deb` with `linux` in its name |
+| Fedora/RHEL x64, Intel/AMD | `.rpm` with `linux` in its name |
 
-Запустите скачанный файл и завершите установку средствами ОС. На Linux файл
-открывает менеджер пакетов; на сервере без графического интерфейса используйте
-`sudo apt install ./<файл>.deb` или `sudo dnf install ./<файл>.rpm`.
-macOS и Linux могут запросить пароль администратора. Установщики нового формата
-появятся после публикации соответствующего выпуска.
-
-После установки откройте **новый терминал** и проверьте:
+After installation, fully restart your terminal application or IDE and check:
 
 ```text
 git task version
 ```
 
-Плагин установлен один раз и доступен в ваших Git-проектах. Windows-установщик
-добавляет свой каталог в пользовательский PATH; Unix-пакеты устанавливают команду
-в стандартный каталог. Выбирать проект или вручную настраивать PATH не требуется.
-Для установки плагина сеть не нужна: бинарник уже внутри установщика.
-Установщики пока не подписаны; ОС может запросить подтверждение запуска.
+## 2. Set up your project and fill in plan.json
 
-Для macOS Intel и других вариантов установки остаются переносимые архивы
-и [сборка из исходников](#сборка-из-исходников). CI macOS проверяет только ARM64.
+Go to the root of your Git project. It must have at least one commit,
+a configured Git identity (`user.name` and `user.email`), and a branch to merge
+your work into. This example uses `main`.
 
-### 2. Создайте план в своём репозитории
-
-Перейдите в каталог проекта, где хотите вести задачи. Репозиторий должен иметь
-хотя бы один коммит и существующую целевую ветку, в которую вы будете вливать работу.
-В примерах это `main`; если у вас `master`, используйте `--target master`.
+Run:
 
 ```text
-git task init --target main
+git task init
+```
+
+The command creates the `.git-task` directory and a `plan.json` file excluded from Git:
+
+```json
+{
+  "target_branch": "",
+  "tasks": []
+}
+```
+
+Open `.git-task/plan.json`, set the target branch, and list tasks in the desired order.
+The required fields are `target_branch`, the `tasks` array, and a nonempty `title`
+for each task. Save the file as UTF-8. Here is a filled-in example:
+
+```json
+{
+  "target_branch": "main",
+  "tasks": [
+    { "title": "Add a search screen" },
+    { "title": "Add filters" }
+  ]
+}
+```
+
+Save the file and explicitly finish setup:
+
+```text
+git task init --apply
+git task hooks install
 git task status
 ```
 
-План хранится в `.git-task/plan.json`. `init` исключает этот каталог из Git через
-локальный `info/exclude`; файлы кода и `.gitignore` проекта не меняются.
-Для `main` достаточно `git task init`; повторный `init` сохраняет существующие задачи.
-Затем добавьте задачи через `git task add "Добавить экран поиска"` или
-[импортируйте свой plan.md](#импорт-и-экспорт), пока план пуст.
+`--apply` generates task IDs, `order` from the sequence in `tasks`, initial statuses,
+and internal fields. You do not need to enter them manually. Applying a ready plan
+again preserves it and its history. If your target is `master`, replace `main`
+in the JSON and commands. After setup, add more tasks with `git task add "Title"`.
 
-`status` сверяет задачи с Git самостоятельно. Чтобы план обновлялся также сразу
-после Git-операций, можно подключить hooks командой `git task hooks install`.
-Это дополнительная настройка конкретного проекта.
+## 3. Start a task
 
-### 3. При необходимости подключите обмен планом
-
-Если задачи должны передаваться между клонами, настройте remote и свою обычную
-Git identity, затем выполните:
-
-```text
-git task team connect --remote origin
-git task team fetch
-```
-
-`connect` получает существующий план, а если его ещё нет — пытается опубликовать
-локальный. Общая копия хранится в отдельной ветке `git-task-plan` того же remote.
-Нужны права на запись этой ветки. Её не нужно вливать в `main` или `master`.
-Подключение не переключает вашу ветку и не выполняет `pull` кода.
-
-## Обычный порядок работы
-
-Начните первую задачу со статусом `todo`, указав имя новой ветки:
+Your working tree must be clean: save code changes in a regular commit.
+Then specify a name for the new branch:
 
 ```text
 git task start feature/search
 ```
 
-CLI создаст ветку от настроенной целевой ветки и привяжет к ней подход к задаче.
-Перед переключением рабочие файлы должны быть чистыми. Выполните работу,
-сделайте обычный коммит и влейте ветку:
+Git Task selects the first `todo` task, creates a branch from `main`, switches to it,
+and marks the task as `active`. The task gains an `attempts` array with a record
+of this attempt: its ID, author, branch, and starting point. In this example,
+the task is “Add a search screen”.
+To choose a different task instead, provide its exact title:
+
+```text
+git task start feature/filters --title "Add filters"
+```
+
+You can also select a task by a unique prefix of its ID from `git task status`.
+For example, if only one ID starts with `9f86`:
+
+```text
+git task start feature/search --id 9f86
+git task show --id 9f86
+```
+
+If the prefix matches multiple tasks, the command lists their IDs and asks you
+to provide more characters. Full IDs still work.
+
+## 4. How automatic tracking works
+
+Write code, make commits, and merge your branch with regular Git commands:
+
+```text
+git add .
+git commit -m "Add a search screen"
+git switch main
+git merge feature/search
+git task status
+```
+
+Installed hooks update the plan after Git operations. When the current attempt's
+commits reach the target branch through a regular merge or fast-forward, the attempt
+is completed. The task becomes `done` when all its known attempts are complete.
+The next `git task start <new-branch>` picks the next `todo` task.
+
+This “bot” tracks state locally: it does not write code, make commits, or merge
+branches for you. Without hooks, `git task status` reconciles the plan with Git.
+An empty or deleted branch does not mean completion; squash and cherry-pick require
+an explicit `git task complete`. Merging on GitHub/GitLab does not itself run
+local hooks.
+
+## Working in a team
+
+You need a shared Git repository with an `origin` remote and permission to push.
+One team member fills in and applies the plan as shown above, then publishes it:
+
+```text
+git task team connect --remote origin
+```
+
+Other team members create an empty plan in their own copies of the project and
+connect to the shared plan. Use the same target branch as the first team member:
+
+```text
+git task init --target main
+git task hooks install
+git task team connect --remote origin
+```
+
+Connecting downloads the existing tasks and their IDs. The shared plan lives
+in a separate `git-task-plan` branch in the same repository; push code with regular Git.
+Before choosing a task, run `git task team fetch`, then use `git task start`
+as shown above. Task changes are automatically submitted for publication.
+After merging code, run `git task team publish` to send status changes that hooks
+saved locally. If the network is unavailable, your work stays in a local queue;
+run `team publish` again once connectivity is restored.
+
+[All commands and additional settings → DOCUMENTATION.md](https://github.com/ToothLonely/TaskPlugin/blob/master/DOCUMENTATION.md#english)
+
+---
+
+<a id="russian"></a>
+
+# Git Task
+
+Git Task — дополнение к Git для ведения задач: команда `git task` связывает задачу
+с веткой и обновляет её статус по результатам работы.
+
+## 1. Установите Git Task
+
+Нужен Git 2.51.0 или новее. Откройте
+[Releases](https://github.com/ToothLonely/TaskPlugin/releases), скачайте установщик
+для своей системы и запустите его:
+
+| Система | Установщик |
+|---|---|
+| Windows x64, Intel/AMD | `.msi` с `windows` в имени |
+| macOS, Apple Silicon | `.pkg` с `darwin_arm64` в имени |
+| Debian/Ubuntu x64, Intel/AMD | `.deb` с `linux` в имени |
+| Fedora/RHEL x64, Intel/AMD | `.rpm` с `linux` в имени |
+
+После установки полностью перезапустите приложение терминала или IDE и проверьте:
+
+```text
+git task version
+```
+
+## 2. Подключите проект и заполните plan.json
+
+Перейдите в корень своего Git-проекта. В нём должны быть хотя бы один коммит,
+настроенная Git identity (`user.name` и `user.email`) и ветка, в которую вы будете
+вливать работу. В примере это `main`.
+
+Выполните:
+
+```text
+git task init
+```
+
+Команда создаст каталог `.git-task` и файл `plan.json`, исключённый из Git:
+
+```json
+{
+  "target_branch": "",
+  "tasks": []
+}
+```
+
+Откройте `.git-task/plan.json`, укажите целевую ветку и задачи в нужном порядке.
+Обязательны `target_branch`, массив `tasks` и непустой `title` у каждой задачи.
+Файл должен быть в UTF-8. Пример заполнения:
+
+```json
+{
+  "target_branch": "main",
+  "tasks": [
+    { "title": "Добавить экран поиска" },
+    { "title": "Добавить фильтры" }
+  ]
+}
+```
+
+Сохраните файл и явно завершите настройку:
+
+```text
+git task init --apply
+git task hooks install
+git task status
+```
+
+`--apply` создаст ID задач, `order` по порядку массива `tasks`, начальные статусы
+и служебные поля. Вручную их вводить не нужно. Повторное применение сохраняет
+готовый план и историю. Если цель — `master`, замените `main` в JSON и командах.
+После настройки новые задачи можно добавлять через `git task add "Название"`.
+
+## 3. Начните задачу
+
+Рабочее дерево должно быть чистым: сохраните изменения кода обычным коммитом.
+Затем укажите имя новой ветки:
+
+```text
+git task start feature/search
+```
+
+Git Task выберет первую задачу `todo`, создаст ветку от `main`, переключится на неё
+и отметит задачу как `active`. У задачи появится массив `attempts` с записью
+этого подхода: его ID, автором, веткой и основанием. В примере начинается
+«Добавить экран поиска».
+Для выбора другой задачи вместо этого укажите её точное название:
+
+```text
+git task start feature/filters --title "Добавить фильтры"
+```
+
+Также можно выбрать задачу по уникальному началу ID из `git task status`.
+Например, если с `9f86` начинается только один ID:
+
+```text
+git task start feature/search --id 9f86
+git task show --id 9f86
+```
+
+Если префикс совпал с несколькими задачами, команда покажет их ID и попросит
+ввести больше символов. Полный ID продолжает работать.
+
+## 4. Как работает автоматическое отслеживание
+
+Вы пишете код, делаете коммиты и сливаете ветку обычными командами Git:
 
 ```text
 git add .
@@ -100,304 +273,42 @@ git merge feature/search
 git task status
 ```
 
-Hooks и `status` распознают обычный merge/fast-forward при наличии коммитов
-текущего подхода. Пустая или удалённая ветка сама по себе не означает завершение.
-Squash и cherry-pick автоматически задачу не завершают; для них используйте
-явное `complete` после проверки результата.
+Подключённые hooks обновляют план после Git-операций. Когда коммиты текущего
+подхода попадут в целевую ветку через обычный merge или fast-forward, подход
+будет завершён. Задача станет `done`, когда завершены все её известные подходы.
+Следующий `git task start <новая-ветка>` возьмёт следующую задачу `todo`.
 
-## Команды и примеры
+Этот «бот» отслеживает состояние локально: он не пишет код, не делает коммиты
+и не сливает ветки за вас. Без hooks сверка выполняется при `git task status`.
+Пустая или удалённая ветка не означает завершение; squash и cherry-pick требуют
+явного `git task complete`. Слияние на GitHub/GitLab само по себе не запускает
+локальные hooks.
 
-`<task-id>` ниже — точный ID задачи, который можно взять из `git task status --json`.
-Номер задачи в текстовом списке не является ID. `<attempt-id>` — ID подхода из
-`git task show --id <task-id>`.
+## Для работы в группе
 
-### Просмотр плана и справки
-
-```text
-git task status
-git task status --json
-git task show --id <task-id>
-git task sync
-git task help
-git task help start
-git task version
-```
-
-`status` сверяет план с локальным Git и показывает прогресс. `show` читает задачу,
-описание и историю всех подходов без сверки и записи. `sync` выполняет локальную
-сверку без вывода полного плана. Эти команды не обращаются в сеть.
-
-### Добавление и изменение задач
-
-```text
-git task add "Добавить фильтры" --description "Фильтр по дате и категории"
-git task add "Обновить документацию" --after <task-id>
-git task edit --id <task-id> --title "Добавить фильтр по дате"
-git task edit --id <task-id> --description "Описание работы"
-git task edit --id <task-id>
-git task move --id <task-id> --before <other-task-id>
-git task move --id <task-id> --end
-```
-
-`edit` без флагов изменения открывает название и описание в настроенном
-Git-редакторе. `move` меняет порядок задач; укажите ровно один вариант:
-`--before`, `--after` или `--end`. ID и история задачи сохраняются.
-
-Редактор выбирается в порядке `GIT_EDITOR` → `core.editor` → `VISUAL` → `EDITOR`.
-Для графического редактора нужен режим ожидания, например `code --wait`.
-Путь с пробелами заключайте в кавычки. Команда редактора разбирается как имя
-программы с аргументами; подстановки переменных и shell-выражения не выполняются.
-Редактируется временный JSON с двумя строками `title` и `description`.
-При ошибке или конфликте CLI сообщает путь к сохранённому результату.
-
-### Начало работы и привязка ветки
-
-```text
-git task start feature/search
-git task start feature/search --title "Добавить экран поиска"
-git task start feature/search --id <task-id>
-git task start feature/search --select
-git task start feature/new --new "Новая задача"
-git task start feature/search --id <task-id> --from release
-git task attach existing-branch --id <task-id>
-```
-
-Каждая строка — отдельный вариант запуска. Без селектора выбирается первый
-`todo`. `--title` ищет точное уникальное название; при одинаковых названиях
-используйте `--id`. `--select` открывает меню в интерактивном терминале.
-`--from` задаёт другое основание новой ветки, сохраняя цель завершения.
-
-Имя ветки обязательно, автоматически не генерируется и должно быть свободным.
-Создание ветки через обычный `git switch -c` не назначает задачу — для уже
-существующей ветки есть `attach`, который не переключает рабочую копию.
-
-### Пауза, продолжение и новый подход
-
-```text
-git task pause --id <task-id>
-git task resume --id <task-id>
-git task pause --id <task-id> --attempt <attempt-id>
-git task resume --id <task-id> --attempt <attempt-id>
-git task start feature/search-v2 --id <task-id> --again
-git task attach replacement-branch --id <task-id> --rebind --attempt <attempt-id>
-```
-
-`pause` сохраняет подход и связь с веткой. `resume` продолжает его и переключается
-на связанную ветку. Если ветка потеряна, `attach --rebind` позволяет связать
-тот же подход с другой существующей локальной веткой.
-
-`--again` начинает новый подход к уже завершённой задаче, сохраняя историю.
-Если подходов несколько и выбор неоднозначен, укажите `--attempt`.
-Каждый подход имеет собственные ID, автора и статус. Задача становится `done`,
-когда все известные подходы завершены и их набор непустой. Поздно полученный
-незавершённый подход может вернуть задачу в `active`.
-
-### Явное завершение и архивирование
-
-```text
-git task complete --id <task-id>
-git task complete --id <task-id> --attempt <attempt-id> --commit <commit-oid> --yes
-git task archive --id <task-id>
-```
-
-`complete` явно отмечает выбранный подход завершённым с основанием `manual`.
-Указанный `--commit` должен входить в целевую ветку. Без `--yes` нужен
-интерактивный терминал для подтверждения. Команда не проверяет качество кода.
-
-`archive` убирает задачу из обычного списка, сохраняя историю, код и ветку.
-Команды отмены архивирования пока нет.
-
-### Импорт и экспорт
-
-Чтобы сразу добавить много задач, создайте в своём проекте UTF-8 файл `plan.md`
-(можно назвать `PLAN.md`) с плоским Markdown-чеклистом:
-
-```markdown
-# План проекта
-
-## Поиск
-- [ ] Добавить экран поиска
-- [ ] Добавить фильтры
-
-## Подготовка
-- [x] Создать репозиторий
-```
-
-`- [ ]` означает новую задачу, `- [x]` или `- [X]` — завершённую. Каждый пункт
-занимает одну строку без отступа; порядок строк задаёт порядок задач.
-Заголовки с `#` и пустые строки разрешены и не становятся задачами.
-Вложенные списки, отдельные описания, таблицы, обычные абзацы и блоки кода
-в файле импорта не поддерживаются. В сам файл копируйте содержимое примера,
-без ограждающих строк с тремя обратными кавычками.
-
-До добавления задач через `add` выполните:
-
-```text
-git task init --target main
-git task import plan.md --yes
-git task status
-```
-
-Все пункты будут добавлены за один импорт; ID назначаются автоматически.
-`--yes` подтверждает импорт без вопроса; уберите его для предпросмотра
-с интерактивным подтверждением. Название файла произвольное и передаётся
-в команду явно: CLI не ищет `PLAN.md` автоматически. Импорт требует пустого
-плана, а дальнейшие изменения Markdown-файла не синхронизируются с CLI.
-Для следующих задач используйте `git task add`.
-
-```text
-git task import tasks.md
-git task import snapshot.json --format json --yes
-git task export
-git task export --format markdown --output tasks-copy.md
-git task export --format json --output snapshot.json
-```
-
-Экспорт без `--output` пишет в терминал. Существующий выходной файл не
-перезаписывается. JSON сохраняет задачи и подходы, но не локальную очередь,
-наблюдения и настройки подключения; для их сохранения нужен backup рабочего
-плана.
-
-### Получение и публикация изменений плана
+Нужен общий Git-репозиторий с remote `origin` и правом отправлять изменения.
+Один участник заполняет и применяет план по примеру выше, затем публикует его:
 
 ```text
 git task team connect --remote origin
-git task team fetch
-git task team publish
 ```
 
-После `connect` изменения задач пытаются автоматически опубликоваться.
-`team fetch` получает общий план, `team publish` согласует его с локальной
-очередью и отправляет изменения. Обычные `status`, `sync` и hooks работают
-локально; сами по себе они не публикуют очередь.
-
-При отказе сети или прав уже сохранённая работа остаётся локально, CLI выводит
-предупреждение. После устранения причины выполните `team publish`; повторять
-`start` или `complete` ради отправки не нужно. Публикация делает до трёх попыток
-за 30 секунд. Автоматического фонового повторителя нет.
-
-Обычный `git fetch` может получать служебную ветку, если это разрешает refspec
-remote; `team fetch` получает её явно. Слияние кода на Git-хостинге не вызывает
-локальные hooks. Настройка обработки на собственном Git-сервере описана
-[ниже](#слияние-на-собственном-git-сервере).
-
-### Hooks, диагностика и восстановление
+Остальные участники в своих копиях проекта создают пустой план и подключаются
+к общему. Укажите ту же целевую ветку, которую выбрал первый участник:
 
 ```text
+git task init --target main
 git task hooks install
-git task hooks uninstall
-git task doctor
-git task doctor --repair recover-start --yes
-git task doctor --repair restore-backup --yes
-git task doctor --repair unlock --yes
-git task migrate
+git task team connect --remote origin
 ```
 
-`hooks uninstall` снимает интеграцию, сохраняя план и чужие обработчики.
-`doctor` без repair только читает состояние. Выбирайте восстановление по его
-диагностике: `recover-start` завершает прерванную операцию, `restore-backup`
-восстанавливает последнюю валидную копию, `unlock` снимает подтверждённо устаревшую
-блокировку. Backup может не содержать последних изменений; не удаляйте план,
-очередь или журналы для обхода ошибки.
+При подключении они получат готовые задачи и их ID. Общий план хранится
+в отдельной ветке `git-task-plan` того же репозитория; код отправляйте обычным Git.
+Перед выбором задачи выполните `git task team fetch`, затем работайте через
+`git task start`, как показано выше. Изменения задач пытаются публиковаться
+автоматически. После слияния кода выполните `git task team publish`, чтобы
+отправить изменения статусов, которые hooks сохранили локально. Если сеть
+недоступна, работа останется в локальной очереди; повторите `team publish`
+после восстановления связи.
 
-`migrate` переводит старый план со схемы 1 на схему 2, сохраняя ID, историю
-и исходные данные. Для нового плана команда не нужна.
-
-Рабочий CLI требует обычный полный репозиторий с одним рабочим деревом;
-bare, shallow, partial clone и дополнительные worktree не поддерживаются.
-
-### Ручное подключение hooks
-
-Автоматическая установка сохраняет поддерживаемые обычные shell-hooks.
-Общий `core.hooksPath`, сторонний менеджер, другой интерпретатор или изменённая
-обёртка требуют ручного подключения. CLI сохраняет чужие файлы при отказе.
-Для менеджера используйте его механизм расширения; общий каталог меняйте
-только с разрешения владельца. Можно оставить интеграцию выключенной и
-выполнять `git task sync` самостоятельно.
-
-Для обычного shell-hook после его исходной логики сохраните код выхода
-и добавьте вызов с абсолютным путём к установленному бинарнику:
-
-```sh
-git_task_original_status=$?
-if [ -z "${GIT_TASK_OPERATION:-}" ] && [ -z "${GIT_TASK_HOOK:-}" ]; then
-    GIT_TASK_HOOK=1 '/path/to/git-task' _hook post-commit < /dev/null ||
-        printf '%s\n' 'git-task: выполните git task sync.' >&2
-fi
-exit "$git_task_original_status"
-```
-
-На Windows используйте прямые слеши и путь к `git-task.exe`. Для `post-merge`
-и `post-checkout` передайте настоящее имя события и `"$@"`.
-Для `post-rewrite` и `reference-transaction` каждому обработчику нужна копия
-исходного stdin. Если менеджер этого не обеспечивает, используйте отдельный
-`git task sync`; уже прочитанный stdin повторно передать нельзя.
-
-## Обновление и удаление
-
-Для обновления скачайте установщик новой версии и запустите его. Путь плагина
-сохраняется, повторять `init` в проектах не нужно. Затем откройте новый терминал
-и проверьте `git task version` и `git task status`. Проектные планы и очереди
-установщик не меняет.
-
-Перед удалением выполните `git task hooks uninstall` в проектах, где включали
-hooks. На Windows удалите Git Task через список установленных приложений.
-На Debian/Ubuntu используйте `sudo apt remove git-task`, на RPM-дистрибутивах —
-`sudo dnf remove git-task`. На macOS удалите `/usr/local/bin/git-task`,
-`/etc/paths.d/git-task`, `/usr/local/share/doc/git-task` и снимите квитанцию
-командой `sudo pkgutil --forget io.github.toothlonely.git-task`.
-Каталоги `.git-task` в ваших проектах сохраняются.
-
-Если ранее использовали старый скрипт установки в отдельный проект, перед
-переходом на общий установщик снимите его hooks, выполните
-`git config --local --unset alias.task` и
-`git config --local --unset git-task.install-path` в этом проекте.
-После установки нового плагина hooks можно подключить заново.
-
-## Сборка из исходников
-
-Переносимый архив нужно распаковать в постоянный каталог и добавить его в PATH.
-С Go 1.26.0+ можно собрать CLI самостоятельно из клона этого репозитория.
-Windows, PowerShell:
-
-```powershell
-go build -o bin/git-task.exe ./cmd/git-task
-$gitTaskBin = Join-Path $PWD 'bin'
-$env:PATH = $gitTaskBin + [IO.Path]::PathSeparator + $env:PATH
-```
-
-Linux/macOS:
-
-```sh
-go build -o bin/git-task ./cmd/git-task
-export PATH="$PWD/bin:$PATH"
-```
-
-PATH в этих примерах действует в текущем терминале. Собранный бинарник должен
-оставаться по постоянному пути, особенно после подключения hooks.
-
-## Слияние на собственном Git-сервере
-
-Для обычного Git-сервера с доступом к hooks есть
-[пример post-receive](scripts/git-task-post-receive.sample). Его подключает
-администратор, сохраняя существующий обработчик. Пример не устанавливает
-интеграцию с GitHub/GitLab SaaS; этим хостингам нужен отдельный серверный триггер.
-
-Создайте отдельный обычный clone для worker, задайте его локальную Git identity,
-выполните `git task init --target <branch>` и `git task team connect --remote <name>`.
-Серверному процессу нужны `GIT_TASK_WORKER` — путь этого clone,
-`GIT_TASK_BINARY` — абсолютный путь бинарника и `GIT_TASK_TARGET` — целевая ветка
-(по умолчанию `main`). Worker должен иметь права получения кода и публикации плана.
-
-После обновления целевой ветки обработчик вызывает:
-
-```text
-git task team reconcile --before <old-commit-oid> --after <new-commit-oid>
-```
-
-Сохранённое событие или очередь повторяются через `git task team reconcile`
-без флагов. Если первая запись не удалась, используйте точную команду с OID
-из диагностики сервера. Сохраните ветку подхода до обработки события.
-Создание/удаление цели, переписанная история, squash и cherry-pick не дают
-автоматического завершения. Обработка синхронная, может задержать push до
-30 секунд; отказ публикации плана не отменяет успешный push кода.
+[Все команды и дополнительные настройки → DOCUMENTATION.md](https://github.com/ToothLonely/TaskPlugin/blob/master/DOCUMENTATION.md#russian)
