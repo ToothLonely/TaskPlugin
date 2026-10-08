@@ -21,7 +21,7 @@ func orderedPlan(t *testing.T, ids ...string) Plan {
 		t.Fatal(err)
 	}
 	for _, id := range ids {
-		p.Tasks = append(p.Tasks, Task{ID: id, Number: "display-" + id, Title: id, Status: Todo})
+		p.Tasks = append(p.Tasks, Task{ID: id, Title: id, Status: Todo})
 		p.Order = append(p.Order, id)
 		p.InsertionTail = id
 	}
@@ -278,7 +278,7 @@ func TestPositionErrorsLeavePlanUnchanged(t *testing.T) {
 	}{
 		{"missing after", Position{After: "missing"}, ErrNotFound},
 		{"missing before", Position{Before: "missing"}, ErrNotFound},
-		{"number is not ID", Position{After: "display-B"}, ErrNotFound},
+		{"unknown ID", Position{After: "missing-task"}, ErrNotFound},
 		{"after and before", Position{After: "B", Before: "B"}, ErrInvalid},
 		{"after and end", Position{After: "B", End: true}, ErrInvalid},
 		{"before and end", Position{Before: "B", End: true}, ErrInvalid},

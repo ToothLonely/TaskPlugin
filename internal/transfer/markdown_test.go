@@ -53,7 +53,7 @@ func TestMarkdownTodoTailAndLongLine(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = plan.Add("Третий", "", task.Position{}); err != nil || plan.Tasks[2].Number != "T-003" {
+	if _, err = plan.Add("Третий", "", task.Position{}); err != nil {
 		t.Fatalf("tail: %v %v", plan.Order, err)
 	}
 	data, err := EncodeMarkdown(plan)
@@ -137,7 +137,7 @@ func FuzzMarkdown(f *testing.F) {
 		}
 		for i, old := range plan.Tasks {
 			next := again.Tasks[i]
-			if old.Title != next.Title || old.Status != next.Status || old.Number != next.Number || len(old.Attempts) != len(next.Attempts) {
+			if old.Title != next.Title || old.Status != next.Status || len(old.Attempts) != len(next.Attempts) {
 				t.Fatal("checklist meaning changed")
 			}
 			if next.Status == task.Done && (next.Attempts[0].ID == "" || next.Attempts[0].Completion.Source != task.Imported) {

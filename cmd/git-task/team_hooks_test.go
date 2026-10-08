@@ -25,7 +25,7 @@ func teamHookPair(t *testing.T, binary string) (hookFixture, hookFixture) {
 	}
 	c.Env = append([]string(nil), a.git.Env...)
 	b := hookFixture{t: t, ctx: a.ctx, git: c, binary: binary, dir: filepath.Join(root, ".git", "hooks")}
-	b.cli("init")
+	b.cli("init", "--target", "main")
 	b.cli("team", "connect", "--remote", "origin")
 	b.cli("hooks", "install")
 	return a, b

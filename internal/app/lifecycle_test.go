@@ -39,7 +39,7 @@ func TestPlanChangesPreserveDirtyCodeAndIdentity(t *testing.T) {
 	}
 	title, description := "Новое название 🙂", ""
 	edited, changed, err := p.ApplyEdit(ctx, preview, task.EditOptions{Title: &title, Description: &description})
-	if err != nil || !changed || edited.ID != started.ID || edited.Number != started.Number || !reflect.DeepEqual(edited.ActiveAttempt, started.ActiveAttempt) {
+	if err != nil || !changed || edited.ID != started.ID || !reflect.DeepEqual(edited.ActiveAttempt, started.ActiveAttempt) {
 		t.Fatalf("edit lost identity: %+v %v %v", edited, changed, err)
 	}
 	if _, changed, err := p.Move(ctx, started.ID, task.Position{End: true}); err != nil || !changed {

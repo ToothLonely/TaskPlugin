@@ -38,13 +38,13 @@ func chooseStart(ctx context.Context, plans *app.Plans, options app.StartOptions
 	for _, item := range selection.Plan.Tasks {
 		if item.Status == task.Todo {
 			available = append(available, item)
-			_, err = fmt.Fprintf(streams.Err, "%d. %s [%s] todo: %s\n", len(available), item.Number, item.ID, strconv.Quote(item.Title))
+			_, err = fmt.Fprintf(streams.Err, "%d. [%s] todo: %s\n", len(available), item.ID, strconv.Quote(item.Title))
 		} else {
 			reason := map[task.Status]string{
 				task.Active: "уже начата", task.Paused: "требуется resume",
 				task.Done: "требуется явный --id или --title с --again", task.Archived: "в архиве",
 			}[item.Status]
-			_, err = fmt.Fprintf(streams.Err, "- %s [%s] %s: %s — %s\n", item.Number, item.ID, item.Status, strconv.Quote(item.Title), reason)
+			_, err = fmt.Fprintf(streams.Err, "- [%s] %s: %s — %s\n", item.ID, item.Status, strconv.Quote(item.Title), reason)
 		}
 		if err != nil {
 			return result, err
@@ -80,9 +80,9 @@ func chooseStart(ctx context.Context, plans *app.Plans, options app.StartOptions
 				}
 			}
 		default:
-			number, err := strconv.Atoi(line)
-			if err == nil && number > 0 && number <= len(available) {
-				options.ID = available[number-1].ID
+			index, err := strconv.Atoi(line)
+			if err == nil && index > 0 && index <= len(available) {
+				options.ID = available[index-1].ID
 				return options, nil
 			}
 			if _, err := fmt.Fprintln(streams.Err, "Неверный выбор; введите номер доступной задачи, n или 0."); err != nil {

@@ -10,7 +10,7 @@ func ValidateSharedAdvance(base, received Plan) error {
 	base, received = Shared(base), Shared(received)
 	for _, old := range base.Tasks {
 		next, err := received.FindID(old.ID)
-		if err != nil || old.Number != next.Number || old.Status == Archived && next.Status != Archived {
+		if err != nil || old.Status == Archived && next.Status != Archived {
 			return fmt.Errorf("%w: исчезла или изменена известная задача %s", ErrSharedConflict, old.ID)
 		}
 		for _, a := range old.Attempts {

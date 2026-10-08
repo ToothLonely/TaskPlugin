@@ -62,7 +62,7 @@ func TestEditDuplicateTitlesStillPositionByID(t *testing.T) {
 		t.Fatalf("order=%v", p.Order)
 	}
 	first, err := p.FirstTodo()
-	if err != nil || first.ID != "C" || first.Number != "display-C" {
+	if err != nil || first.ID != "C" {
 		t.Fatalf("first todo=%+v err=%v", first, err)
 	}
 	added, err := p.Add(title, "", Position{After: "A"})
@@ -78,7 +78,7 @@ func TestEditErrorsLeavePlanUnchanged(t *testing.T) {
 		err                          error
 	}{
 		{name: "unknown ID", id: "missing", title: "valid", err: ErrNotFound},
-		{name: "number is not ID", id: "T-001", title: "valid", err: ErrNotFound},
+		{name: "unknown ID", id: "missing-task", title: "valid", err: ErrNotFound},
 		{name: "title is not ID", id: "Профиль", title: "valid", err: ErrNotFound},
 		{name: "empty title", id: "task-a", err: ErrInvalid},
 		{name: "blank title", id: "task-a", title: "\t\u2003\n", err: ErrInvalid},

@@ -27,10 +27,9 @@ var (
 	ErrAgainRequired = errors.New("задача выполнена; для нового подхода добавьте --again")
 )
 
-// Task has a permanent ID and display number, independent of its title or position.
+// Task has a permanent ID, independent of its title or position.
 type Task struct {
 	ID            string    `json:"id"`
-	Number        string    `json:"number"`
 	Title         string    `json:"title"`
 	Description   string    `json:"description,omitempty"`
 	Revision      uint64    `json:"revision"`

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"git-task/internal/app"
+	"git-task/internal/storage"
 	"git-task/internal/task"
 )
 
@@ -21,6 +22,8 @@ type planArgs struct {
 	description string
 	position    task.Position
 	help        bool
+	apply       bool
+	targetSet   bool
 }
 
 func parsePlanArgs(command string, args []string) (planArgs, error) {
@@ -30,6 +33,7 @@ func parsePlanArgs(command string, args []string) (planArgs, error) {
 	fs.BoolVar(&result.help, "help", false, "показать справку")
 	if command == "init" {
 		fs.StringVar(&result.target, "target", "main", "целевая ветка")
+		fs.BoolVar(&result.apply, "apply", false, "применить заполненный шаблон")
 	}
 	if command == "add" {
 		fs.StringVar(&result.description, "description", "", "описание")
@@ -50,7 +54,7 @@ func parsePlanArgs(command string, args []string) (planArgs, error) {
 			continue
 		}
 		name, value, hasValue := strings.Cut(arg, "=")
-		boolean := name == "--help" || command == "add" && name == "--end"
+		boolean := name == "--help" || command == "add" && name == "--end" || command == "init" && name == "--apply"
 		valued := command == "init" && name == "--target" || command == "add" && (name == "--description" || name == "--after" || name == "--before")
 		if !boolean && !valued {
 			return result, &usageError{fmt.Sprintf("неизвестный флаг %q", name)}
@@ -80,6 +84,10 @@ func parsePlanArgs(command string, args []string) (planArgs, error) {
 		if valued && name != "--description" && strings.TrimSpace(value) == "" {
 			return result, &usageError{fmt.Sprintf("пустое значение %s", name)}
 		}
+	}
+	result.targetSet = seen["--target"]
+	if result.apply && result.targetSet {
+		return result, &usageError{"--apply и --target взаимоисключающие; укажите target_branch в шаблоне"}
 	}
 	count := 0
 	for _, name := range []string{"--after", "--before", "--end"} {
@@ -139,7 +147,22 @@ func runPlan(ctx context.Context, command string, args []string, streams Streams
 		}
 		return nil
 	case "init":
-		created, unborn, err := plans.Init(ctx, parsed.target)
+		var created, unborn bool
+		message := "План уже инициализирован."
+		if parsed.targetSet {
+			created, unborn, err = plans.Init(ctx, parsed.target)
+			if created {
+				message = "План создан."
+			}
+		} else {
+			var result storage.TemplateResult
+			result, unborn, err = plans.InitTemplate(ctx, parsed.apply)
+			if result.Draft {
+				message = "Шаблон .git-task/plan.json: заполните target_branch и tasks, затем выполните git task init --apply."
+			} else if result.Applied {
+				message = "Шаблон применён; ID, order и служебные поля созданы."
+			}
+		}
 		if err != nil {
 			return err
 		}
@@ -147,10 +170,6 @@ func runPlan(ctx context.Context, command string, args []string, streams Streams
 			if _, err = fmt.Fprintln(streams.Err, "Предупреждение: в репозитории ещё нет commit; запуск задач потребует существующего основания."); err != nil {
 				return fmt.Errorf("инициализация выполнена; не удалось вывести предупреждение: %w", err)
 			}
-		}
-		message := "План уже инициализирован."
-		if created {
-			message = "План создан."
 		}
 		_, err = fmt.Fprintln(streams.Out, message)
 		if err != nil {
@@ -162,7 +181,7 @@ func runPlan(ctx context.Context, command string, args []string, streams Streams
 		if err != nil {
 			return err
 		}
-		_, err = fmt.Fprintf(streams.Out, "Добавлена %s [%s]: %s\n", added.Number, added.ID, added.Title)
+		_, err = fmt.Fprintf(streams.Out, "Добавлена [%s]: %s\n", added.ID, added.Title)
 		if err != nil {
 			return fmt.Errorf("задача %s уже добавлена; не удалось вывести результат: %w", added.ID, err)
 		}

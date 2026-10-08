@@ -132,18 +132,18 @@ func (p Plan) Validate() error {
 	if p.Tasks == nil || p.Order == nil {
 		return invalid("tasks и order должны быть массивами")
 	}
-	ids, numbers, attempts := map[string]bool{}, map[string]bool{}, map[string]bool{}
+	ids, attempts := map[string]bool{}, map[string]bool{}
 	branches := map[string]string{}
 	events := map[uint64]bool{}
 	var last uint64
 	for _, t := range p.Tasks {
-		if !identity(t.ID) || !identity(t.Number) || blank(t.Title) || !utf8.ValidString(t.Title) || !utf8.ValidString(t.Description) {
-			return invalid("ID, number или title задачи %q", t.ID)
+		if !identity(t.ID) || blank(t.Title) || !utf8.ValidString(t.Title) || !utf8.ValidString(t.Description) {
+			return invalid("ID или title задачи %q", t.ID)
 		}
-		if ids[t.ID] || numbers[t.Number] {
-			return invalid("повтор ID или number задачи %q", t.ID)
+		if ids[t.ID] {
+			return invalid("повтор ID задачи %q", t.ID)
 		}
-		ids[t.ID], numbers[t.Number] = true, true
+		ids[t.ID] = true
 		if err := t.validate(); err != nil {
 			return fmt.Errorf("задача %q: %w", t.ID, err)
 		}

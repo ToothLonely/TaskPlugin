@@ -3,7 +3,6 @@ package task
 import (
 	"encoding/json"
 	"errors"
-	"reflect"
 	"testing"
 )
 
@@ -194,8 +193,5 @@ func TestNewTaskIDsAreIndependentAndLegacyIDsSurvive(t *testing.T) {
 		if _, err := merged.FindID(id); err != nil {
 			t.Fatal(err)
 		}
-	}
-	if reflect.DeepEqual(merged.Tasks[2].Number, merged.Tasks[3].Number) {
-		t.Fatal("display number collision")
 	}
 }

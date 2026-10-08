@@ -6,8 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"git-task/internal/task"
 )
 
 // inspectPath rejects symlinks (including Windows junctions reported by Lstat)
@@ -68,12 +66,12 @@ func (s *Store) inspect(holdingLock bool) error {
 		switch name {
 		case "plan.json":
 			hasPlan = true
-		case "plan.backup.json":
+		case "plan.backup.json", "plan.template.json":
 			data, err := readFile(filepath.Join(s.dir, name))
 			if err != nil {
 				return err
 			}
-			if _, err := decode(data); err != nil {
+			if err := validateBackup(name, data); err != nil {
 				return fmt.Errorf("резервная копия требует разбора: %w", err)
 			}
 		case "write.lock":
@@ -88,16 +86,6 @@ func (s *Store) inspect(holdingLock bool) error {
 			// Read-only access remains available for diagnosis. Writers reject
 			// the journal unless they explicitly enter operation recovery.
 		default:
-			if name == "plan.schema-1.json" {
-				data, err := readFile(filepath.Join(s.dir, name))
-				if err != nil {
-					return err
-				}
-				if _, err := task.MigrateV1(data); err != nil {
-					return err
-				}
-				continue
-			}
 			if strings.HasPrefix(name, "conflict-") && strings.HasSuffix(name, ".json") {
 				continue
 			}

@@ -249,7 +249,7 @@ func TestStartInvalidSelectionPreservesState(t *testing.T) {
 	})
 	before := planBytes(t, c)
 	for _, options := range []StartOptions{
-		{ID: "2"}, {ID: "T-002"}, {ID: "missing"}, {Title: "Первая"}, {Title: "Добавить профиль"}, {Title: " добавить профиль "}, {Title: "missing"},
+		{ID: "2"}, {ID: "unknown-task"}, {ID: "missing"}, {Title: "Первая"}, {Title: "Добавить профиль"}, {Title: " добавить профиль "}, {Title: "missing"},
 		{ID: "task-001", Title: "Первая"}, {Again: true}, {New: "Новая", Again: true},
 		{Branch: "--force"}, {Branch: "@{-1}"}, {Branch: "refs/heads/name"}, {Branch: "HEAD"}, {Branch: "main"},
 	} {
@@ -276,7 +276,7 @@ func TestStartFromAndNew(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Number != "T-004" || got.ActiveAttempt.BaseCommit != other || got.ActiveAttempt.TargetBranch != "main" {
+	if got.ActiveAttempt.BaseCommit != other || got.ActiveAttempt.TargetBranch != "main" {
 		t.Fatalf("bad new task: %+v", got)
 	}
 	testrepo.Run(t, c, "tag", "ambiguous")

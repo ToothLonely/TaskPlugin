@@ -61,7 +61,7 @@ func testAcceptanceOfflineApproaches(t *testing.T, reverse bool) {
 	}
 	c.Env = append([]string(nil), a.git.Env...)
 	late := acceptanceAuthor(hookFixture{t: t, ctx: a.ctx, git: c, binary: a.binary}, "Charlie")
-	late.cli("init")
+	late.cli("init", "--target", "main")
 	late.cli("team", "connect", "--remote", "origin")
 	for i, f := range []hookFixture{a, b, late} {
 		f.runGit("remote", "set-url", "origin", filepath.Join(t.TempDir(), "offline.git"))
@@ -306,38 +306,15 @@ func TestAcceptanceCanceledPublicationKeepsQueue(t *testing.T) {
 	}
 }
 
-func TestAcceptanceMigrationAndBackupRepair(t *testing.T) {
+func TestAcceptanceBackupRepair(t *testing.T) {
 	f := newHookFixture(t, buildHooksBinary(t))
 	head := f.runGit("rev-parse", "HEAD")
 	index := f.runGit("ls-files", "--stage")
-	legacy := []byte(`{"format":"git-task","schema_version":1,"revision":7,"target_branch":"main","order":["legacy-task"],"tasks":[{"id":"legacy-task","number":"T-007","title":"Legacy","revision":5,"status":"paused","active_attempt":{"id":"active-id","branch":"feature","original_branch":"feature","target_branch":"main","base_commit":"` + strings.TrimSpace(string(head)) + `","started_at":"2026-01-01T00:00:00Z"},"attempts":[{"id":"historic-id","completion":{"event":1,"source":"manual","target_branch":"main"}}]}],"last_event":1,"insertion_tail":"legacy-task"}`)
+	f.cli("add", "Repair task")
+	plan := acceptancePlan(t, f.planBytes())
+	item := plan.Tasks[0]
 	dir := filepath.Join(f.git.Dir, ".git-task")
-	if err := os.WriteFile(filepath.Join(dir, "plan.json"), legacy, 0600); err != nil {
-		t.Fatal(err)
-	}
-	f.cli("migrate")
-	p := acceptancePlan(t, f.planBytes())
-	item, err := p.FindID("legacy-task")
-	if err != nil || item.Status != task.Paused || len(item.Attempts) != 2 || item.Attempts[0].ID != "historic-id" || item.Attempts[1].ID != "active-id" {
-		t.Fatalf("migration lost history: %+v %v", item, err)
-	}
-	for _, attempt := range item.Attempts {
-		if attempt.Author != "" {
-			t.Fatal("migration fabricated author")
-		}
-	}
-	for _, name := range []string{"plan.schema-1.json", "plan.backup.json"} {
-		data, err := os.ReadFile(filepath.Join(dir, name))
-		if err != nil || !bytes.Equal(data, legacy) {
-			t.Fatalf("legacy source lost: %s %v", name, err)
-		}
-	}
-	before := f.planBytes()
-	f.cli("migrate")
-	if !bytes.Equal(before, f.planBytes()) {
-		t.Fatal("repeat migration rewrote plan")
-	}
-	f.cli("edit", "--id", "legacy-task", "--title", "Changed")
+	f.cli("edit", "--id", item.ID, "--title", "Changed")
 	backup, err := os.ReadFile(filepath.Join(dir, "plan.backup.json"))
 	if err != nil {
 		t.Fatal(err)

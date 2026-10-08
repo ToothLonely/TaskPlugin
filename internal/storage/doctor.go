@@ -45,7 +45,7 @@ func (s *Store) Inspect(ctx context.Context) (Inspection, error) {
 		if excludeErr != nil {
 			detail += "; " + excludeErr.Error()
 		}
-		result.Findings = append(result.Findings, Finding{Name: "info/exclude", Detail: detail, Next: "git task init с прежним --target; чужие правила сохраняются", Problem: true})
+		result.Findings = append(result.Findings, Finding{Name: "info/exclude", Detail: detail, Next: "git task init; чужие правила и существующий план сохраняются", Problem: true})
 	}
 	entries, err := os.ReadDir(s.dir)
 	if errors.Is(err, os.ErrNotExist) {
@@ -68,20 +68,31 @@ func (s *Store) Inspect(ctx context.Context) (Inspection, error) {
 			continue
 		}
 		switch name {
+		case "plan.template.json":
+			if _, err := task.ReadTemplate(data); err != nil {
+				f.Detail, f.Next, f.Problem = err.Error(), "сохраните исходный шаблон; ручной разбор", true
+			} else {
+				f.Detail = "исходный шаблон до init --apply; история рабочего плана хранится отдельно"
+			}
 		case "plan.json", "plan.backup.json":
+			if name == "plan.json" && isTemplate(data) {
+				if _, err := task.ReadTemplate(data); err != nil {
+					f.Detail, f.Next, f.Problem = err.Error(), "исправьте шаблон, затем git task init --apply", true
+				} else {
+					f.Detail, f.Next, f.Problem = "начальный шаблон ещё не применён", "заполните target_branch и tasks; git task init --apply", true
+				}
+				break
+			}
 			plan, err := decode(data)
 			if err != nil {
 				f.Detail, f.Next, f.Problem = err.Error(), "сохраните исходники; проверьте backup через doctor --repair restore-backup", true
 				if version := schemaVersion(data); version != 0 && version != task.SchemaVersion {
-					f.Next = "сохраните исходник; используйте совместимую версию CLI, не восстанавливайте поверх неизвестной схемы"
+					f.Next = "поддерживается только схема 3; сохраните исходник, автоматического перехода нет"
 				}
 			} else {
 				f.Detail = fmt.Sprintf("схема %d, revision %d, задач %d", schemaVersion(data), plan.Revision, len(plan.Tasks))
 				if name == "plan.json" {
 					result.Plan = &plan
-					if schemaVersion(data) == 1 {
-						f.Next, f.Problem = "git task migrate", true
-					}
 				}
 			}
 		case "operation.json":
@@ -91,11 +102,6 @@ func (s *Store) Inspect(ctx context.Context) (Inspection, error) {
 			f.Next, f.Problem = "дождитесь владельца; doctor --repair unlock проверяет отсутствие PID", true
 			if _, operationErr := os.Lstat(filepath.Join(s.dir, "operation.json")); operationErr == nil {
 				f.Next = "дождитесь владельца; doctor --repair recover-start проверит журнал и отсутствие владельца; unlock поверх operation запрещён"
-			}
-		case "plan.schema-1.json":
-			_, err := task.MigrateV1(data)
-			if err != nil {
-				f.Detail, f.Next, f.Problem = err.Error(), "сохраните исходник миграции; ручной разбор", true
 			}
 		default:
 			f.Next, f.Problem = "сохраните файл; разберите прерванную запись или конфликт вручную", true

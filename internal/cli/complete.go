@@ -76,7 +76,7 @@ func runComplete(ctx context.Context, args []string, streams Streams, open OpenP
 		return err
 	}
 	if !preview.NoChange {
-		if _, err := fmt.Fprintf(streams.Err, "Завершение manual: %s [%s] %q; commit: %s\n", preview.Task.Number, preview.Task.ID, preview.Task.Title, preview.Commit); err != nil {
+		if _, err := fmt.Fprintf(streams.Err, "Завершение manual: [%s] %q; commit: %s\n", preview.Task.ID, preview.Task.Title, preview.Commit); err != nil {
 			return err
 		}
 		if !yes {
@@ -93,7 +93,7 @@ func runComplete(ctx context.Context, args []string, streams Streams, open OpenP
 	if err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(streams.Out, "%s [%s] %s — %s\n", item.Number, item.ID, item.Status, item.Title); err != nil {
+	if _, err := fmt.Fprintf(streams.Out, "[%s] %s — %s\n", item.ID, item.Status, item.Title); err != nil {
 		return fmt.Errorf("задача уже завершена; ошибка вывода: %w", err)
 	}
 	return nil

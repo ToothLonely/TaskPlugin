@@ -62,7 +62,7 @@ func runShow(ctx context.Context, args []string, streams Streams, open OpenPlans
 		}
 	}
 	var text strings.Builder
-	fmt.Fprintf(&text, "%s [%s] %s — %s\nОписание: %s\n", item.Number, item.ID, item.Status, lineText(item.Title), lineText(known(item.Description)))
+	fmt.Fprintf(&text, "[%s] %s — %s\nОписание: %s\n", item.ID, item.Status, lineText(item.Title), lineText(known(item.Description)))
 	text.WriteString("Подходы:\n")
 	if len(item.Attempts) == 0 {
 		text.WriteString("  нет.\n")

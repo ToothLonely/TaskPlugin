@@ -20,7 +20,7 @@ function Invoke-Checked([string]$Program, [string[]]$Arguments) {
 try {
     if ($installerOnWindows) {
         $originalUserPath = [Environment]::GetEnvironmentVariable('Path','User')
-        $package = Join-Path $packages "git-task_${Version}_windows_amd64.msi"
+        $package = Join-Path $packages "git-task_${Version}_windows.msi"
         $process = Start-Process msiexec.exe -ArgumentList @('/i', ('"' + $package + '"'), '/qn', '/norestart', '/L*V', ('"' + (Join-Path $work 'install.log') + '"')) -WindowStyle Hidden -Wait -PassThru
         if ($process.ExitCode -notin @(0,3010)) { Get-Content (Join-Path $work 'install.log') -Tail 80; throw "MSI installation failed: $($process.ExitCode)" }
         $installed = $true
@@ -32,9 +32,9 @@ try {
         $installed = $true
         if ((Get-Content -LiteralPath '/etc/paths.d/git-task') -ne '/usr/local/bin') { throw 'macOS PATH registration missing' }
     } else {
-        Invoke-Checked 'sudo' @('dpkg','--install',(Join-Path $packages "git-task_${Version}_linux_amd64.deb"))
+        Invoke-Checked 'sudo' @('dpkg','--install',(Join-Path $packages "git-task_${Version}_linux.deb"))
         $installed = $true
-        Invoke-Checked 'rpm' @('--query','--package','--info',(Join-Path $packages "git-task_${Version}_linux_amd64.rpm"))
+        Invoke-Checked 'rpm' @('--query','--package','--info',(Join-Path $packages "git-task_${Version}_linux.rpm"))
     }
     $actualVersion = & git task version
     if ($LASTEXITCODE -ne 0 -or $actualVersion -ne "git-task $Version") { throw 'Installed git task version differs' }
@@ -54,6 +54,8 @@ try {
     Invoke-Checked 'git' @('init','--initial-branch=main','--template=')
     Invoke-Checked 'git' @('commit','--allow-empty','-m','Initial')
     Invoke-Checked 'git' @('task','init')
+    [IO.File]::WriteAllText((Join-Path $PWD '.git-task/plan.json'), '{"target_branch":"main","tasks":[]}', [Text.UTF8Encoding]::new($false))
+    Invoke-Checked 'git' @('task','init','--apply')
     Invoke-Checked 'git' @('task','add','Installed task')
     Invoke-Checked 'git' @('task','status')
     if (-not (Test-Path -LiteralPath '.git-task/plan.json')) { throw 'Init did not create the project plan' }

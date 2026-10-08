@@ -51,7 +51,7 @@ type StatusReport struct {
 }
 
 func statusReport(plan task.Plan, repo StatusRepository, pending bool) (StatusReport, error) {
-	r := StatusReport{SchemaVersion: 2, Repository: repo, Tasks: []task.Task{}, Warnings: []StatusWarning{}}
+	r := StatusReport{SchemaVersion: task.SchemaVersion, Repository: repo, Tasks: []task.Task{}, Warnings: []StatusWarning{}}
 	for _, id := range plan.Order {
 		t, err := plan.FindID(id)
 		if err != nil {
@@ -123,6 +123,6 @@ func (p *Plans) Show(ctx context.Context, id string) (task.Task, bool, error) {
 	if err != nil {
 		return task.Task{}, false, err
 	}
-	item, err := snapshot.Plan.FindID(id)
+	item, err := selectTaskID(snapshot.Plan, id)
 	return item, snapshot.PendingOperation, err
 }

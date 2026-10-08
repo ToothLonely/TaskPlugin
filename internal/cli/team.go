@@ -8,32 +8,7 @@ import (
 	"strings"
 )
 
-func runTeam(ctx context.Context, command string, args []string, streams Streams, open OpenPlans) error {
-	if command == "migrate" {
-		positionals, help, err := parseInfoArgs(command, args)
-		if err != nil {
-			return err
-		}
-		if len(positionals) != 0 {
-			return &usageError{"migrate не принимает аргументы"}
-		}
-		if help {
-			return writeHelp(streams.Out, command)
-		}
-		if open == nil {
-			return fmt.Errorf("операции плана не подключены")
-		}
-		p, err := open(ctx)
-		if err != nil {
-			return err
-		}
-		changed, err := p.Migrate(ctx)
-		if err != nil {
-			return err
-		}
-		_, err = fmt.Fprintf(streams.Out, "Схема 2; миграция выполнена: %t.\n", changed)
-		return err
-	}
+func runTeam(ctx context.Context, args []string, streams Streams, open OpenPlans) error {
 	if len(args) == 0 || len(args) == 1 && args[0] == "--help" {
 		return writeHelp(streams.Out, "team")
 	}

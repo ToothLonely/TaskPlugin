@@ -77,8 +77,11 @@ func (s *Store) load() (Snapshot, error) {
 	if err != nil {
 		return Snapshot{}, err
 	}
-	if schemaVersion(data) == 1 {
-		return Snapshot{}, ErrMigration
+	if isTemplate(data) {
+		if _, err = task.ReadTemplate(data); err != nil {
+			return Snapshot{}, err
+		}
+		return Snapshot{}, ErrTemplate
 	}
 	plan, err := decode(data)
 	if err != nil {

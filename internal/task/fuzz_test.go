@@ -7,7 +7,7 @@ import (
 )
 
 func FuzzPlanJSONAtomic(f *testing.F) {
-	f.Add([]byte(`{"format":"git-task","schema_version":2,"revision":0,"target_branch":"main","order":[],"tasks":[],"last_event":0}`))
+	f.Add([]byte(`{"format":"git-task","schema_version":3,"revision":0,"target_branch":"main","order":[],"tasks":[],"last_event":0}`))
 	f.Add([]byte(`{"format":"git-task","format":"other"}`))
 	f.Add([]byte(`{"title":"\ud800"}`))
 	f.Fuzz(func(t *testing.T, data []byte) {
@@ -47,7 +47,7 @@ func FuzzQueuedAction(f *testing.F) {
 		f.Fatal(err)
 	}
 	f.Add(data, data)
-	f.Add(data, []byte(`{"format":"git-task","schema_version":2,"revision":1,"target_branch":"main","order":["fuzz-task"],"tasks":[{"id":"fuzz-task","number":"T-001","title":"Задача 🚀","revision":1,"status":"todo"}],"last_event":0,"insertion_tail":"fuzz-task"}`))
+	f.Add(data, []byte(`{"format":"git-task","schema_version":3,"revision":1,"target_branch":"main","order":["fuzz-task"],"tasks":[{"id":"fuzz-task","title":"Задача 🚀","revision":1,"status":"todo"}],"last_event":0,"insertion_tail":"fuzz-task"}`))
 	f.Add([]byte(`{"schema_version":99}`), []byte(`null`))
 	f.Fuzz(func(t *testing.T, before, after []byte) {
 		original, err := SharedBytes(base)

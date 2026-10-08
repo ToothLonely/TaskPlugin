@@ -141,7 +141,7 @@ func TestEditorCancellationValidationAndConflict(t *testing.T) {
 					t.Fatal(err)
 				}
 				item, _ := plan.FindID("task-001")
-				if item.Title != "Правка 🙂" || item.Number != "T-001" || item.Status != task.Todo {
+				if item.Title != "Правка 🙂" || item.Status != task.Todo {
 					t.Fatalf("editor changed other fields: %+v", item)
 				}
 			}

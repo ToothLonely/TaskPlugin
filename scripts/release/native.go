@@ -33,14 +33,14 @@ func buildBinary(ctx context.Context, root, output, version, platform string) er
 }
 
 func nativeNames(version, platform string) []string {
-	prefix := "git-task_" + version + "_" + strings.ReplaceAll(platform, "/", "_")
+	prefix := "git-task_" + version + "_"
 	switch platform {
 	case "windows/amd64":
-		return []string{prefix + ".msi"}
+		return []string{prefix + "windows.msi"}
 	case "linux/amd64":
-		return []string{prefix + ".deb", prefix + ".rpm"}
+		return []string{prefix + "linux.deb", prefix + "linux.rpm"}
 	case "darwin/arm64":
-		return []string{prefix + ".pkg"}
+		return []string{prefix + "darwin_arm64.pkg"}
 	}
 	return nil
 }

@@ -103,10 +103,10 @@ func TestBinaryCommands(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"init"}, "План создан"},
-		{[]string{"add", "Реальная задача"}, "T-001"},
+		{[]string{"init", "--target", "main"}, "План создан"},
+		{[]string{"add", "Реальная задача"}, "Реальная задача"},
 		{[]string{"status"}, "todo — Реальная задача"},
-		{[]string{"init"}, "уже инициализирован"},
+		{[]string{"init", "--target", "main"}, "уже инициализирован"},
 	} {
 		cmd := exec.CommandContext(ctx, binary, tc.args...)
 		cmd.Dir, cmd.Env = c.Dir, c.Env
@@ -136,7 +136,7 @@ func TestBinaryCommands(t *testing.T) {
 	startCommand := exec.CommandContext(ctx, binary, "start", "feature")
 	startCommand.Dir, startCommand.Env = c.Dir, c.Env
 	output, err = startCommand.CombinedOutput()
-	if err != nil || !strings.Contains(string(output), "T-001") || !strings.Contains(string(output), "active: feature") {
+	if err != nil || !strings.Contains(string(output), "Задача [") || !strings.Contains(string(output), "active: feature") {
 		t.Fatalf("binary automatic without terminal: %v %s", err, output)
 	}
 	testBinaryTransfer(t, ctx, git, dir)
@@ -171,7 +171,7 @@ func testBinaryTransfer(t *testing.T, ctx context.Context, gitPath, execPath str
 		}
 		return out.Bytes(), diagnostic.Bytes()
 	}
-	run(c.Dir, c.Env, 0, "init")
+	run(c.Dir, c.Env, 0, "init", "--target", "main")
 	planPath := filepath.Join(c.Dir, ".git-task", "plan.json")
 	before, err := os.ReadFile(planPath)
 	if err != nil {

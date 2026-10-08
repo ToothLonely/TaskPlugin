@@ -12,74 +12,6 @@ import (
 	"git-task/internal/testrepo"
 )
 
-func TestAcceptanceMigrationAllStatuses(t *testing.T) {
-	f := newHookFixture(t, buildHooksBinary(t))
-	head, index, refs := f.runGit("rev-parse", "HEAD"), f.runGit("ls-files", "--stage"), f.runGit("show-ref")
-	legacy := []byte(strings.ReplaceAll(`{
-"format":"git-task","schema_version":1,"revision":7,"target_branch":"main",
-"order":["todo-id","active-id","paused-id","done-id","archived-id"],
-"tasks":[
-{"id":"todo-id","number":"T-001","title":"Todo","revision":5,"status":"todo"},
-{"id":"active-id","number":"T-002","title":"Active","revision":5,"status":"active","active_attempt":{"id":"active-open","branch":"legacy-active","original_branch":"legacy-active","target_branch":"main","base_commit":"$BASE","started_at":"2026-01-01T00:00:00Z"}},
-{"id":"paused-id","number":"T-003","title":"Paused","revision":5,"status":"paused","active_attempt":{"id":"paused-open","branch":"legacy-paused","original_branch":"legacy-paused","target_branch":"main","base_commit":"$BASE","started_at":"2026-01-01T00:00:00Z"},"attempts":[{"id":"paused-history","completion":{"event":1,"source":"manual","target_branch":"main"}}]},
-{"id":"done-id","number":"T-004","title":"Done","revision":5,"status":"done","attempts":[{"id":"done-history","completion":{"event":2,"source":"imported","target_branch":"main"}}]},
-{"id":"archived-id","number":"T-005","title":"Archived","revision":5,"status":"archived","active_attempt":{"id":"archived-open","branch":"legacy-archived","original_branch":"legacy-archived","target_branch":"main","base_commit":"$BASE","started_at":"2026-01-01T00:00:00Z"},"attempts":[{"id":"archived-history","completion":{"event":3,"source":"manual","target_branch":"main"}}]}
-],"last_event":3,"insertion_tail":"archived-id"}`, "$BASE", strings.TrimSpace(string(head))))
-	dir := filepath.Join(f.git.Dir, ".git-task")
-	if err := os.WriteFile(filepath.Join(dir, "plan.json"), legacy, 0600); err != nil {
-		t.Fatal(err)
-	}
-	f.cli("migrate")
-	p := acceptancePlan(t, f.planBytes())
-	order := []string{"todo-id", "active-id", "paused-id", "done-id", "archived-id"}
-	if p.SchemaVersion != 2 || p.Revision != 7 || p.TargetBranch != "main" || p.LastEvent != 3 || p.InsertionTail != "archived-id" || !reflect.DeepEqual(p.Order, order) || len(p.Tasks) != 5 {
-		t.Fatalf("migration changed plan identity/history: %+v", p)
-	}
-	for _, expected := range []struct {
-		id      string
-		status  task.Status
-		ids     []string
-		states  []task.Status
-		sources []task.Source
-	}{
-		{"todo-id", task.Todo, nil, nil, nil},
-		{"active-id", task.Active, []string{"active-open"}, []task.Status{task.Active}, []task.Source{""}},
-		{"paused-id", task.Paused, []string{"paused-history", "paused-open"}, []task.Status{task.Done, task.Paused}, []task.Source{task.Manual, ""}},
-		{"done-id", task.Done, []string{"done-history"}, []task.Status{task.Done}, []task.Source{task.Imported}},
-		{"archived-id", task.Archived, []string{"archived-history", "archived-open"}, []task.Status{task.Done, task.Active}, []task.Source{task.Manual, ""}},
-	} {
-		item, err := p.FindID(expected.id)
-		if err != nil || item.Status != expected.status || item.Revision != 5 || len(item.Attempts) != len(expected.ids) {
-			t.Fatalf("migration %s: %+v %v", expected.id, item, err)
-		}
-		for i, attempt := range item.Attempts {
-			if attempt.ID != expected.ids[i] || attempt.Status != expected.states[i] || attempt.Author != "" {
-				t.Fatalf("approach identity/status/author changed: %+v", attempt)
-			}
-			if expected.sources[i] == "" {
-				if attempt.Completion != nil || attempt.BaseCommit != strings.TrimSpace(string(head)) || attempt.StartedAt == nil {
-					t.Fatalf("open approach evidence changed: %+v", attempt)
-				}
-			} else if attempt.Completion == nil || attempt.Completion.Source != expected.sources[i] {
-				t.Fatalf("completion lost: %+v", attempt)
-			} else if event := map[string]uint64{"paused-history": 1, "done-history": 2, "archived-history": 3}[attempt.ID]; attempt.Completion.Event != event {
-				t.Fatalf("completion event changed: %+v", attempt)
-			}
-		}
-	}
-	before := f.planBytes()
-	f.cli("migrate")
-	for _, name := range []string{"plan.schema-1.json", "plan.backup.json"} {
-		data, err := os.ReadFile(filepath.Join(dir, name))
-		if err != nil || !bytes.Equal(data, legacy) {
-			t.Fatalf("original schema-1 bytes lost: %s %v", name, err)
-		}
-	}
-	if !bytes.Equal(before, f.planBytes()) || !bytes.Equal(head, f.runGit("rev-parse", "HEAD")) || !bytes.Equal(index, f.runGit("ls-files", "--stage")) || !bytes.Equal(refs, f.runGit("show-ref")) {
-		t.Fatal("migration/repeat changed plan, refs, HEAD or index")
-	}
-}
-
 func TestAcceptanceTeamJSONTransfer(t *testing.T) {
 	binary := buildHooksBinary(t)
 	a, b := teamHookPair(t, binary)
@@ -159,7 +91,7 @@ func assertAcceptanceTransfer(t *testing.T, source, transferred task.Plan) {
 	}
 	for i, original := range source.Tasks {
 		item := transferred.Tasks[i]
-		if item.ID != original.ID || item.Number != original.Number || item.Title != original.Title || item.Description != original.Description || item.Revision != original.Revision || item.Status != original.Status || len(item.Attempts) != len(original.Attempts) || len(item.Warnings) != 0 || item.ActiveAttempt != nil {
+		if item.ID != original.ID || item.Title != original.Title || item.Description != original.Description || item.Revision != original.Revision || item.Status != original.Status || len(item.Attempts) != len(original.Attempts) || len(item.Warnings) != 0 || item.ActiveAttempt != nil {
 			t.Fatalf("JSON task transfer changed identity/status: %+v", item)
 		}
 		for j, original := range original.Attempts {

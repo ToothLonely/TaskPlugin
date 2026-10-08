@@ -93,7 +93,7 @@ func newHookFixture(t *testing.T, binary string) hookFixture {
 	f := hookFixture{t: t, ctx: ctx, git: c, binary: copyPath, dir: dir}
 	f.write("base.txt", "base\n")
 	f.commit("base")
-	f.cli("init")
+	f.cli("init", "--target", "main")
 	f.cli("add", "Задача hooks")
 	testrepo.FixturePlanFile(t, c)
 	return f

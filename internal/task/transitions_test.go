@@ -19,8 +19,8 @@ func planForTest(t *testing.T) Plan {
 		t.Fatal(err)
 	}
 	p.Tasks = []Task{
-		{ID: "task-a", Number: "T-001", Title: "Профиль", Status: Todo},
-		{ID: "task-b", Number: "T-002", Title: " Вход ", Status: Todo},
+		{ID: "task-a", Title: "Профиль", Status: Todo},
+		{ID: "task-b", Title: " Вход ", Status: Todo},
 	}
 	p.Order = []string{"task-a", "task-b"}
 	return p
@@ -279,14 +279,14 @@ func TestSelectionAndStableIdentity(t *testing.T) {
 	if !errors.Is(err, ErrAmbiguous) {
 		t.Fatal("archived duplicate ignored")
 	}
-	for _, id := range []string{"1", "T-001", "TASK-A"} {
+	for _, id := range []string{"1", "missing-id", "TASK-A"} {
 		if _, err := p.FindID(id); !errors.Is(err, ErrNotFound) {
 			t.Fatalf("ID alias accepted: %s", id)
 		}
 	}
 	p.Tasks[0].Title = "Новое имя"
 	got, err = p.FindTitle("Новое имя")
-	if err != nil || got.ID != "task-a" || got.Number != "T-001" {
+	if err != nil || got.ID != "task-a" {
 		t.Fatal("rename changed identity")
 	}
 	for _, title := range []string{"вход", "Вход", " Вход", "Absent"} {

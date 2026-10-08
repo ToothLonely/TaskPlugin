@@ -139,7 +139,7 @@ func runLifecycle(ctx context.Context, command string, args []string, streams St
 	if changed {
 		action = map[string]string{"edit": "Задача отредактирована", "move": "Задача перемещена", "pause": "Задача приостановлена", "archive": "Задача архивирована", "resume": "Работа продолжена"}[command]
 	}
-	if _, err = fmt.Fprintf(streams.Out, "%s: %s [%s] %s — %s\n", action, item.Number, item.ID, item.Status, item.Title); err != nil {
+	if _, err = fmt.Fprintf(streams.Out, "%s: [%s] %s — %s\n", action, item.ID, item.Status, item.Title); err != nil {
 		return fmt.Errorf("операция %s выполнена для %s; ошибка вывода: %w", command, item.ID, err)
 	}
 	return nil

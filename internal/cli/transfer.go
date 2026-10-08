@@ -155,7 +155,7 @@ func writeImportPreview(out io.Writer, preview *app.ImportPreview, format string
 		if err != nil {
 			return err
 		}
-		if _, err = fmt.Fprintf(out, "%d. %s [%s] %s: %q\n", i+1, item.Number, item.ID, item.Status, item.Title); err != nil {
+		if _, err = fmt.Fprintf(out, "%d. [%s] %s: %q\n", i+1, item.ID, item.Status, item.Title); err != nil {
 			return err
 		}
 	}

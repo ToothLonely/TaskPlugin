@@ -91,6 +91,10 @@ func TestNativeInstaller(t *testing.T) {
 				t.Fatalf("wrong installed version: %s", versionOut)
 			}
 			testrepo.Run(t, c, "task", "init")
+			if err := os.WriteFile(filepath.Join(c.Dir, ".git-task", "plan.json"), []byte(`{"target_branch":"main","tasks":[]}`), 0600); err != nil {
+				t.Fatal(err)
+			}
+			testrepo.Run(t, c, "task", "init", "--apply")
 			testrepo.Run(t, c, "task", "add", "Installed task")
 			testrepo.Run(t, c, "task", "status")
 			if alias, err := c.Run(ctx, "config", "--local", "--get", "alias.task"); err == nil || len(alias.Stdout) != 0 {

@@ -3,6 +3,7 @@ package transfer
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -56,6 +57,25 @@ func TestJSONRoundTripPreservesFullState(t *testing.T) {
 	}
 }
 
+func TestJSONImportRejectsUnsupportedSchemas(t *testing.T) {
+	plan, err := task.NewPlan("main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := EncodeJSON(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, version := range []int{1, 2, 99} {
+		t.Run(fmt.Sprint(version), func(t *testing.T) {
+			old := bytes.Replace(data, []byte(`"schema_version": 3`), []byte(fmt.Sprintf(`"schema_version": %d`, version)), 1)
+			if value, err := DecodeJSON(old); err == nil || len(value.Tasks) != 0 {
+				t.Fatalf("unsupported schema imported: %+v %v", value, err)
+			}
+		})
+	}
+}
+
 func TestJSONRejectsDamagedVersionIdentitiesAndInvariants(t *testing.T) {
 	plan, err := decodeMarkdownFixture(t, []byte("- [ ] One\n- [x] Two"), "main")
 	if err != nil {
@@ -66,10 +86,10 @@ func TestJSONRejectsDamagedVersionIdentitiesAndInvariants(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, invalid := range map[string][]byte{
-		"syntax":            data[:len(data)/2],
-		"version":           bytes.Replace(data, []byte(`"schema_version": 2`), []byte(`"schema_version": 99`), 1),
-		"duplicate ID":      bytes.ReplaceAll(data, []byte("task-002"), []byte("task-001")),
-		"duplicate number":  bytes.ReplaceAll(data, []byte("T-002"), []byte("T-001")),
+		"syntax":       data[:len(data)/2],
+		"version":      bytes.Replace(data, []byte(`"schema_version": 3`), []byte(`"schema_version": 99`), 1),
+		"duplicate ID": bytes.ReplaceAll(data, []byte("task-002"), []byte("task-001")),
+
 		"missing order ref": bytes.Replace(data, []byte(`"task-002"`), []byte(`"missing"`), 1),
 		"unknown status":    bytes.Replace(data, []byte(`"todo"`), []byte(`"unknown"`), 1),
 		"source":            bytes.Replace(data, []byte(`"imported"`), []byte(`"unknown"`), 1),
