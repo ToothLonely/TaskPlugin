@@ -15,15 +15,24 @@ func addFixtureTask(t *testing.T, p *Plans, ctx context.Context, title, descript
 	if err != nil {
 		return item, err
 	}
-	editPlan(t, p, func(plan *task.Plan) error { testrepo.FixtureIDs(plan); plan.Revision++; return nil })
+	selected := -1
+	editPlan(t, p, func(plan *task.Plan) error {
+		for i, candidate := range plan.Tasks {
+			if candidate.ID == item.ID {
+				selected = i
+				break
+			}
+		}
+		testrepo.FixtureIDs(plan)
+		plan.Revision++
+		return nil
+	})
 	s, err := p.store.Load(ctx)
 	if err != nil {
 		return task.Task{}, err
 	}
-	for _, candidate := range s.Plan.Tasks {
-		if candidate.Number == item.Number {
-			return candidate, nil
-		}
+	if selected >= 0 && selected < len(s.Plan.Tasks) {
+		return s.Plan.Tasks[selected], nil
 	}
 	return task.Task{}, task.ErrNotFound
 }

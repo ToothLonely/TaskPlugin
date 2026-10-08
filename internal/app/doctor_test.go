@@ -419,8 +419,8 @@ func TestDoctorRestoreKeepsBackupQueueAndPreservesNewerOriginal(t *testing.T) {
 	}
 }
 
-func TestDoctorDamagedQueueAndMigrationSourcesArePreserved(t *testing.T) {
-	for _, mode := range []string{"queue", "migration"} {
+func TestDoctorDamagedQueueAndForeignFilesArePreserved(t *testing.T) {
+	for _, mode := range []string{"queue", "foreign"} {
 		t.Run(mode, func(t *testing.T) {
 			f := newTeamFixture(t)
 			ctx := context.Background()
@@ -438,7 +438,7 @@ func TestDoctorDamagedQueueAndMigrationSourcesArePreserved(t *testing.T) {
 					t.Fatal(err)
 				}
 			} else {
-				if err := os.WriteFile(filepath.Join(f.ca.Dir, ".git-task", "plan.schema-1.json"), []byte("interrupted migration"), 0600); err != nil {
+				if err := os.WriteFile(filepath.Join(f.ca.Dir, ".git-task", "unrecognized.json"), []byte("foreign data"), 0600); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -448,7 +448,7 @@ func TestDoctorDamagedQueueAndMigrationSourcesArePreserved(t *testing.T) {
 				t.Fatalf("damage diagnosis: %+v %v", d, err)
 			}
 			if !reflect.DeepEqual(before, doctorArtifacts(t, f.ca)) {
-				t.Fatal("doctor erased damaged queue or migration")
+				t.Fatal("doctor erased damaged queue or foreign file")
 			}
 		})
 	}

@@ -10,12 +10,12 @@ import (
 
 func TestJSONRejectsUnpairedSurrogates(t *testing.T) {
 	for _, escaped := range []string{`\ud800`, `\udc00`, `\ud800X`, `\ud800\u0041`, `\ud800\ud800`, `\udc00\ud800`, `\ud83d\ude80\udfff`} {
-		for _, field := range []string{"title", "description", "id", "number"} {
+		for _, field := range []string{"title", "description", "id"} {
 			t.Run(field+"/"+escaped, func(t *testing.T) {
 				p := planForTest(t)
 				p.Tasks[0].Description = "original"
 				before := snapshot(t, p)
-				value := map[string]string{"title": "Профиль", "description": "original", "id": "task-a", "number": "T-001"}[field]
+				value := map[string]string{"title": "Профиль", "description": "original", "id": "task-a"}[field]
 				data := strings.Replace(before, `"`+field+`":"`+value+`"`, `"`+field+`":"`+escaped+`"`, 1)
 				if field == "id" {
 					// Keep order consistent so this cannot pass merely because the

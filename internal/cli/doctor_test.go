@@ -43,7 +43,7 @@ func TestDoctorRestoreConfirmationCancelAndRace(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			p, c := selectionFixture(t)
 			path := filepath.Join(c.Dir, ".git-task", "plan.json")
-			original := []byte(`{"format":"git-task","schema_version":2,`)
+			original := []byte(`{"format":"git-task","schema_version":3,`)
 			if err := os.WriteFile(path, original, 0600); err != nil {
 				t.Fatal(err)
 			}

@@ -64,12 +64,12 @@ func TestServerPostReceiveAutomaticallyPublishesCompletion(t *testing.T) {
 		}
 		return p
 	}
-	cli(a, "init")
+	cli(a, "init", "--target", "main")
 	cli(a, "add", "Server integration")
 	id := readPlan(a).Tasks[0].ID
 	cli(a, "team", "connect", "--remote", "origin")
 	for _, c := range []*git.Client{b, worker} {
-		cli(c, "init")
+		cli(c, "init", "--target", "main")
 		cli(c, "team", "connect", "--remote", "origin")
 	}
 	cli(a, "start", "alice", "--id", id)

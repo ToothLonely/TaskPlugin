@@ -14,8 +14,6 @@ import (
 	"git-task/internal/task"
 )
 
-func (p *Plans) Migrate(ctx context.Context) (bool, error) { return p.store.Migrate(ctx) }
-
 func (p *Plans) Connect(ctx context.Context, remote string) error {
 	if err := validateRemoteName(remote); err != nil {
 		return err

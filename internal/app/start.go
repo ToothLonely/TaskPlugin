@@ -71,7 +71,7 @@ func selectStart(plan *task.Plan, options StartOptions) (task.Task, error) {
 	var err error
 	switch {
 	case options.ID != "":
-		selected, err = plan.FindID(options.ID)
+		selected, err = selectTaskID(*plan, options.ID)
 	case options.Title != "":
 		selected, err = plan.FindTitle(options.Title)
 	case options.New != "":
@@ -79,14 +79,14 @@ func selectStart(plan *task.Plan, options StartOptions) (task.Task, error) {
 	default:
 		selected, err = plan.FirstTodo()
 	}
-	if errors.Is(err, task.ErrAmbiguous) {
+	if options.Title != "" && errors.Is(err, task.ErrAmbiguous) {
 		return task.Task{}, fmt.Errorf("%w; укажите --id", err)
 	}
 	if err != nil {
 		return task.Task{}, err
 	}
 	if selected.Status == task.Done && !options.Again {
-		selector := fmt.Sprintf("--id %q", options.ID)
+		selector := fmt.Sprintf("--id %q", selected.ID)
 		if options.Title != "" {
 			selector = fmt.Sprintf("--title %q", options.Title)
 		}

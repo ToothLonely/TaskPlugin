@@ -23,11 +23,11 @@ func (p *Plans) PrepareEdit(ctx context.Context, id string) (*EditPreview, error
 	if base.PendingOperation {
 		return nil, storage.ErrOperation
 	}
-	item, err := base.Plan.FindID(id)
+	item, err := selectTaskID(base.Plan, id)
 	if err != nil {
 		return nil, err
 	}
-	return &EditPreview{Task: item, Dir: p.git.Dir, base: base, id: id}, nil
+	return &EditPreview{Task: item, Dir: p.git.Dir, base: base, id: item.ID}, nil
 }
 
 func (p *Plans) ApplyEdit(ctx context.Context, preview *EditPreview, opts task.EditOptions) (task.Task, bool, error) {

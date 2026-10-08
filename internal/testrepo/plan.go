@@ -2,9 +2,9 @@ package testrepo
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"git-task/internal/git"
@@ -16,7 +16,7 @@ func FixtureIDs(plan *task.Plan) {
 	ids := map[string]string{}
 	for i := range plan.Tasks {
 		t := &plan.Tasks[i]
-		id := "task-" + strings.TrimPrefix(t.Number, "T-")
+		id := fmt.Sprintf("task-%03d", i+1)
 		ids[t.ID] = id
 		t.ID = id
 	}

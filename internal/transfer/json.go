@@ -7,13 +7,6 @@ import (
 )
 
 func DecodeJSON(data []byte) (task.Plan, error) {
-	var header struct {
-		Version int `json:"schema_version"`
-	}
-	if json.Unmarshal(data, &header) == nil && header.Version == 1 {
-		p, err := task.MigrateV1(data)
-		return task.Shared(p), err
-	}
 	var plan task.Plan
 	if err := json.Unmarshal(data, &plan); err != nil {
 		return task.Plan{}, err

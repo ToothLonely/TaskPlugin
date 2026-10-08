@@ -91,7 +91,7 @@ func corruptedStore(t *testing.T) (*Store, []byte) {
 		t.Fatal(err)
 	}
 	backup := read(t, filepath.Join(s.dir, "plan.backup.json"))
-	put(t, filepath.Join(s.dir, "plan.json"), []byte(`{"format":"git-task","schema_version":2,"team":`))
+	put(t, filepath.Join(s.dir, "plan.json"), []byte(`{"format":"git-task","schema_version":3,"team":`))
 	return s, backup
 }
 
@@ -130,7 +130,7 @@ func TestDoctorRestoreRejectsRacesAndUnsafeStates(t *testing.T) {
 				put(t, filepath.Join(s.dir, "plan.json"), []byte(`{"format":"git-task","schema_version":99}`))
 			}
 			if mode == "foreign" {
-				put(t, filepath.Join(s.dir, "plan.json"), []byte(`{"format":"other","schema_version":2}`))
+				put(t, filepath.Join(s.dir, "plan.json"), []byte(`{"format":"other","schema_version":3}`))
 			}
 			if mode == "operation" {
 				put(t, filepath.Join(s.dir, "operation.json"), []byte("interrupted"))

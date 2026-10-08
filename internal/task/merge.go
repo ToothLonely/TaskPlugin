@@ -109,9 +109,6 @@ func mergeTask(b, l, r Task) (Task, error) {
 	if err != nil {
 		return Task{}, err
 	}
-	if l.Number != b.Number && l.Number != r.Number {
-		return Task{}, fmt.Errorf("%w: number", ErrSharedConflict)
-	}
 	ba, la, ra := b.Status == Archived, l.Status == Archived, r.Status == Archived
 	archived, err := mergeField("archive", ba, la, ra)
 	if err != nil {

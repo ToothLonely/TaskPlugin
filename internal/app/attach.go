@@ -23,6 +23,11 @@ func (p *Plans) Attach(ctx context.Context, branch, id string, rebind bool, atte
 		if base.PendingOperation {
 			return storage.ErrOperation
 		}
+		selected, err := selectTaskID(base.Plan, id)
+		if err != nil {
+			return err
+		}
+		id = selected.ID
 		if branch == base.Plan.TargetBranch {
 			return fmt.Errorf("нельзя привязать целевую ветку")
 		}

@@ -50,6 +50,10 @@ func (p *Plans) Add(ctx context.Context, title, description string, pos task.Pos
 		return task.Task{}, err
 	}
 	next := snapshot.Plan
+	pos, err = selectPosition(next, pos)
+	if err != nil {
+		return task.Task{}, err
+	}
 	added, err := next.Add(title, description, pos)
 	if err != nil {
 		return task.Task{}, err

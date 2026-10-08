@@ -138,7 +138,7 @@ func runStart(ctx context.Context, command string, args []string, streams Stream
 	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(streams.Out, "Задача %s [%s] %s: %s\n", result.Number, result.ID, result.Status, parsed.options.Branch)
+	_, err = fmt.Fprintf(streams.Out, "Задача [%s] %s: %s\n", result.ID, result.Status, parsed.options.Branch)
 	if err != nil {
 		return fmt.Errorf("операция выполнена; не удалось вывести результат: %w", err)
 	}

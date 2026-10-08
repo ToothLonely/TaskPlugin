@@ -115,7 +115,7 @@ func writeStatusReport(out io.Writer, r app.StatusReport) error {
 			continue
 		}
 		count++
-		fmt.Fprintf(&text, "  %s [%s] %s — %s\n", t.Number, t.ID, t.Status, lineText(t.Title))
+		fmt.Fprintf(&text, "  [%s] %s — %s\n", t.ID, t.Status, lineText(t.Title))
 		for i, a := range t.OrderedAttempts() {
 			fmt.Fprintf(&text, "    Подход %d [%s] %s; автор: %s; ветка: %s; цель: %s\n", i+1, a.ID, a.Status, lineText(known(a.Author)), a.Branch, a.TargetBranch)
 		}
@@ -138,7 +138,7 @@ func writeStatusReport(out io.Writer, r app.StatusReport) error {
 	} else {
 		for _, t := range r.Tasks {
 			if t.ID == *r.NextTaskID {
-				fmt.Fprintf(&text, "Следующая задача (первый todo): %s [%s] — %s\n", t.Number, t.ID, lineText(t.Title))
+				fmt.Fprintf(&text, "Следующая задача (первый todo): [%s] — %s\n", t.ID, lineText(t.Title))
 			}
 		}
 	}
@@ -147,7 +147,7 @@ func writeStatusReport(out io.Writer, r app.StatusReport) error {
 		text.WriteString("  План пуст.\n")
 	}
 	for _, t := range r.Tasks {
-		fmt.Fprintf(&text, "  %s [%s] %s — %s\n", t.Number, t.ID, t.Status, lineText(t.Title))
+		fmt.Fprintf(&text, "  [%s] %s — %s\n", t.ID, t.Status, lineText(t.Title))
 	}
 	text.WriteString("Предупреждения:\n")
 	if len(r.Warnings) == 0 {

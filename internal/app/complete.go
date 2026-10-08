@@ -28,10 +28,11 @@ func (p *Plans) PrepareComplete(ctx context.Context, id, commit string, attemptI
 	if base.PendingOperation {
 		return nil, storage.ErrOperation
 	}
-	item, err := base.Plan.FindID(id)
+	item, err := selectTaskID(base.Plan, id)
 	if err != nil {
 		return nil, err
 	}
+	id = item.ID
 	if item.Status == task.Done {
 		if len(attemptIDs) > 0 && attemptIDs[0] != "" {
 			if _, err := item.Attempt(attemptIDs[0]); err != nil {

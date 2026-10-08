@@ -2,10 +2,23 @@ package storage
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"git-task/internal/task"
 )
+
+var ErrUnsupportedSchema = errors.New("неподдерживаемая версия схемы")
+
+func schemaVersion(data []byte) int {
+	var header struct {
+		Version int `json:"schema_version"`
+	}
+	if json.Unmarshal(data, &header) != nil {
+		return 0
+	}
+	return header.Version
+}
 
 func decode(data []byte) (task.Plan, error) {
 	var header struct {
@@ -18,13 +31,8 @@ func decode(data []byte) (task.Plan, error) {
 	if header.Format != task.Format {
 		return task.Plan{}, fmt.Errorf("чужой формат плана %q", header.Format)
 	}
-	if header.Version == 1 {
-		return task.MigrateV1(data)
-	}
-	// There are no released earlier schemas to migrate. Never guess at a future
-	// schema or rewrite it using a decoder that could lose fields.
 	if header.Version != task.SchemaVersion {
-		return task.Plan{}, fmt.Errorf("неподдерживаемая версия схемы %d", header.Version)
+		return task.Plan{}, fmt.Errorf("%w %d; поддерживается только схема %d", ErrUnsupportedSchema, header.Version, task.SchemaVersion)
 	}
 	var plan task.Plan
 	if err := json.Unmarshal(data, &plan); err != nil {

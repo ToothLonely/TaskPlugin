@@ -8,7 +8,7 @@ import (
 // Format and SchemaVersion identify this plan representation.
 const (
 	Format        = "git-task"
-	SchemaVersion = 2
+	SchemaVersion = 3
 )
 
 // Plan keeps explicit order separate from stable task identities.
@@ -71,7 +71,7 @@ func (p Plan) FindTitle(title string) (Task, error) {
 	return p.FindID(matches[0])
 }
 
-// FirstTodo uses the explicit plan order, never the tasks slice or display number.
+// FirstTodo uses the explicit plan order, never the tasks slice.
 func (p Plan) FirstTodo() (Task, error) {
 	if err := p.Validate(); err != nil {
 		return Task{}, err

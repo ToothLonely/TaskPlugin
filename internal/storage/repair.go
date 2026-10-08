@@ -105,7 +105,7 @@ func (s *Store) PrepareRepair(ctx context.Context, action string) (*Repair, erro
 		if strings.HasPrefix(name, "pending-") {
 			return nil, ErrInterrupted
 		}
-		if name != "plan.json" && name != "plan.backup.json" && name != "write.lock" && name != "plan.schema-1.json" && !(strings.HasPrefix(name, "conflict-") && strings.HasSuffix(name, ".json")) {
+		if name != "plan.json" && name != "plan.backup.json" && name != "plan.template.json" && name != "write.lock" && !(strings.HasPrefix(name, "conflict-") && strings.HasSuffix(name, ".json")) {
 			return nil, fmt.Errorf("чужой файл: %s", name)
 		}
 	}
@@ -140,10 +140,7 @@ func (s *Store) PrepareRepair(ctx context.Context, action string) (*Repair, erro
 	}
 	backup, err := decode(files["plan.backup.json"])
 	if err != nil {
-		return nil, fmt.Errorf("backup схемы 2 невалиден: %w", err)
-	}
-	if schemaVersion(files["plan.backup.json"]) != task.SchemaVersion {
-		return nil, fmt.Errorf("restore требует backup схемы 2; сохраните исходник миграции")
+		return nil, fmt.Errorf("backup текущей схемы невалиден: %w", err)
 	}
 	info, err := os.Lstat(filepath.Join(s.dir, "plan.backup.json"))
 	if err != nil {

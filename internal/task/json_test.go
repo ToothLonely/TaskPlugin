@@ -99,7 +99,7 @@ func TestJSONRejectsMalformedWithoutReplacingReceiver(t *testing.T) {
 	cases := map[string]string{
 		"unknown status":    strings.Replace(base, `"status":"todo"`, `"status":"pending"`, 1),
 		"null status":       strings.Replace(base, `"status":"todo"`, `"status":null`, 1),
-		"unknown schema":    strings.Replace(base, `"schema_version":2`, `"schema_version":99`, 1),
+		"unknown schema":    strings.Replace(base, `"schema_version":3`, `"schema_version":99`, 1),
 		"foreign format":    strings.Replace(base, `"format":"git-task"`, `"format":"other"`, 1),
 		"duplicate key":     strings.Replace(base, `"status":"todo"`, `"status":"done","status":"todo"`, 1),
 		"unknown field":     strings.Replace(base, `"status":"todo"`, `"status":"todo","typo":true`, 1),
@@ -136,7 +136,7 @@ func TestValidateInvalidSnapshots(t *testing.T) {
 		mutate func(*Plan)
 	}{
 		{"duplicate ID", func(p *Plan) { p.Tasks[1].ID = p.Tasks[0].ID }},
-		{"duplicate number", func(p *Plan) { p.Tasks[1].Number = p.Tasks[0].Number }},
+
 		{"blank title", func(p *Plan) { p.Tasks[0].Title = " \t" }},
 		{"blank ID", func(p *Plan) { p.Tasks[0].ID = "" }},
 		{"missing order", func(p *Plan) { p.Order = p.Order[:1] }},
@@ -194,7 +194,7 @@ func TestInvalidCompletionIsAtomic(t *testing.T) {
 }
 
 func FuzzPlanJSON(f *testing.F) {
-	const todo = `{"format":"git-task","schema_version":2,"revision":0,"target_branch":"main","order":["task-a"],"tasks":[{"id":"task-a","number":"T-001","title":"original","revision":0,"status":"todo"}],"last_event":0}`
+	const todo = `{"format":"git-task","schema_version":3,"revision":0,"target_branch":"main","order":["task-a"],"tasks":[{"id":"task-a","title":"original","revision":0,"status":"todo"}],"last_event":0}`
 	for _, title := range []string{`\ud800`, `\udc00`, `\ud800X`, `\ud83d\ude80`, `\ufffd`, `\\ud800`} {
 		f.Add([]byte(strings.Replace(todo, `"original"`, `"`+title+`"`, 1)))
 	}
@@ -203,6 +203,7 @@ func FuzzPlanJSON(f *testing.F) {
 		data = strings.Replace(data, `"last_event":0`, `"last_event":1,"insertion_tail":"task-a"`, 1)
 		f.Add([]byte(data))
 	}
+	f.Add([]byte(`{"format":"git-task","schema_version":3,"revision":0,"target_branch":"main","order":[],"tasks":[],"last_event":0}`))
 	f.Add([]byte(`{"format":"git-task","schema_version":2,"revision":0,"target_branch":"main","order":[],"tasks":[],"last_event":0}`))
 	f.Add([]byte(`{"tasks":[{"attempts":null}]}`))
 	f.Fuzz(func(t *testing.T, data []byte) {

@@ -113,8 +113,8 @@ func execute(ctx context.Context, args []string, version string, streams Streams
 		if command == "doctor" {
 			return runDoctor(ctx, args[1:], streams, open)
 		}
-		if command == "team" || command == "migrate" {
-			return runTeam(ctx, command, args[1:], streams, open)
+		if command == "team" {
+			return runTeam(ctx, args[1:], streams, open)
 		}
 		if command == "edit" || command == "move" || command == "pause" || command == "resume" || command == "archive" {
 			return runLifecycle(ctx, command, args[1:], streams, open)

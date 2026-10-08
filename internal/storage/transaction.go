@@ -39,6 +39,10 @@ func (s *Store) point(ctx context.Context, name string) error {
 }
 
 func (s *Store) install(ctx context.Context, original, next []byte) error {
+	return s.installWithBackup(ctx, original, next, "plan.backup.json")
+}
+
+func (s *Store) installWithBackup(ctx context.Context, original, next []byte, backupName string) error {
 	candidate, err := s.writePending(next)
 	if err != nil {
 		return err
@@ -54,12 +58,12 @@ func (s *Store) install(ctx context.Context, original, next []byte) error {
 		if err != nil {
 			return err
 		}
-		backupPath := filepath.Join(s.dir, "plan.backup.json")
+		backupPath := filepath.Join(s.dir, backupName)
 		if err = inspectPath(backupPath, false); err != nil {
 			return err
 		}
 		if previous, readErr := readFile(backupPath); readErr == nil {
-			if _, err = decode(previous); err != nil {
+			if err = validateBackup(backupName, previous); err != nil {
 				return fmt.Errorf("повреждённый backup сохранён: %w", err)
 			}
 		} else if !errors.Is(readErr, os.ErrNotExist) {

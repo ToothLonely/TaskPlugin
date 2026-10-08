@@ -72,7 +72,7 @@ func TestStatusJSONSingleObjectWarningsAndReadOnlyShow(t *testing.T) {
 			t.Fatalf("missing field %s", name)
 		}
 	}
-	if string(raw["schema_version"]) != "2" || string(raw["current_task_id"]) != "null" || string(raw["last_completion"]) != "null" || string(raw["next_task_id"]) != `"task-002"` || !strings.Contains(diagnostic.String(), "branch_missing") {
+	if string(raw["schema_version"]) != "3" || string(raw["current_task_id"]) != "null" || string(raw["last_completion"]) != "null" || string(raw["next_task_id"]) != `"task-002"` || !strings.Contains(diagnostic.String(), "branch_missing") {
 		t.Fatalf("schema/diagnostics: %v %q", raw, &diagnostic)
 	}
 	var tasks []map[string]json.RawMessage

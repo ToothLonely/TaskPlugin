@@ -13,7 +13,7 @@ func TestAddIdentityAndText(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := Task{ID: first.ID, Number: "T-001", Title: "  Профиль 🐈  ", Description: "строка 1\nстрока 2", Status: Todo, Revision: 1}
+	want := Task{ID: first.ID, Title: "  Профиль 🐈  ", Description: "строка 1\nстрока 2", Status: Todo, Revision: 1}
 	if len(first.ID) != 32 || !reflect.DeepEqual(first, want) || !reflect.DeepEqual(p.Tasks, []Task{want}) || p.Revision != 1 {
 		t.Fatalf("Add returned %+v, plan=%+v; want %+v", first, p, want)
 	}
@@ -27,8 +27,8 @@ func TestAddIdentityAndText(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(second.ID) != 32 || second.ID == first.ID || second.Number != "T-002" || p.Order[0] != second.ID || p.InsertionTail != first.ID {
-		t.Fatalf("identity depends on position or reuses archived number: %+v", p)
+	if len(second.ID) != 32 || second.ID == first.ID || p.Order[0] != second.ID || p.InsertionTail != first.ID {
+		t.Fatalf("identity depends on position or reuses archived task ID: %+v", p)
 	}
 	if _, err := p.FindTitle(want.Title); !errors.Is(err, ErrAmbiguous) {
 		t.Fatalf("duplicate title: %v", err)
@@ -39,28 +39,14 @@ func TestAddIdentityAndText(t *testing.T) {
 }
 
 func TestAddImportedIdentities(t *testing.T) {
-	tests := []struct {
-		name, id, number, wantID, wantNumber string
-	}{
-		{"opaque", "external-id", "external-number", "task-001", "T-001"},
-		{"ID reserves suffix", "task-009", "external-number", "task-010", "T-010"},
-		{"number reserves suffix", "external-id", "T-099", "task-100", "T-100"},
-		{"different suffixes", "task-120", "T-999", "task-1000", "T-1000"},
-		{"leading zeros", "task-00012", "T-00009", "task-013", "T-013"},
-		{"zero", "task-000", "T-000", "task-001", "T-001"},
-		{"not a decimal suffix", "task-+12", "T-12a", "task-001", "T-001"},
-		{"empty suffix", "task-", "T-", "task-001", "T-001"},
-		{"last available", "task-18446744073709551614", "T-004", "task-18446744073709551615", "T-18446744073709551615"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := orderedPlan(t, tt.id)
-			p.Tasks[0].Number = tt.number
+	for _, id := range []string{"001", "task-009", "external-id", "task-18446744073709551616", "0123456789abcdef0123456789abcdef"} {
+		t.Run(id, func(t *testing.T) {
+			p := orderedPlan(t, id)
 			p.Tasks[0].Status = Archived
-			oldTask := p.Tasks[0]
+			original := p.Tasks[0]
 			added, err := p.Add("new", "", Position{})
-			if err != nil || len(added.ID) != 32 || added.ID == tt.id || added.Number != tt.wantNumber || !reflect.DeepEqual(p.Tasks[0], oldTask) {
-				t.Fatalf("added=%+v err=%v; want %s/%s and unchanged imported task", added, err, tt.wantID, tt.wantNumber)
+			if err != nil || len(added.ID) != 32 || added.ID == id || !reflect.DeepEqual(p.Tasks[0], original) {
+				t.Fatalf("added=%+v err=%v; imported task changed: %+v", added, err, p.Tasks[0])
 			}
 		})
 	}
@@ -77,12 +63,6 @@ func TestAddErrorsLeavePlanUnchanged(t *testing.T) {
 		{name: "invalid title UTF8", title: "bad\xff"},
 		{name: "invalid description UTF8", title: "valid", description: "bad\xff"},
 		{name: "revision overflow", title: "valid", prepare: func(p *Plan) { p.Revision = math.MaxUint64 }},
-		{name: "number exhaustion", title: "valid", prepare: func(p *Plan) { p.Tasks[0].Number = "T-18446744073709551615" }},
-		{name: "ID exhaustion", title: "valid", prepare: func(p *Plan) {
-			p.Tasks[0].ID = "task-18446744073709551615"
-			p.Order[0] = p.Tasks[0].ID
-		}},
-		{name: "numeric suffix overflow", title: "valid", prepare: func(p *Plan) { p.Tasks[0].Number = "T-18446744073709551616" }},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

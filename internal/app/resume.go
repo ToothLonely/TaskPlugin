@@ -21,10 +21,11 @@ func (p *Plans) Resume(ctx context.Context, id string, attemptIDs ...string) (re
 			return storage.ErrOperation
 		}
 		next := base.Plan
-		item, err := next.FindID(id)
+		item, err := selectTaskID(next, id)
 		if err != nil {
 			return err
 		}
+		id = item.ID
 		a, err := p.selectAttempt(ctx, next, item, attemptIDs)
 		if err != nil {
 			return err

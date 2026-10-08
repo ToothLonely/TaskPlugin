@@ -221,7 +221,7 @@ func TestUnsafePathsAndDataPreserved(t *testing.T) {
 				case "corrupt":
 					put(t, filepath.Join(s.dir, "plan.json"), []byte("{"))
 				case "future":
-					put(t, filepath.Join(s.dir, "plan.json"), bytes.Replace(valid, []byte(`"schema_version": 2`), []byte(`"schema_version": 99`), 1))
+					put(t, filepath.Join(s.dir, "plan.json"), bytes.Replace(valid, []byte(`"schema_version": 3`), []byte(`"schema_version": 99`), 1))
 				default:
 					put(t, filepath.Join(s.dir, "plan.json"), valid)
 					testrepo.Run(t, c, "add", ".git-task")

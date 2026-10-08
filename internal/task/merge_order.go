@@ -1,7 +1,6 @@
 package task
 
 import (
-	"fmt"
 	"slices"
 )
 
@@ -82,25 +81,5 @@ func normalizeShared(p *Plan, remote Plan) error {
 		}
 	}
 	p.LastEvent = last
-	usedNumbers := map[string]bool{}
-	for _, t := range remote.Tasks {
-		usedNumbers[t.Number] = true
-	}
-	for i := range p.Tasks {
-		t := &p.Tasks[i]
-		if _, err := remote.FindID(t.ID); err == nil {
-			continue
-		}
-		if usedNumbers[t.Number] {
-			for n := 1; ; n++ {
-				number := fmt.Sprintf("T-%03d", n)
-				if !usedNumbers[number] {
-					t.Number = number
-					break
-				}
-			}
-		}
-		usedNumbers[t.Number] = true
-	}
 	return nil
 }
