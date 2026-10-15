@@ -100,14 +100,7 @@ func decodeBase(plan task.Plan) (task.Plan, error) {
 }
 
 func material(plan task.Plan) task.Plan {
-	plan = task.Shared(plan)
-	plan.Actions = nil
-	plan.Revision = 0
-	for i := range plan.Tasks {
-		plan.Tasks[i].Revision = 0
-		plan.Tasks[i].ActiveAttempt = nil
-	}
-	return plan
+	return task.SharedContent(plan)
 }
 
 func checkQueue(plan task.Plan) error {

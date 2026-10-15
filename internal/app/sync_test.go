@@ -463,7 +463,7 @@ func TestSyncPausedArchivedOrderAndLostCompletion(t *testing.T) {
 	a, _ := plan.FindID(first.ID)
 	b, _ := plan.FindID(second.ID)
 	d, _ := plan.FindID(third.ID)
-	if a.Status != task.Done || b.Status != task.Done || a.Attempts[0].Completion.Event >= b.Attempts[0].Completion.Event || plan.InsertionTail != b.ID || !reflect.DeepEqual(archived, d) {
+	if a.Status != task.Done || b.Status != task.Done || a.Attempts[0].Completion.Event >= b.Attempts[0].Completion.Event || !reflect.DeepEqual(plan.Order, []string{first.ID, second.ID, third.ID}) || !reflect.DeepEqual(archived, d) {
 		t.Fatalf("order/archive: %+v", plan)
 	}
 	testrepo.Run(t, c, "reset", "--hard", first.ActiveAttempt.BaseCommit)

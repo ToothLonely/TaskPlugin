@@ -32,7 +32,10 @@ func (p *Plan) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("%w: JSON: %v", ErrInvalid, err)
 	}
 	type wire Plan
-	var next wire
+	var next struct {
+		wire
+		InsertionTail *string `json:"insertion_tail,omitempty"`
+	}
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&next); err != nil {
@@ -42,9 +45,14 @@ func (p *Plan) UnmarshalJSON(data []byte) error {
 	if err := dec.Decode(&extra); err != io.EOF {
 		return invalid("лишние данные после JSON")
 	}
-	value := Plan(next)
+	value := Plan(next.wire)
 	if err := value.Validate(); err != nil {
 		return err
+	}
+	if next.InsertionTail != nil && *next.InsertionTail != "" {
+		if _, err := value.FindID(*next.InsertionTail); err != nil {
+			return invalid("неизвестный insertion_tail старого формата")
+		}
 	}
 	for i := range value.Tasks {
 		value.Tasks[i].project("")
@@ -90,6 +98,10 @@ func checkUnicodeEscapes(data []byte) error {
 // checkJSON walks tokens to detect duplicate keys and noncanonical optional
 // fields that encoding/json would otherwise collapse into an absent value.
 func checkJSON(dec *json.Decoder) error {
+	return checkJSONFields(dec, false)
+}
+
+func checkJSONFields(dec *json.Decoder, filling bool) error {
 	token, err := dec.Token()
 	if err != nil {
 		return err
@@ -137,19 +149,19 @@ func checkJSON(dec *json.Decoder) error {
 				if len(entries) == 0 {
 					return fmt.Errorf("пустое %s должно отсутствовать", name)
 				}
-				if err := checkJSON(json.NewDecoder(bytes.NewReader(raw))); err != nil {
+				if err := checkJSONFields(json.NewDecoder(bytes.NewReader(raw)), filling); err != nil {
 					return err
 				}
-			} else if err := checkJSON(dec); err != nil {
+			} else if err := checkJSONFields(dec, filling); err != nil {
 				return err
 			}
 		}
-		if seen["format"] && (!seen["revision"] || !seen["last_event"]) || seen["title"] && seen["status"] && !seen["revision"] {
+		if !filling && (seen["format"] && (!seen["revision"] || !seen["last_event"]) || seen["title"] && seen["status"] && !seen["revision"]) {
 			return fmt.Errorf("отсутствует обязательный счётчик")
 		}
 	case '[':
 		for dec.More() {
-			if err := checkJSON(dec); err != nil {
+			if err := checkJSONFields(dec, filling); err != nil {
 				return err
 			}
 		}

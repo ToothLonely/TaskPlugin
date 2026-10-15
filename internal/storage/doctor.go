@@ -105,6 +105,10 @@ func (s *Store) Inspect(ctx context.Context) (Inspection, error) {
 			}
 		default:
 			f.Next, f.Problem = "сохраните файл; разберите прерванную запись или конфликт вручную", true
+			if strings.HasPrefix(name, "conflict-apply-") && strings.HasSuffix(name, ".json") {
+				f.Detail = "исходная ручная редакция до init --apply; не является валидным backup"
+				f.Next, f.Problem = "сохраните для сравнения или ручного восстановления текста", false
+			}
 		}
 		result.Findings = append(result.Findings, f)
 	}

@@ -46,9 +46,9 @@ func writeHelp(out io.Writer, topic string) error {
 	case "version":
 		text = "Использование: git task version [--help]\nПоказать версию git-task. Репозиторий и Git не требуются.\n"
 	case "init":
-		text = "Использование: git task init [--apply / --target <branch>]\nБез флагов создать .git-task/plan.json с target_branch: \"\" и tasks: [].\nЗаполните шаблон, затем --apply сгенерирует ID, order и служебные поля.\n--target сразу создаёт готовый пустой план для указанной ветки. Существующий план сохраняется.\n"
+		text = "Использование: git task init [--apply / --target <branch>]\nБез флагов создать .git-task/plan.json с target_branch: \"\" и tasks: [].\nЗаполните шаблон или добавьте задачи/измените текст рабочего плана схемы 3; --apply проверит и дополнит недостающие ID, order и начальные поля.\n--target сразу создаёт готовый пустой план для указанной ветки. Полный неизменённый план сохраняется.\n"
 	case "add":
-		text = "Использование: git task add <title> [--description <text>] [--after <id> / --before <id> / --end]\nДобавить задачу todo.\n"
+		text = "Использование: git task add <title> [--description <text>] [--after <id> / --before <id> / --end]\nДобавить задачу todo в конец плана. --before/--after задают место явно; --end также означает конец.\n"
 	case "status":
 		text = "Использование: git task status [--json]\nЛокальная сверка без сети; прогресс, все active/paused, последнее завершение и первый todo. JSON schema_version=3: DOCUMENTATION.md.\n"
 	case "show":

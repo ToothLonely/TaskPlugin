@@ -164,9 +164,6 @@ func (p *Plan) Complete(id, attemptID string, c Completion) (bool, error) {
 		t.Status = t.AggregateStatus()
 		t.clearAttemptWarnings(a.ID)
 		t.project("")
-		if t.Status == Done {
-			next.InsertionTail = t.ID
-		}
 		return true, nil
 	})
 }

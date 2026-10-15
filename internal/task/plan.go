@@ -21,7 +21,6 @@ type Plan struct {
 	Order         []string      `json:"order"`
 	Tasks         []Task        `json:"tasks"`
 	LastEvent     uint64        `json:"last_event"`
-	InsertionTail string        `json:"insertion_tail,omitempty"`
 	Team          *TeamState    `json:"team,omitempty"`
 	Actions       []Receipt     `json:"actions,omitempty"`
 	ServerEvents  []ServerEvent `json:"server_events,omitempty"`

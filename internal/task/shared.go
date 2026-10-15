@@ -41,7 +41,16 @@ func ValidateShared(data []byte) (Plan, error) {
 	if err != nil {
 		return Plan{}, err
 	}
-	if !bytes.Equal(canonicalActionJSON(canonical), canonicalActionJSON(data)) {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return Plan{}, err
+	}
+	delete(fields, "insertion_tail")
+	compatible, err := json.Marshal(fields)
+	if err != nil {
+		return Plan{}, err
+	}
+	if !bytes.Equal(canonicalActionJSON(canonical), canonicalActionJSON(compatible)) {
 		return Plan{}, invalid("локальные поля в общем плане")
 	}
 	return p, nil

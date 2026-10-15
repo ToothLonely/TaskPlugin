@@ -4,8 +4,46 @@ import (
 	"errors"
 	"math"
 	"reflect"
+	"slices"
 	"testing"
 )
+
+func TestAddDefaultAndExplicitEndAppend(t *testing.T) {
+	for _, state := range []string{"empty", "todo", "completed-first", "archived-first"} {
+		for _, end := range []bool{false, true} {
+			name := state + "/default"
+			if end {
+				name = state + "/end"
+			}
+			t.Run(name, func(t *testing.T) {
+				p := orderedPlan(t)
+				if state != "empty" {
+					p = orderedPlan(t, "A", "B", "C")
+				}
+				if state == "completed-first" || state == "archived-first" {
+					changed, err := p.CompleteManual("A", "manual-A", "", testTime)
+					requireChange(t, changed, err)
+				}
+				if state == "archived-first" {
+					changed, err := p.Archive("A")
+					requireChange(t, changed, err)
+				}
+				order := slices.Clone(p.Order)
+				tasks := slices.Clone(p.Tasks)
+				for _, title := range []string{"First addition", "Second addition"} {
+					added, err := p.Add(title, "", Position{End: end})
+					if err != nil {
+						t.Fatal(err)
+					}
+					order = append(order, added.ID)
+					if !slices.Equal(p.Order, order) || !reflect.DeepEqual(p.Tasks[:len(tasks)], tasks) {
+						t.Fatalf("append changed order or existing tasks: %+v", p)
+					}
+				}
+			})
+		}
+	}
+}
 
 func TestAddIdentityAndText(t *testing.T) {
 	p := orderedPlan(t)
@@ -27,7 +65,7 @@ func TestAddIdentityAndText(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(second.ID) != 32 || second.ID == first.ID || p.Order[0] != second.ID || p.InsertionTail != first.ID {
+	if len(second.ID) != 32 || second.ID == first.ID || p.Order[0] != second.ID {
 		t.Fatalf("identity depends on position or reuses archived task ID: %+v", p)
 	}
 	if _, err := p.FindTitle(want.Title); !errors.Is(err, ErrAmbiguous) {

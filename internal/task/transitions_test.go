@@ -193,7 +193,7 @@ func TestCompletionSourcesAndEventOrder(t *testing.T) {
 	}
 	changed, err = p.CompleteManual("task-a", "manual", "", testTime)
 	requireChange(t, changed, err)
-	if p.LastEvent != 2 || p.InsertionTail != "task-a" || p.Tasks[0].Attempts[0].Completion.Source != Manual {
+	if p.LastEvent != 2 || p.Tasks[0].Attempts[0].Completion.Source != Manual {
 		t.Fatal("registration order/source lost")
 	}
 	before := snapshot(t, p)

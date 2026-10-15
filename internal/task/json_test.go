@@ -136,13 +136,11 @@ func TestValidateInvalidSnapshots(t *testing.T) {
 		mutate func(*Plan)
 	}{
 		{"duplicate ID", func(p *Plan) { p.Tasks[1].ID = p.Tasks[0].ID }},
-
 		{"blank title", func(p *Plan) { p.Tasks[0].Title = " \t" }},
 		{"blank ID", func(p *Plan) { p.Tasks[0].ID = "" }},
 		{"missing order", func(p *Plan) { p.Order = p.Order[:1] }},
 		{"duplicate order", func(p *Plan) { p.Order[1] = p.Order[0] }},
 		{"unknown order", func(p *Plan) { p.Order[1] = "unknown" }},
-		{"unknown tail", func(p *Plan) { p.InsertionTail = "unknown" }},
 		{"bad status", func(p *Plan) { p.Tasks[0].Status = "TODO" }},
 		{"done without history", func(p *Plan) { p.Tasks[0].Status = Done; p.Tasks[0].ActiveAttempt = nil }},
 		{"active without attempt", func(p *Plan) { p.Tasks[0].Attempts = nil; p.Tasks[0].ActiveAttempt = nil }},

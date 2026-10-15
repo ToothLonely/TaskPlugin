@@ -86,7 +86,7 @@ func TestAcceptanceTeamJSONTransfer(t *testing.T) {
 
 func assertAcceptanceTransfer(t *testing.T, source, transferred task.Plan) {
 	t.Helper()
-	if transferred.Team != nil || len(transferred.ServerEvents) != 0 || transferred.TargetBranch != source.TargetBranch || !reflect.DeepEqual(transferred.Order, source.Order) || transferred.InsertionTail != source.InsertionTail || transferred.LastEvent != source.LastEvent || !reflect.DeepEqual(transferred.Actions, source.Actions) || len(transferred.Tasks) != len(source.Tasks) {
+	if transferred.Team != nil || len(transferred.ServerEvents) != 0 || transferred.TargetBranch != source.TargetBranch || !reflect.DeepEqual(transferred.Order, source.Order) || transferred.LastEvent != source.LastEvent || !reflect.DeepEqual(transferred.Actions, source.Actions) || len(transferred.Tasks) != len(source.Tasks) {
 		t.Fatalf("JSON transfer changed shared identity or copied local settings: %+v", transferred)
 	}
 	for i, original := range source.Tasks {

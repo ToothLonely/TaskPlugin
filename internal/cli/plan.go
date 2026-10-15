@@ -160,7 +160,7 @@ func runPlan(ctx context.Context, command string, args []string, streams Streams
 			if result.Draft {
 				message = "Шаблон .git-task/plan.json: заполните target_branch и tasks, затем выполните git task init --apply."
 			} else if result.Applied {
-				message = "Шаблон применён; ID, order и служебные поля созданы."
+				message = "План применён; недостающие ID, order и служебные поля дополнены."
 			}
 		}
 		if err != nil {

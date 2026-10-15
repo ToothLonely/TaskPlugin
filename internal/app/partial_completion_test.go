@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -32,15 +33,6 @@ func TestPartialCompletionWithoutCursorThroughApplication(t *testing.T) {
 			}
 			base, err := f.a.store.Load(ctx)
 			if err != nil {
-				t.Fatal(err)
-			}
-			next := base.Plan
-			next.InsertionTail = ""
-			next.Revision++
-			if _, err := f.a.store.Save(ctx, base, next); err != nil {
-				t.Fatal(err)
-			}
-			if err := f.a.Publish(ctx); err != nil {
 				t.Fatal(err)
 			}
 			switch mode {
@@ -79,7 +71,7 @@ func TestPartialCompletionWithoutCursorThroughApplication(t *testing.T) {
 				t.Fatal(err)
 			}
 			item, err := result.Plan.FindID(f.id)
-			if err != nil || item.Status != task.Active || result.Plan.InsertionTail != "" || len(item.Attempts) != 2 {
+			if err != nil || item.Status != task.Active || len(item.Attempts) != 2 || !slices.Equal(result.Plan.Order, base.Plan.Order) {
 				t.Fatalf("partial result: %+v %v", result.Plan, err)
 			}
 			done, live := 0, 0

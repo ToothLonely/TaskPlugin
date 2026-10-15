@@ -23,9 +23,6 @@ func FixtureIDs(plan *task.Plan) {
 	for i, id := range plan.Order {
 		plan.Order[i] = ids[id]
 	}
-	if plan.InsertionTail != "" {
-		plan.InsertionTail = ids[plan.InsertionTail]
-	}
 }
 
 func FixturePlanFile(t *testing.T, c *git.Client) {

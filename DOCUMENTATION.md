@@ -37,7 +37,7 @@ Every user command supports `--help`.
 |---|---|---|
 | `help` | `[command]` | Help for a command or the full command list |
 | `version` | — | Program version |
-| `init` | `[--apply / --target <branch>]` | Create or apply a template, or create an empty ready plan |
+| `init` | `[--apply / --target <branch>]` | Create a template, apply manual edits, or create an empty ready plan |
 | `status` | `[--json]` | Reconcile with Git and show the plan |
 | `show` | `--id <task-id>` | Show a task and its attempt history without reconciliation |
 | `sync` | — | Reconcile with local Git |
@@ -83,9 +83,24 @@ save the file, and run `git task init --apply`. This command explicitly signals
 that editing is complete: the program does not watch your editor or apply the
 template automatically. Plan commands require setup to be finished before use.
 
-`--apply` validates the entire template and generates a ready plan. Repeating `init`
-or `init --apply` preserves a ready file, its IDs, and its history. Repeating plain
-`init` also preserves a template that has not yet been applied. A damaged or foreign
+`--apply` validates the initial template or an edited schema-3 working plan.
+To add tasks manually, append objects such as `{"title":"New task"}` to `tasks`,
+then run `git task init --apply`. Optional `id` and `description` are preserved;
+missing IDs are generated. Existing task titles/descriptions can be edited while
+keeping their IDs and full history. Missing IDs identify new tasks: removing an
+ID from an object with history is rejected. No previous local version is consulted.
+Existing `order` entries keep their order; missing task IDs are appended in `tasks`
+sequence. If `order` is absent, it is built from `tasks`. A subsequent `add` follows
+the appended tasks. Explicit invalid values, duplicate IDs/keys, unknown fields,
+null and inconsistent history are rejected without overwriting the input.
+
+A complete unchanged plan is preserved byte for byte, including revisions and queue.
+Plain `init` never fills a working plan. Status, sync and hooks do not apply edits
+or access the network. In team mode, apply records shared changes through the existing
+base and queue; the CLI attempts publication and keeps the local result on failure.
+Use `team publish` to retry an offline publication. The manual input is retained
+as `conflict-apply-<id>.json`; it never replaces a valid `plan.backup.json`.
+Repeating plain `init` also preserves a template that has not yet been applied. A damaged or foreign
 file causes an error. The original filled-in template is saved as
 `.git-task/plan.template.json`; `plan.backup.json` remains the backup of the previous
 ready plan. Do not replace a ready plan with a new minimal template: that loses its
@@ -256,6 +271,17 @@ Git editor. `move` changes task order; specify exactly one option:
 `--before`, `--after`, or `--end`. The task's ID and history are preserved.
 For `add`, these flags are optional and set the new task's position; its ID is
 assigned automatically. An empty `edit --description ""` clears the description.
+
+Without position flags, `add` always appends to the current plan. Completing tasks,
+archiving them, or moving them does not change where later additions go. `--end`
+is an explicit equivalent of the default. `start --new` also appends its new task.
+
+Existing schema-3 plans remain readable, including the retired `insertion_tail`
+field (empty or referring to a known task). It no longer affects order and is
+absent from new plan JSON. An unchanged file is preserved byte for byte; the next
+substantive write omits the field. Existing backup, team base, action snapshots
+and receipt digests remain usable; reinitialization is not needed. Historical
+action snapshots retain their original fields to preserve publication identities.
 
 The editor is chosen in this order: `GIT_EDITOR` → `core.editor` → `VISUAL` → `EDITOR`.
 A graphical editor needs a wait mode, such as `code --wait`.
@@ -583,7 +609,7 @@ Git Task — отдельная программа `git-task`, доступна�
 |---|---|---|
 | `help` | `[command]` | Справка по команде или общий список |
 | `version` | — | Версия программы |
-| `init` | `[--apply / --target <branch>]` | Создать шаблон, применить его или создать пустой готовый план |
+| `init` | `[--apply / --target <branch>]` | Создать шаблон, применить ручные правки или создать пустой готовый план |
 | `status` | `[--json]` | Сверить с Git и показать план |
 | `show` | `--id <task-id>` | Задача и история подходов без сверки |
 | `sync` | — | Локальная сверка с Git |
@@ -629,9 +655,25 @@ git task init --target master
 редактирования: программа не следит за редактором и не преобразует шаблон сама.
 До применения команды работы с планом требуют закончить настройку.
 
-`--apply` проверяет весь шаблон и генерирует готовый план. Повторные `init` и
-`init --apply` сохраняют уже готовый файл, ID и историю. Повторный обычный `init`
-также сохраняет ещё не применённый шаблон. Повреждённый или чужой файл даёт ошибку.
+`--apply` проверяет начальный шаблон или отредактированный рабочий план схемы 3.
+Чтобы добавить задачи вручную, допишите в `tasks` объекты вроде `{"title":"Новая задача"}`
+и выполните `git task init --apply`. Необязательные `id` и `description` сохраняются;
+отсутствующие ID генерируются. У существующих задач можно менять title/description,
+сохраняя ID и полную историю. Объект без ID — новая задача: удаление ID у объекта
+с историей отклоняется. Предыдущая локальная версия для распознавания задач не нужна.
+Существующие ID в `order` сохраняют порядок; отсутствующие добавляются по порядку
+`tasks`. Если `order` отсутствует целиком, он строится по `tasks`. Следующий `add`
+продолжает добавленные задачи. Некорректные заданные значения, дубли ID/ключей,
+неизвестные поля, null и противоречивая история отклоняются без перезаписи исходника.
+
+Полный неизменённый план сохраняется побайтно, включая revision и очередь.
+Обычный `init` не дополняет рабочий план. Status, sync и hooks не применяют правки
+и не ходят в сеть. В командном режиме apply регистрирует общие изменения через
+существующие базу и очередь; CLI пытается опубликовать их, сохраняя локальный результат
+при отказе. Повторить offline-публикацию можно через `team publish`. Исходная ручная
+редакция сохраняется в `conflict-apply-<id>.json` и не подменяет валидный `plan.backup.json`.
+Повторный обычный `init` также сохраняет ещё не применённый шаблон.
+Повреждённый или чужой файл даёт ошибку.
 Исходный заполненный шаблон сохраняется в `.git-task/plan.template.json`;
 `plan.backup.json` остаётся резервной копией предыдущей версии готового плана.
 Не заменяйте готовый план новым минимальным шаблоном: это потеря его связей и истории;
@@ -800,6 +842,18 @@ Git-редакторе. `move` меняет порядок задач; укаж�
 `--before`, `--after` или `--end`. ID и история задачи сохраняются.
 У `add` эти же флаги необязательны и задают место новой задачи; ID
 назначается автоматически. Пустое `edit --description ""` очищает описание.
+
+Без флагов позиции `add` всегда добавляет в конец текущего плана. Завершение,
+архивирование и перемещения задач не влияют на место следующих добавлений.
+`--end` явно задаёт ту же позицию, что и по умолчанию. `start --new` также
+добавляет новую задачу в конец.
+
+Существующие планы схемы 3 читаются, в том числе с прежним `insertion_tail`
+(пустым или с ID известной задачи). Поле больше не влияет на порядок и отсутствует
+в новом JSON плана. Неизменённый файл сохраняется побайтно; следующая содержательная
+запись исключает поле. Прежние backup, общая база, снимки действий и digest квитанций
+продолжают работать, переинициализация не нужна. Исторические снимки действий
+сохраняют исходные поля для устойчивости идентификаторов публикации.
 
 Редактор выбирается в порядке `GIT_EDITOR` → `core.editor` → `VISUAL` → `EDITOR`.
 Для графического редактора нужен режим ожидания, например `code --wait`.

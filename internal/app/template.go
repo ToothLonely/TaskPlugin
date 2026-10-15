@@ -12,5 +12,6 @@ func (p *Plans) InitTemplate(ctx context.Context, apply bool) (storage.TemplateR
 		return storage.TemplateResult{}, false, err
 	}
 	result, err := p.store.InitTemplate(ctx, apply)
+	p.recordAction(result.ActionID)
 	return result, !exists, err
 }

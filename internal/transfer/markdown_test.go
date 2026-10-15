@@ -35,14 +35,14 @@ func TestMarkdownOrderUnicodeAndImportedHistory(t *testing.T) {
 			t.Fatalf("todo: %+v", item)
 		}
 	}
-	if plan.LastEvent != 2 || plan.InsertionTail != "task-004" {
+	if plan.LastEvent != 2 {
 		t.Fatalf("chronology: %+v", plan)
 	}
-	if _, err = plan.Add("После последней готовой", "", task.Position{}); err != nil {
+	if _, err = plan.Add("В конце списка", "", task.Position{}); err != nil {
 		t.Fatal(err)
 	}
 	testrepo.FixtureIDs(&plan)
-	if !reflect.DeepEqual(plan.Order, []string{"task-001", "task-002", "task-003", "task-004", "task-006", "task-005"}) {
+	if !reflect.DeepEqual(plan.Order, []string{"task-001", "task-002", "task-003", "task-004", "task-005", "task-006"}) {
 		t.Fatalf("insertion: %v", plan.Order)
 	}
 }

@@ -23,7 +23,6 @@ func orderedPlan(t *testing.T, ids ...string) Plan {
 	for _, id := range ids {
 		p.Tasks = append(p.Tasks, Task{ID: id, Title: id, Status: Todo})
 		p.Order = append(p.Order, id)
-		p.InsertionTail = id
 	}
 	if err := p.Validate(); err != nil {
 		t.Fatal(err)
@@ -36,7 +35,6 @@ func TestPlanOrderSequences(t *testing.T) {
 		operation, id string
 		position      Position
 		want          string
-		tail          string
 	}
 	tests := []struct {
 		name    string
@@ -44,67 +42,67 @@ func TestPlanOrderSequences(t *testing.T) {
 		steps   []step
 	}{
 		{"empty", nil, []step{
-			{operation: "add", id: "A", want: "A", tail: "A"},
-			{operation: "add", id: "B", want: "A B", tail: "B"},
+			{operation: "add", id: "A", want: "A"},
+			{operation: "add", id: "B", want: "A B"},
 		}},
 		{"unchecked import", []string{"A", "B"}, []step{
-			{operation: "add", id: "X", want: "A B X", tail: "X"},
-			{operation: "add", id: "Y", want: "A B X Y", tail: "Y"},
+			{operation: "add", id: "X", want: "A B X"},
+			{operation: "add", id: "Y", want: "A B X Y"},
 		}},
 		{"completion out of plan order and clocks going backwards", []string{"A", "B", "C"}, []step{
-			{operation: "complete", id: "C", want: "A B C", tail: "C"},
-			{operation: "add", id: "X", want: "A B C X", tail: "X"},
-			{operation: "complete", id: "A", want: "A B C X", tail: "A"},
-			{operation: "add", id: "Y", want: "A Y B C X", tail: "Y"},
-			{operation: "add", id: "Z", want: "A Y Z B C X", tail: "Z"},
+			{operation: "complete", id: "C", want: "A B C"},
+			{operation: "add", id: "X", want: "A B C X"},
+			{operation: "complete", id: "A", want: "A B C X"},
+			{operation: "add", id: "Y", want: "A B C X Y"},
+			{operation: "add", id: "Z", want: "A B C X Y Z"},
 		}},
 		{"successive groups", []string{"A", "B", "C"}, []step{
-			{operation: "complete", id: "A", want: "A B C", tail: "A"},
-			{operation: "add", id: "X", want: "A X B C", tail: "X"},
-			{operation: "add", id: "Y", want: "A X Y B C", tail: "Y"},
-			{operation: "complete", id: "C", want: "A X Y B C", tail: "C"},
-			{operation: "add", id: "Z", want: "A X Y B C Z", tail: "Z"},
+			{operation: "complete", id: "A", want: "A B C"},
+			{operation: "add", id: "X", want: "A B C X"},
+			{operation: "add", id: "Y", want: "A B C X Y"},
+			{operation: "complete", id: "C", want: "A B C X Y"},
+			{operation: "add", id: "Z", want: "A B C X Y Z"},
 		}},
 		{"imported completions without dates", []string{"A", "B", "C", "D"}, []step{
-			{operation: "imported", id: "A", want: "A B C D", tail: "A"},
-			{operation: "imported", id: "C", want: "A B C D", tail: "C"},
-			{operation: "add", id: "X", want: "A B C X D", tail: "X"},
-			{operation: "add", id: "Y", want: "A B C X Y D", tail: "Y"},
+			{operation: "imported", id: "A", want: "A B C D"},
+			{operation: "imported", id: "C", want: "A B C D"},
+			{operation: "add", id: "X", want: "A B C D X"},
+			{operation: "add", id: "Y", want: "A B C D X Y"},
 		}},
-		{"moving and archiving the tail", []string{"A", "B"}, []step{
-			{operation: "complete", id: "A", want: "A B", tail: "A"},
-			{operation: "add", id: "X", want: "A X B", tail: "X"},
-			{operation: "add", id: "Y", want: "A X Y B", tail: "Y"},
-			{operation: "move", id: "Y", position: Position{End: true}, want: "A X B Y", tail: "Y"},
-			{operation: "archive", id: "Y", want: "A X B Y", tail: "Y"},
-			{operation: "add", id: "Z", want: "A X B Y Z", tail: "Z"},
+		{"moving and archiving preserve subsequent append", []string{"A", "B"}, []step{
+			{operation: "complete", id: "A", want: "A B"},
+			{operation: "add", id: "X", want: "A B X"},
+			{operation: "add", id: "Y", want: "A B X Y"},
+			{operation: "move", id: "X", position: Position{Before: "B"}, want: "A X B Y"},
+			{operation: "archive", id: "Y", want: "A X B Y"},
+			{operation: "add", id: "Z", want: "A X B Y Z"},
 		}},
-		{"explicit additions keep the automatic tail", []string{"A", "B"}, []step{
-			{operation: "complete", id: "A", want: "A B", tail: "A"},
-			{operation: "add", id: "E", position: Position{End: true}, want: "A B E", tail: "A"},
-			{operation: "add", id: "F", position: Position{Before: "A"}, want: "F A B E", tail: "A"},
-			{operation: "add", id: "G", position: Position{After: "A"}, want: "F A G B E", tail: "A"},
-			{operation: "add", id: "X", want: "F A X G B E", tail: "X"},
+		{"explicit additions do not change subsequent append", []string{"A", "B"}, []step{
+			{operation: "complete", id: "A", want: "A B"},
+			{operation: "add", id: "E", position: Position{End: true}, want: "A B E"},
+			{operation: "add", id: "F", position: Position{Before: "A"}, want: "F A B E"},
+			{operation: "add", id: "G", position: Position{After: "A"}, want: "F A G B E"},
+			{operation: "add", id: "X", want: "F A G B E X"},
 		}},
-		{"virtual anchor survives explicit first insertion", nil, []step{
+		{"append follows explicit first insertion", nil, []step{
 			{operation: "add", id: "E", position: Position{End: true}, want: "E"},
-			{operation: "add", id: "A", want: "A E", tail: "A"},
-			{operation: "add", id: "B", want: "A B E", tail: "B"},
+			{operation: "add", id: "A", want: "E A"},
+			{operation: "add", id: "B", want: "E A B"},
 		}},
-		{"archived completion anchor", []string{"A", "B"}, []step{
-			{operation: "complete", id: "A", want: "A B", tail: "A"},
-			{operation: "archive", id: "A", want: "A B", tail: "A"},
-			{operation: "move", id: "B", position: Position{Before: "A"}, want: "B A", tail: "A"},
-			{operation: "add", id: "X", want: "B A X", tail: "X"},
+		{"archived completion does not change append", []string{"A", "B"}, []step{
+			{operation: "complete", id: "A", want: "A B"},
+			{operation: "archive", id: "A", want: "A B"},
+			{operation: "move", id: "B", position: Position{Before: "A"}, want: "B A"},
+			{operation: "add", id: "X", want: "B A X"},
 		}},
-		{"restart and delayed completion preserve insertion group", []string{"A", "B"}, []step{
-			{operation: "complete", id: "A", want: "A B", tail: "A"},
-			{operation: "again", id: "A", want: "A B", tail: "A"},
-			{operation: "add", id: "X", want: "A X B", tail: "X"},
-			{operation: "repeat", id: "A", want: "A X B", tail: "X"},
-			{operation: "add", id: "Y", want: "A X Y B", tail: "Y"},
-			{operation: "complete", id: "A", want: "A X Y B", tail: "A"},
-			{operation: "add", id: "Z", want: "A Z X Y B", tail: "Z"},
+		{"restart and delayed completion preserve append", []string{"A", "B"}, []step{
+			{operation: "complete", id: "A", want: "A B"},
+			{operation: "again", id: "A", want: "A B"},
+			{operation: "add", id: "X", want: "A B X"},
+			{operation: "repeat", id: "A", want: "A B X"},
+			{operation: "add", id: "Y", want: "A B X Y"},
+			{operation: "complete", id: "A", want: "A B X Y"},
+			{operation: "add", id: "Z", want: "A B X Y Z"},
 		}},
 	}
 	for _, tt := range tests {
@@ -158,8 +156,8 @@ func TestPlanOrderSequences(t *testing.T) {
 				for _, label := range strings.Fields(s.want) {
 					want = append(want, ids[label])
 				}
-				if !slices.Equal(p.Order, want) || p.InsertionTail != ids[s.tail] {
-					t.Fatalf("step %d: order=%v tail=%q; want %v tail=%q", i, p.Order, p.InsertionTail, want, ids[s.tail])
+				if !slices.Equal(p.Order, want) {
+					t.Fatalf("step %d: order=%v; want %v", i, p.Order, want)
 				}
 				// Every next operation uses reloaded data: no hidden process-local
 				// cursor or sorting on read may supply the expected ordering.
@@ -251,18 +249,14 @@ func TestImportedPlanInsertion(t *testing.T) {
 					t.Fatalf("import invented historical fields: %+v", a)
 				}
 			}
-			last := 3
-			if len(completed) > 0 {
-				last = completed[len(completed)-1]
-			}
-			if !slices.Equal(p.Order, ids) || p.InsertionTail != ids[last] || p.LastEvent != uint64(len(completed)) {
+			if !slices.Equal(p.Order, ids) || p.LastEvent != uint64(len(completed)) {
 				t.Fatalf("import result changed row order or chronology: %+v", p)
 			}
 			added, err := p.Add("X", "", Position{})
 			if err != nil {
 				t.Fatal(err)
 			}
-			want := slices.Insert(slices.Clone(ids), last+1, added.ID)
+			want := append(slices.Clone(ids), added.ID)
 			if !slices.Equal(p.Order, want) {
 				t.Fatalf("add after import: order=%v; want %v", p.Order, want)
 			}

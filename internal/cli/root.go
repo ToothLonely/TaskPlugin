@@ -218,7 +218,7 @@ func planned(command string) bool {
 
 func mutatesPlan(command string) bool {
 	switch command {
-	case "add", "start", "attach", "edit", "move", "pause", "resume", "complete", "archive", "import":
+	case "init", "add", "start", "attach", "edit", "move", "pause", "resume", "complete", "archive", "import":
 		return true
 	}
 	return false

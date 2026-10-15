@@ -95,7 +95,6 @@ func TestTemplateInvalidInputsPreserveFiles(t *testing.T) {
 		`{"target_branch":"main","tasks":[],"order":[]}`,
 		`{"format":"foreign","target_branch":"main","tasks":[]}`,
 		`{"target_branch":"main","tasks":[],"tasks":[]}`,
-		`{"format":"git-task","schema_version":3,"target_branch":"main","tasks":[]}`,
 		`not JSON`,
 	} {
 		t.Run(input, func(t *testing.T) {

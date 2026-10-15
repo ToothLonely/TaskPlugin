@@ -15,7 +15,7 @@ func TestPartialCompletionWithoutInsertionTail(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			p.InsertionTail = ""
+
 			c := Completion{Source: Manual, TargetBranch: "main"}
 			if mode != "manual" {
 				c.Source, c.MergeKind = Merge, FastForward
@@ -29,14 +29,18 @@ func TestPartialCompletionWithoutInsertionTail(t *testing.T) {
 				t.Fatal(err)
 			}
 			item, _ := p.FindID("task-a")
-			if p.InsertionTail != "" || item.Status != Active || item.Attempts[0].Status != Done || item.Attempts[1].Status != Active {
-				t.Fatalf("partial completion changed insertion cursor/other approach: %+v", p)
+			if item.Status != Active || item.Attempts[0].Status != Done || item.Attempts[1].Status != Active || strings.Join(p.Order, " ") != "task-a task-b" {
+				t.Fatalf("partial completion changed order/other approach: %+v", p)
 			}
 			if _, err := p.CompleteManual("task-a", "two", "", testTime); err != nil {
 				t.Fatal(err)
 			}
-			if p.InsertionTail != "task-a" {
-				t.Fatal("whole-task completion did not set cursor")
+			if strings.Join(p.Order, " ") != "task-a task-b" {
+				t.Fatal("whole-task completion changed order")
+			}
+			added, err := p.Add("Next", "", Position{})
+			if err != nil || p.Order[len(p.Order)-1] != added.ID {
+				t.Fatalf("add after completion: %v %v", p.Order, err)
 			}
 		})
 	}

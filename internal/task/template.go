@@ -99,7 +99,6 @@ func (t Template) Plan() (Plan, error) {
 		ids[id] = true
 		plan.Tasks = append(plan.Tasks, Task{ID: id, Title: entry.Title, Description: entry.Description, Status: Todo})
 		plan.Order = append(plan.Order, id)
-		plan.InsertionTail = id
 	}
 	return plan, plan.Validate()
 }

@@ -66,7 +66,7 @@ func TestTemplateGeneratesPlanInArrayOrder(t *testing.T) {
 	if plan.Tasks[1].ID != "001" || plan.Tasks[1].Title != "Second" || plan.Tasks[1].Description != "Details" || plan.Tasks[0].ID == plan.Tasks[2].ID {
 		t.Fatalf("identity or text changed: %+v", plan.Tasks)
 	}
-	if !reflect.DeepEqual(plan.Order, []string{plan.Tasks[0].ID, "001", plan.Tasks[2].ID}) || plan.InsertionTail != plan.Tasks[2].ID {
+	if !reflect.DeepEqual(plan.Order, []string{plan.Tasks[0].ID, "001", plan.Tasks[2].ID}) {
 		t.Fatalf("order differs from tasks: %v", plan.Order)
 	}
 	added, err := plan.Add("Later", "", Position{})

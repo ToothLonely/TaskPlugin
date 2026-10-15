@@ -80,14 +80,6 @@ func MergeShared(before, local, remote Plan) (Plan, error) {
 	if err != nil {
 		return Plan{}, err
 	}
-	next.InsertionTail, err = mergeField("insertion_tail", before.InsertionTail, local.InsertionTail, remote.InsertionTail)
-	if err != nil {
-		if slices.Equal(existingOrder(before.Order, local.Order), before.Order) && slices.Equal(existingOrder(before.Order, remote.Order), before.Order) {
-			next.InsertionTail = remote.InsertionTail
-		} else {
-			return Plan{}, err
-		}
-	}
 	next.Revision = max(local.Revision, remote.Revision) + 1
 	if next.Revision == 0 {
 		return Plan{}, invalid("исчерпана revision")

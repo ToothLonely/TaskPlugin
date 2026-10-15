@@ -6,12 +6,12 @@ import (
 )
 
 // Add creates a todo task with a new stable ID, returning its snapshot.
-// Only automatic placement advances InsertionTail. Errors leave p unchanged.
+// The default position is the end of the plan. Errors leave p unchanged.
 func (p *Plan) Add(title, description string, pos Position) (Task, error) {
 	if err := p.Validate(); err != nil {
 		return Task{}, err
 	}
-	i, err := pos.index(p.Order, p.InsertionTail)
+	i, err := pos.index(p.Order)
 	if err != nil {
 		return Task{}, err
 	}
@@ -29,9 +29,6 @@ func (p *Plan) Add(title, description string, pos Position) (Task, error) {
 	next := *p
 	next.Tasks = append(slices.Clone(p.Tasks), t)
 	next.Order = slices.Insert(slices.Clone(p.Order), i, t.ID)
-	if pos.automatic() {
-		next.InsertionTail = t.ID
-	}
 	next.Revision++
 	if err := next.Validate(); err != nil {
 		return Task{}, err

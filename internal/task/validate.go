@@ -176,16 +176,6 @@ func (p Plan) Validate() error {
 	if p.LastEvent != last {
 		return invalid("last_event не соответствует истории")
 	}
-	if p.InsertionTail != "" && !ids[p.InsertionTail] {
-		return invalid("неизвестный insertion_tail")
-	}
-	if p.InsertionTail == "" {
-		for _, t := range p.Tasks {
-			if t.Status == Done {
-				return invalid("нет insertion_tail после завершения задачи")
-			}
-		}
-	}
 	if len(p.Order) != len(ids) {
 		return invalid("order не содержит все задачи")
 	}

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -14,9 +15,10 @@ import (
 var ErrTemplate = errors.New("план ещё является шаблоном: заполните target_branch и tasks в .git-task/plan.json, затем выполните git task init --apply")
 
 type TemplateResult struct {
-	Created bool
-	Draft   bool
-	Applied bool
+	Created  bool
+	Draft    bool
+	Applied  bool
+	ActionID string
 }
 
 func validateBackup(name string, data []byte) error {
@@ -37,7 +39,7 @@ func isTemplate(data []byte) bool {
 	return !exists
 }
 
-func (s *Store) templateSource() ([]byte, bool, error) {
+func (s *Store) templateSource(apply bool) ([]byte, bool, error) {
 	data, err := readFile(filepath.Join(s.dir, "plan.json"))
 	if err != nil {
 		return nil, false, err
@@ -55,6 +57,9 @@ func (s *Store) templateSource() ([]byte, bool, error) {
 		}
 		return data, true, nil
 	}
+	if apply && schemaVersion(data) == task.SchemaVersion {
+		return data, false, nil
+	}
 	_, err = decode(data)
 	return data, false, err
 }
@@ -66,7 +71,7 @@ func (s *Store) InitTemplate(ctx context.Context, apply bool) (result TemplateRe
 	if err = inspectPath(s.excludePath, false); err != nil {
 		return result, err
 	}
-	original, draft, err := s.templateSource()
+	original, draft, err := s.templateSource(apply)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return result, err
 	}
@@ -98,6 +103,8 @@ func (s *Store) InitTemplate(ctx context.Context, apply bool) (result TemplateRe
 	}
 	result.Draft = draft
 	var next []byte
+	var actionID string
+	backupName := "plan.template.json"
 	if original == nil {
 		next = []byte("{\n  \"target_branch\": \"\",\n  \"tasks\": []\n}\n")
 		result.Draft = true
@@ -114,6 +121,32 @@ func (s *Store) InitTemplate(ctx context.Context, apply bool) (result TemplateRe
 		if err != nil {
 			return result, err
 		}
+	} else if apply {
+		plan, changed, applyErr := task.ApplyPlan(original)
+		if applyErr != nil {
+			return result, applyErr
+		}
+		before, encodeErr := encode(plan)
+		if encodeErr != nil {
+			return result, encodeErr
+		}
+		queued, queueErr := task.QueueApplied(plan)
+		if queueErr != nil {
+			return result, queueErr
+		}
+		after, encodeErr := encode(queued)
+		if encodeErr != nil {
+			return result, encodeErr
+		}
+		if changed || !bytes.Equal(before, after) {
+			next = after
+			actionID = queuedActionID(plan, queued)
+			id, idErr := task.NewID()
+			if idErr != nil {
+				return result, idErr
+			}
+			backupName = "conflict-apply-" + id + ".json"
+		}
 	}
 	if err = s.exclude(ctx); err != nil {
 		return result, err
@@ -121,11 +154,12 @@ func (s *Store) InitTemplate(ctx context.Context, apply bool) (result TemplateRe
 	if next == nil {
 		return result, nil
 	}
-	if err = s.installWithBackup(ctx, original, next, "plan.template.json"); err != nil {
+	if err = s.installWithBackup(ctx, original, next, backupName); err != nil {
 		return result, err
 	}
+	result.ActionID = actionID
 	result.Created = original == nil
-	result.Applied = apply && draft
+	result.Applied = apply
 	result.Draft = !result.Applied
 	return result, nil
 }

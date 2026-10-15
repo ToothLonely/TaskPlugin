@@ -69,10 +69,15 @@ git task hooks install
 git task status
 ```
 
+Later, you can append minimal tasks to the working `tasks` array or edit existing
+titles/descriptions, preserving IDs and history, then run `git task init --apply` again.
+A complete unchanged plan is not rewritten.
+
 `--apply` generates task IDs, `order` from the sequence in `tasks`, initial statuses,
 and internal fields. You do not need to enter them manually. Applying a ready plan
 again preserves it and its history. If your target is `master`, replace `main`
-in the JSON and commands. After setup, add more tasks with `git task add "Title"`.
+in the JSON and commands. After setup, `git task add "Title"` appends a task to the
+end of the plan. Use `--before <id>` or `--after <id>` to choose a position explicitly.
 
 ## 3. Start a task
 
@@ -226,10 +231,15 @@ git task hooks install
 git task status
 ```
 
+Позже можно дописать минимальные задачи в рабочий массив `tasks` или изменить
+title/description существующих задач, сохранив ID и историю, и снова выполнить
+`git task init --apply`. Полный неизменённый план не перезаписывается.
+
 `--apply` создаст ID задач, `order` по порядку массива `tasks`, начальные статусы
 и служебные поля. Вручную их вводить не нужно. Повторное применение сохраняет
 готовый план и историю. Если цель — `master`, замените `main` в JSON и командах.
-После настройки новые задачи можно добавлять через `git task add "Название"`.
+После настройки `git task add "Название"` добавляет задачу в конец плана.
+Место внутри списка можно выбрать явно: `--before <id>` или `--after <id>`.
 
 ## 3. Начните задачу
 

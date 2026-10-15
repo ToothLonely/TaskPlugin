@@ -15,7 +15,7 @@ func TestEditFieldsInEveryState(t *testing.T) {
 			p.Tasks[0].Description = "original"
 			before := p.Tasks[0].clone()
 			order := slices.Clone(p.Order)
-			tail, event, rev := p.InsertionTail, p.LastEvent, p.Revision
+			event, rev := p.LastEvent, p.Revision
 			title, description := "  Новое имя 🐈  ", ""
 			changed, err := p.Edit("task-a", EditOptions{Title: &title})
 			requireChange(t, changed, err)
@@ -27,7 +27,7 @@ func TestEditFieldsInEveryState(t *testing.T) {
 			changed, err = p.Edit("task-a", EditOptions{Description: &description})
 			requireChange(t, changed, err)
 			before.Description, before.Revision = "", before.Revision+1
-			if !reflect.DeepEqual(p.Tasks[0], before) || !slices.Equal(p.Order, order) || p.InsertionTail != tail || p.LastEvent != event || p.Revision != rev+2 {
+			if !reflect.DeepEqual(p.Tasks[0], before) || !slices.Equal(p.Order, order) || p.LastEvent != event || p.Revision != rev+2 {
 				t.Fatalf("description edit changed unrelated data: %+v", p)
 			}
 			beforeJSON := snapshot(t, p)

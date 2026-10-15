@@ -33,7 +33,7 @@ func taskPrefixFixture(t *testing.T) (*app.Plans, *git.Client) {
 		plan.Tasks[i].ID = ids[i]
 	}
 	plan.Order = ids
-	plan.InsertionTail = ids[len(ids)-1]
+
 	plan.Revision++
 	if _, err := s.Save(ctx, base, plan); err != nil {
 		t.Fatal(err)

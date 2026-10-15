@@ -58,7 +58,7 @@ func TestInitTemplateCLIWorkflow(t *testing.T) {
 	if code, _, diagnostic := prefixCLI(p, "init"); code != 0 || diagnostic != "" || !bytes.Equal(filled, selectionBytes(t, c)) {
 		t.Fatalf("init applied draft implicitly: %d %q", code, diagnostic)
 	}
-	if code, out, diagnostic := prefixCLI(p, "init", "--apply"); code != 0 || !strings.Contains(out, "Шаблон применён") || diagnostic != "" {
+	if code, out, diagnostic := prefixCLI(p, "init", "--apply"); code != 0 || !strings.Contains(out, "План применён") || diagnostic != "" {
 		t.Fatalf("apply: %d %q %q", code, out, diagnostic)
 	}
 	var plan task.Plan
@@ -74,5 +74,61 @@ func TestInitTemplateCLIWorkflow(t *testing.T) {
 	before = selectionBytes(t, c)
 	if code, out, diagnostic := prefixCLI(p, "init", "--apply"); code != 0 || !strings.Contains(out, "уже инициализирован") || diagnostic != "" || !bytes.Equal(before, selectionBytes(t, c)) {
 		t.Fatalf("reapply changed history: %d %q %q", code, out, diagnostic)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(before, &fields); err != nil {
+		t.Fatal(err)
+	}
+	var tasks []json.RawMessage
+	if err := json.Unmarshal(fields["tasks"], &tasks); err != nil {
+		t.Fatal(err)
+	}
+	tasks = append(tasks, json.RawMessage(`{"title":"Added manually"}`))
+	fields["tasks"], _ = json.Marshal(tasks)
+	edited, _ := json.Marshal(fields)
+	if err := os.WriteFile(path, edited, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if code, _, diagnostic := prefixCLI(p, "init", "--apply"); code != 0 || diagnostic != "" {
+		t.Fatalf("apply working plan: %d %q", code, diagnostic)
+	}
+	if code, out, _ := prefixCLI(p, "status"); code != 0 || !strings.Contains(out, "Added manually") {
+		t.Fatalf("status: %d %q", code, out)
+	}
+}
+
+func TestInitApplyCLIPublishesTeamChanges(t *testing.T) {
+	p, c := selectionFixture(t)
+	ctx := context.Background()
+	remote := filepath.Join(t.TempDir(), "remote.git")
+	testrepo.Run(t, c, "init", "--bare", "--initial-branch=main", remote)
+	testrepo.Run(t, c, "remote", "add", "origin", remote)
+	if _, err := c.RunNetwork(ctx, "push", "origin", "refs/heads/main:refs/heads/main"); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Connect(ctx, "origin"); err != nil {
+		t.Fatal(err)
+	}
+	var plan task.Plan
+	if err := json.Unmarshal(selectionBytes(t, c), &plan); err != nil {
+		t.Fatal(err)
+	}
+	plan.Tasks[0].Title = "CLI applied text"
+	edited, err := json.Marshal(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(c.Dir, ".git-task", "plan.json"), edited, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if code, _, diagnostic := prefixCLI(p, "init", "--apply"); code != 0 || diagnostic != "" {
+		t.Fatalf("apply: %d %q", code, diagnostic)
+	}
+	if err := json.Unmarshal(selectionBytes(t, c), &plan); err != nil || len(plan.Team.Pending) != 0 {
+		t.Fatalf("queue not published: %+v %v", plan.Team, err)
+	}
+	remotePlan, err := c.RunNetwork(ctx, "--git-dir="+remote, "show", "refs/heads/git-task-plan:plan.json")
+	if err != nil || !bytes.Contains(remotePlan.Stdout, []byte("CLI applied text")) {
+		t.Fatalf("remote text: %s %v", remotePlan.Stdout, err)
 	}
 }

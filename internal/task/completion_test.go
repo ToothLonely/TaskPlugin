@@ -34,7 +34,6 @@ func TestHistoryAndEventValidation(t *testing.T) {
 		{"duplicate event", func(p *Plan) { p.Tasks[1].Attempts[0].Completion.Event = 1 }},
 		{"duplicate attempt", func(p *Plan) { p.Tasks[1].Attempts[0].ID = "one" }},
 		{"unknown source", func(p *Plan) { p.Tasks[0].Attempts[0].Completion.Source = "squash" }},
-		{"lost tail", func(p *Plan) { p.InsertionTail = "" }},
 		{"wrong last event", func(p *Plan) { p.LastEvent = 3 }},
 		{"completed status mismatch", func(p *Plan) {
 			p.Tasks[0].Attempts = append(p.Tasks[0].Attempts, p.Tasks[1].Attempts[0])
