@@ -155,14 +155,25 @@ in a separate `git-task-plan` branch in the same repository.
 
 ### Exchanging code and the plan
 
-Use `git task push` and `git task pull` to work with a remote repository.
-`git task push` sends commits from the current branch, then publishes the plan.
-`git task pull` fetches and integrates code changes, then fetches the shared plan
-and reconciles task statuses.
+```text
+git task team fetch
+git task team publish
+```
 
-To exchange only the plan, use `git task team publish` to publish it or
-`git task team fetch` to fetch and reconcile it. These commands do not send
-or fetch code.
+`git task team fetch` fetches the shared plan and reconciles it with the local
+plan, while `git task team publish` publishes local plan changes.
+
+```text
+git task pull
+git task push
+```
+
+`git task pull` fetches and integrates code changes, then fetches and reconciles
+the plan, while `git task push` sends commits from the current branch, then
+publishes the plan.
+
+`team fetch` and `team publish` exchange only the plan; `pull` and `push`
+exchange both code and the plan.
 
 For `git task push` and `git task pull`, configure an upstream for the current
 code branch in the same remote as the plan. Task changes are still automatically
@@ -331,14 +342,24 @@ git task team connect --remote origin
 
 ### Обмен кодом и планом
 
-Для работы с удалённым репозиторием используйте `git task push` и `git task pull`.
-`git task push` отправляет коммиты текущей ветки, затем публикует план.
-`git task pull` получает и интегрирует изменения кода, затем получает общий план
-и сверяет статусы задач.
+```text
+git task team fetch
+git task team publish
+```
 
-Для обмена только планом используйте `git task team publish`, чтобы опубликовать
-его, или `git task team fetch`, чтобы получить и согласовать с локальным.
-Эти команды не отправляют и не получают код.
+`git task team fetch` получает общий план и согласует его с локальным,
+а `git task team publish` публикует локальные изменения плана.
+
+```text
+git task pull
+git task push
+```
+
+`git task pull` получает и интегрирует изменения кода, затем получает и согласует
+план, а `git task push` отправляет коммиты текущей ветки, затем публикует план.
+
+`team fetch` и `team publish` обмениваются только планом, а `pull` и `push` —
+кодом и планом.
 
 Для `git task push` и `git task pull` настройте upstream текущей ветки кода
 в том же remote, что и план. Изменения задач по-прежнему пытаются публиковаться
