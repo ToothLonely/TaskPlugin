@@ -55,6 +55,8 @@ Every user command supports `--help`.
 | `team connect` | `--remote <name>` | Connect to a shared plan |
 | `team fetch` | — | Fetch and reconcile the shared plan |
 | `team publish` | — | Reconcile and publish the queue |
+| `push` | — | Push the current code branch, then reconcile and publish the plan |
+| `pull` | `[--ff-only / --merge / --rebase]` | Pull code, explicitly fetch the plan, and reconcile locally |
 | `team reconcile` | `[--before <oid> --after <oid>]` | Process a server event or retry a saved one |
 | `hooks install` | — | Enable local tracking |
 | `hooks uninstall` | — | Remove hook integration |
@@ -429,6 +431,61 @@ Plain `git fetch` can retrieve the service branch if the remote's refspec allows
 invoke local hooks. Setup for your own Git server is described
 [below](#merges-on-your-own-git-server).
 
+### Exchanging code and the plan
+
+```text
+git task pull
+git task pull --merge
+git task pull --rebase
+git task push
+```
+
+These commands require a ready plan connected with `team connect`, a current
+code branch with a commit, and one configured upstream in the plan's remote.
+Configure upstream explicitly with Git before using them. They do not select
+`origin`, create an upstream, change remote settings, or accept Git arguments.
+Detached/unborn HEAD, the service branch, unfinished Git operations, a pending
+plan operation, inconsistent local queue, or missing team/upstream cause refusal
+before network access. Pull also requires a clean index and working tree;
+push sends commits and leaves uncommitted work in place.
+
+The upstream remote must equal the plan remote. A different `pushRemote` or
+`remote.pushDefault`, mirror mode, multiple URLs, or different effective fetch/push
+URLs are rejected. Push sends only the current branch to its configured upstream;
+it does not use `push.default` or configured push refspecs to select other branches.
+No force, tags, recursive submodule operations, stash, or squash mode is added.
+Pull defaults to `--ff-only`. Choose exactly one of `--merge` (ordinary merge)
+or `--rebase` (noninteractive rebase) to integrate divergent histories explicitly.
+Unknown/repeated flags and positional arguments fail before any changes.
+
+Push sends code first, then runs local reconciliation and the existing plan
+publication workflow. Pull integrates code first, explicitly fetches `git-task-plan`
+even with a restricted code fetch refspec, then reconciles locally. Pull never
+publishes the queue. New plan data is received even when code is already current.
+The plan stays outside code branches and the code index.
+Before integration, the fetched code tree is checked for a tracked `.git-task`
+path; such a tree is rejected to protect the local plan. Integration uses that
+checked commit, even if the remote advances again.
+Rebase also checks local commits that may be replayed and their parent trees.
+If they tracked `.git-task`, the command refuses before integration, even when
+the current index is clean. This preserves unpublished work instead of replaying
+old additions/deletions of the plan. Code fetch and its hooks may already have run.
+
+There is no atomic transaction across code and plan. A code failure stops the
+remaining steps. A conflict is left for you to resolve in Git; no rollback occurs.
+Hooks may already have applied fetched plan data. A hook error can follow an actual
+HEAD update; diagnostics report the observed state. An interrupted push may already
+have reached the remote. After a successful code step, a failed mandatory plan step
+still returns an error and identifies the remaining action: `team fetch` then `sync`,
+or `sync` then `team publish`. Failed publication preserves the local queue;
+retry `team publish`, not `start` or `complete`.
+
+Existing hooks and foreign handlers remain enabled. Hooks, status and sync stay
+local; ordinary `git push/pull` do not promise complete plan exchange. Plan-only
+team commands and automatic publication of task mutations (including `init --apply`)
+are unchanged. Receiving code/plan does not itself prove completion: empty attempts,
+unfinished integration and unsupported squash retain the existing tracking rules.
+
 ### Hooks, diagnostics, and recovery
 
 ```text
@@ -627,6 +684,8 @@ Git Task — отдельная программа `git-task`, доступна�
 | `team connect` | `--remote <name>` | Подключить общий план |
 | `team fetch` | — | Получить и согласовать общий план |
 | `team publish` | — | Согласовать и опубликовать очередь |
+| `push` | — | Отправить текущую ветку кода, затем сверить и опубликовать план |
+| `pull` | `[--ff-only / --merge / --rebase]` | Получить код, явно получить план и сверить локально |
 | `team reconcile` | `[--before <oid> --after <oid>]` | Обработать серверное событие или повторить сохранённое |
 | `hooks install` | — | Подключить локальное отслеживание |
 | `hooks uninstall` | — | Снять интеграцию hooks |
@@ -1002,6 +1061,60 @@ git task team publish
 remote; `team fetch` получает её явно. Слияние кода на Git-хостинге не вызывает
 локальные hooks. Настройка обработки на собственном Git-сервере описана
 [ниже](#слияние-на-собственном-git-сервере).
+
+### Обмен кодом и планом
+
+```text
+git task pull
+git task pull --merge
+git task pull --rebase
+git task push
+```
+
+Нужны готовый план с подключённым `team connect`, текущая ветка кода с коммитом
+и единственный настроенный upstream в remote плана. Upstream настраивается явно
+обычным Git. Команды не выбирают origin, не создают upstream, не меняют remote
+и не принимают произвольные аргументы Git. Detached/unborn HEAD, служебная ветка,
+незавершённая Git-операция, журнал операции плана, несогласованная очередь или
+отсутствие team/upstream дают отказ до сети. Pull также требует чистый индекс
+и рабочее дерево; push отправляет коммиты, оставляя незакоммиченную работу на месте.
+
+Remote upstream должен совпадать с remote плана. Другой pushRemote или
+remote.pushDefault, mirror, несколько URL либо разные эффективные fetch/push URL
+отклоняются. Push отправляет только текущую ветку в её upstream; push.default
+и настроенные push-refspec не выбирают другие ветки. Force, теги, рекурсивный обмен
+подмодулями, stash и squash не добавляются. Pull по умолчанию использует --ff-only.
+Для расходящейся истории явно выберите --merge (обычное слияние) либо --rebase
+(неинтерактивный rebase). Режимы взаимоисключающие. Неизвестные/повторные флаги
+и позиционные аргументы отклоняются до изменений.
+
+Push сначала отправляет код, затем выполняет локальную сверку и существующий
+сценарий публикации плана. Pull сначала интегрирует код, затем явно получает
+git-task-plan даже при ограниченном fetch-refspec кода и сверяет план локально.
+Pull не публикует очередь. Обновление только плана применяется и без новых
+коммитов кода. План не попадает в ветки и индекс кода.
+До интеграции проверяется, не отслеживает ли полученное дерево кода `.git-task`;
+такое дерево отклоняется ради сохранности локального плана. Интегрируется именно
+проверенный коммит, даже если remote успел продвинуться дальше.
+Для rebase также проверяются локальные коммиты, которые могут воспроизводиться,
+и деревья их родителей. Если они отслеживали `.git-task`, команда отказывает
+до интеграции даже при чистом текущем индексе. Неопубликованная работа сохраняется:
+старые добавления/удаления плана не воспроизводятся. Fetch кода и его hooks уже
+могли выполниться.
+
+Общей атомарной транзакции нет. Ошибка кода останавливает последующие шаги.
+Конфликт остаётся для разрешения пользователем в Git, без отката. Hooks могли
+уже применить полученный план. Ошибка hook может возникнуть после изменения HEAD;
+диагностика сообщает наблюдаемое состояние. Прерванный push мог дойти до remote.
+После успеха кода ошибка обязательного шага плана даёт ненулевой код выхода
+и указывает оставшееся действие: team fetch и sync либо sync и team publish.
+Отказ публикации сохраняет очередь; повторяйте team publish, а не start/complete.
+
+Существующие hooks и сторонние обработчики сохраняются. Hooks/status/sync остаются
+локальными; обычные git push/pull не обещают полного обмена планом. Team-команды
+для обмена только планом и автопубликация мутаций, включая init --apply, не меняются.
+Само получение кода/плана не доказывает done: пустой подход, незавершённая интеграция
+и неподдерживаемый squash подчиняются прежним правилам tracking.
 
 ### Hooks, диагностика и восстановление
 

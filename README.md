@@ -151,12 +151,17 @@ git task team connect --remote origin
 ```
 
 Connecting downloads the existing tasks and their IDs. The shared plan lives
-in a separate `git-task-plan` branch in the same repository; push code with regular Git.
-Before choosing a task, run `git task team fetch`, then use `git task start`
-as shown above. Task changes are automatically submitted for publication.
-After merging code, run `git task team publish` to send status changes that hooks
-saved locally. If the network is unavailable, your work stays in a local queue;
-run `team publish` again once connectivity is restored.
+in a separate `git-task-plan` branch in the same repository. With an upstream
+configured for the current branch in the same remote, use `git task pull` to get
+code and the plan, and `git task push` to send code and then publish the plan,
+including status changes saved by merge hooks. Pull defaults to fast-forward only;
+`--merge` and `--rebase` are explicit alternatives and require a clean working tree.
+Rebase refuses local history that could replay tracked `.git-task` files.
+Task changes are still automatically submitted for publication.
+For plan-only exchange, use `git task team fetch` / `git task team publish`.
+Code and plan operations are separate: if code succeeds and the plan fails,
+the command reports partial success. Retry the remaining plan operation;
+offline work stays in the local queue. Regular Git commands remain available.
 
 [All commands and additional settings → DOCUMENTATION.md](https://github.com/ToothLonely/TaskPlugin/blob/master/DOCUMENTATION.md#english)
 
@@ -313,12 +318,16 @@ git task team connect --remote origin
 ```
 
 При подключении они получат готовые задачи и их ID. Общий план хранится
-в отдельной ветке `git-task-plan` того же репозитория; код отправляйте обычным Git.
-Перед выбором задачи выполните `git task team fetch`, затем работайте через
-`git task start`, как показано выше. Изменения задач пытаются публиковаться
-автоматически. После слияния кода выполните `git task team publish`, чтобы
-отправить изменения статусов, которые hooks сохранили локально. Если сеть
-недоступна, работа останется в локальной очереди; повторите `team publish`
-после восстановления связи.
+в отдельной ветке `git-task-plan` того же репозитория. Если для текущей ветки
+настроен upstream в том же remote, `git task pull` получает код и план,
+а `git task push` отправляет код и затем публикует план, включая изменения
+статусов из merge-hooks. Pull по умолчанию разрешает только fast-forward;
+режимы `--merge` и `--rebase` выбираются явно; нужно чистое рабочее дерево.
+Rebase отклоняет локальную историю, которая может воспроизвести tracked-файлы `.git-task`.
+Изменения задач по-прежнему пытаются публиковаться автоматически.
+Для обмена только планом остаются `git task team fetch` / `git task team publish`.
+Код и план передаются отдельно: при успехе кода и отказе плана команда сообщает
+частичный результат. Повторите оставшуюся операцию плана; offline-работа остаётся
+в локальной очереди. Обычные команды Git также доступны.
 
 [Все команды и дополнительные настройки → DOCUMENTATION.md](https://github.com/ToothLonely/TaskPlugin/blob/master/DOCUMENTATION.md#russian)

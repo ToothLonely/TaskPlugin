@@ -158,7 +158,7 @@ func (c *Client) PushPlan(ctx context.Context, name, parent, commit string) erro
 	if !objectID(commit) {
 		return fmt.Errorf("неверный commit")
 	}
-	_, err := c.run(ctx, nil, true, "push", "--porcelain", "--no-recurse-submodules", "--", name, commit+":refs/heads/"+PlanBranch)
+	_, err := c.run(ctx, nil, true, "push", "--porcelain", "--no-follow-tags", "--no-recurse-submodules", "--", name, commit+":refs/heads/"+PlanBranch)
 	if err == nil {
 		return nil
 	}

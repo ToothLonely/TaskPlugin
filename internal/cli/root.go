@@ -110,6 +110,9 @@ func execute(ctx context.Context, args []string, version string, streams Streams
 		args = args[1:]
 	}
 	if command != "help" && command != "version" {
+		if command == "push" || command == "pull" {
+			return runExchange(ctx, command, args[1:], streams, open)
+		}
 		if command == "doctor" {
 			return runDoctor(ctx, args[1:], streams, open)
 		}

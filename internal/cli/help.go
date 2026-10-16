@@ -18,6 +18,8 @@ func writeHelp(out io.Writer, topic string) error {
   version         Показать версию
   init            Создать локальный план
   team            Подключить и согласовать общий план
+  push            Отправить текущую ветку и общий план
+  pull            Получить код и общий план
   add             Добавить задачу
   start           Создать ветку и начать задачу
   attach          Привязать существующую ветку
@@ -43,6 +45,10 @@ func writeHelp(out io.Writer, topic string) error {
 		text = "Использование: git task doctor [--repair recover-start / restore-backup / unlock] [--yes]\nБез repair только локальное чтение, без сети и сверки. Явный repair показывает снимок и требует подтверждение; --yes не отменяет проверки. Очередь публикации: git task team publish, без повторного start/complete. Restore сохраняет повреждённый оригинал и предупреждает о свежих неопубликованных данных; unlock требует отсутствия PID этого компьютера. Подробности: DOCUMENTATION.md.\n"
 	case "team":
 		text = "Использование: git task team connect --remote <name> / fetch / publish / reconcile --before <oid> --after <oid>\nЯвный обмен через git-task-plan: до подключения создайте готовый план через init --apply или init --target. Fetch получает, publish согласует и публикует очередь; максимум 3 попытки и 30 секунд. Локальная работа при отказе сохраняется. Reconcile используется серверным post-receive: DOCUMENTATION.md.\n"
+	case "push":
+		text = "Использование: git task push\nОтправить текущую ветку в её upstream, затем сверить и опубликовать общий план. Нужен подключённый team и upstream в том же remote с одинаковыми fetch/push URL. Без аргументов Git, force и изменения настроек. Частичный успех не откатывается; повтор плана: git task team publish.\n"
+	case "pull":
+		text = "Использование: git task pull [--ff-only / --merge / --rebase]\nПолучить код из upstream, затем явно получить общий план и сверить его. По умолчанию --ff-only; режимы взаимоисключающие. Нужны чистое дерево, подключённый team и upstream в том же remote. Очередь не публикуется; конфликты Git сохраняются. После разрешения: git task team fetch, затем git task sync.\n"
 	case "version":
 		text = "Использование: git task version [--help]\nПоказать версию git-task. Репозиторий и Git не требуются.\n"
 	case "init":
