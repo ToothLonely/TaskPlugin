@@ -155,25 +155,24 @@ in a separate `git-task-plan` branch in the same repository.
 
 ### Exchanging code and the plan
 
-After connecting, configure an upstream for the current code branch in the same
-remote as the plan. Then use:
+Choose whether to exchange **only the plan** or **code and the plan**:
 
-```text
-git task pull
-git task push
-```
+| Command | Code | Shared plan |
+|---|---|---|
+| `git task team publish` | Does not send | Publishes |
+| `git task push` | Sends commits from the current branch | Publishes |
+| `git task team fetch` | Does not fetch | Fetches and reconciles |
+| `git task pull` | Fetches and integrates into the current branch | Fetches and reconciles |
 
-`git task pull` gets code and the shared plan, then reconciles task statuses.
-`git task push` sends committed code, then publishes the plan, including status
-changes saved by merge hooks. Task changes are still automatically submitted
-for publication. For plan-only exchange, use `git task team fetch` /
-`git task team publish`.
+For `git task push` and `git task pull`, configure an upstream for the current
+code branch in the same remote as the plan. Push sends code first, then publishes
+the plan, including status changes saved by merge hooks. Pull integrates code
+first, then fetches the plan and reconciles task statuses. Task changes are still
+automatically submitted for publication.
 
 Code and plan operations are separate: if code succeeds and the plan fails,
 retry the remaining plan operation reported by the command. Offline work stays
 in the local queue. Regular Git commands remain available.
-
-[Requirements, pull modes, and recovery → DOCUMENTATION.md](DOCUMENTATION.md#exchanging-code-and-the-plan)
 
 [All commands and additional settings → DOCUMENTATION.md](https://github.com/ToothLonely/TaskPlugin/blob/master/DOCUMENTATION.md#english)
 
@@ -334,24 +333,23 @@ git task team connect --remote origin
 
 ### Обмен кодом и планом
 
-После подключения настройте upstream текущей ветки кода в том же remote,
-что и план. Затем используйте:
+Выберите, чем обменяться: **только планом** или **кодом и планом**:
 
-```text
-git task pull
-git task push
-```
+| Команда | Код | Общий план |
+|---|---|---|
+| `git task team publish` | Не отправляет | Публикует |
+| `git task push` | Отправляет коммиты текущей ветки | Публикует |
+| `git task team fetch` | Не получает | Получает и согласует с локальным |
+| `git task pull` | Получает и интегрирует в текущую ветку | Получает и согласует с локальным |
 
-`git task pull` получает код и общий план, затем сверяет статусы задач.
-`git task push` отправляет закоммиченный код, затем публикует план, включая
-изменения статусов из merge-hooks. Изменения задач по-прежнему пытаются
-публиковаться автоматически. Для обмена только планом используйте
-`git task team fetch` / `git task team publish`.
+Для `git task push` и `git task pull` настройте upstream текущей ветки кода
+в том же remote, что и план. Push сначала отправляет код, затем публикует план,
+включая изменения статусов из merge-hooks. Pull сначала интегрирует код, затем
+получает план и сверяет статусы задач. Изменения задач по-прежнему пытаются
+публиковаться автоматически.
 
 Код и план передаются отдельно: при успехе кода и отказе плана повторите
 оставшуюся операцию плана, указанную командой. Offline-работа остаётся
 в локальной очереди. Обычные команды Git также доступны.
-
-[Требования, режимы pull и восстановление → DOCUMENTATION.md](DOCUMENTATION.md#обмен-кодом-и-планом)
 
 [Все команды и дополнительные настройки → DOCUMENTATION.md](https://github.com/ToothLonely/TaskPlugin/blob/master/DOCUMENTATION.md#russian)
