@@ -151,17 +151,29 @@ git task team connect --remote origin
 ```
 
 Connecting downloads the existing tasks and their IDs. The shared plan lives
-in a separate `git-task-plan` branch in the same repository. With an upstream
-configured for the current branch in the same remote, use `git task pull` to get
-code and the plan, and `git task push` to send code and then publish the plan,
-including status changes saved by merge hooks. Pull defaults to fast-forward only;
-`--merge` and `--rebase` are explicit alternatives and require a clean working tree.
-Rebase refuses local history that could replay tracked `.git-task` files.
-Task changes are still automatically submitted for publication.
-For plan-only exchange, use `git task team fetch` / `git task team publish`.
+in a separate `git-task-plan` branch in the same repository.
+
+### Exchanging code and the plan
+
+After connecting, configure an upstream for the current code branch in the same
+remote as the plan. Then use:
+
+```text
+git task pull
+git task push
+```
+
+`git task pull` gets code and the shared plan, then reconciles task statuses.
+`git task push` sends committed code, then publishes the plan, including status
+changes saved by merge hooks. Task changes are still automatically submitted
+for publication. For plan-only exchange, use `git task team fetch` /
+`git task team publish`.
+
 Code and plan operations are separate: if code succeeds and the plan fails,
-the command reports partial success. Retry the remaining plan operation;
-offline work stays in the local queue. Regular Git commands remain available.
+retry the remaining plan operation reported by the command. Offline work stays
+in the local queue. Regular Git commands remain available.
+
+[Requirements, pull modes, and recovery → DOCUMENTATION.md](DOCUMENTATION.md#exchanging-code-and-the-plan)
 
 [All commands and additional settings → DOCUMENTATION.md](https://github.com/ToothLonely/TaskPlugin/blob/master/DOCUMENTATION.md#english)
 
@@ -318,16 +330,28 @@ git task team connect --remote origin
 ```
 
 При подключении они получат готовые задачи и их ID. Общий план хранится
-в отдельной ветке `git-task-plan` того же репозитория. Если для текущей ветки
-настроен upstream в том же remote, `git task pull` получает код и план,
-а `git task push` отправляет код и затем публикует план, включая изменения
-статусов из merge-hooks. Pull по умолчанию разрешает только fast-forward;
-режимы `--merge` и `--rebase` выбираются явно; нужно чистое рабочее дерево.
-Rebase отклоняет локальную историю, которая может воспроизвести tracked-файлы `.git-task`.
-Изменения задач по-прежнему пытаются публиковаться автоматически.
-Для обмена только планом остаются `git task team fetch` / `git task team publish`.
-Код и план передаются отдельно: при успехе кода и отказе плана команда сообщает
-частичный результат. Повторите оставшуюся операцию плана; offline-работа остаётся
+в отдельной ветке `git-task-plan` того же репозитория.
+
+### Обмен кодом и планом
+
+После подключения настройте upstream текущей ветки кода в том же remote,
+что и план. Затем используйте:
+
+```text
+git task pull
+git task push
+```
+
+`git task pull` получает код и общий план, затем сверяет статусы задач.
+`git task push` отправляет закоммиченный код, затем публикует план, включая
+изменения статусов из merge-hooks. Изменения задач по-прежнему пытаются
+публиковаться автоматически. Для обмена только планом используйте
+`git task team fetch` / `git task team publish`.
+
+Код и план передаются отдельно: при успехе кода и отказе плана повторите
+оставшуюся операцию плана, указанную командой. Offline-работа остаётся
 в локальной очереди. Обычные команды Git также доступны.
+
+[Требования, режимы pull и восстановление → DOCUMENTATION.md](DOCUMENTATION.md#обмен-кодом-и-планом)
 
 [Все команды и дополнительные настройки → DOCUMENTATION.md](https://github.com/ToothLonely/TaskPlugin/blob/master/DOCUMENTATION.md#russian)

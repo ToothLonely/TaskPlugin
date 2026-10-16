@@ -20,6 +20,7 @@ Running `git-task start feature/search` directly is equivalent to `git task star
 - [Explicit completion and archiving](#explicit-completion-and-archiving).
 - [Import and export](#import-and-export).
 - [Fetching and publishing plan changes](#fetching-and-publishing-plan-changes).
+- [Exchanging code and the plan](#exchanging-code-and-the-plan).
 - [Hooks, diagnostics, and recovery](#hooks-diagnostics-and-recovery).
 - [Manual hook integration](#manual-hook-integration).
 - [Updating and uninstalling](#updating-and-uninstalling).
@@ -649,6 +650,7 @@ Git Task — отдельная программа `git-task`, доступна�
 - [Явное завершение и архивирование](#явное-завершение-и-архивирование).
 - [Импорт и экспорт](#импорт-и-экспорт).
 - [Получение и публикация изменений плана](#получение-и-публикация-изменений-плана).
+- [Обмен кодом и планом](#обмен-кодом-и-планом).
 - [Hooks, диагностика и восстановление](#hooks-диагностика-и-восстановление).
 - [Ручное подключение hooks](#ручное-подключение-hooks).
 - [Обновление и удаление](#обновление-и-удаление).
