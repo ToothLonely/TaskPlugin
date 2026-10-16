@@ -155,20 +155,18 @@ in a separate `git-task-plan` branch in the same repository.
 
 ### Exchanging code and the plan
 
-Choose whether to exchange **only the plan** or **code and the plan**:
+Use `git task push` and `git task pull` to work with a remote repository.
+`git task push` sends commits from the current branch, then publishes the plan.
+`git task pull` fetches and integrates code changes, then fetches the shared plan
+and reconciles task statuses.
 
-| Command | Code | Shared plan |
-|---|---|---|
-| `git task team publish` | Does not send | Publishes |
-| `git task push` | Sends commits from the current branch | Publishes |
-| `git task team fetch` | Does not fetch | Fetches and reconciles |
-| `git task pull` | Fetches and integrates into the current branch | Fetches and reconciles |
+To exchange only the plan, use `git task team publish` to publish it or
+`git task team fetch` to fetch and reconcile it. These commands do not send
+or fetch code.
 
 For `git task push` and `git task pull`, configure an upstream for the current
-code branch in the same remote as the plan. Push sends code first, then publishes
-the plan, including status changes saved by merge hooks. Pull integrates code
-first, then fetches the plan and reconciles task statuses. Task changes are still
-automatically submitted for publication.
+code branch in the same remote as the plan. Task changes are still automatically
+submitted for publication.
 
 Code and plan operations are separate: if code succeeds and the plan fails,
 retry the remaining plan operation reported by the command. Offline work stays
@@ -333,20 +331,18 @@ git task team connect --remote origin
 
 ### Обмен кодом и планом
 
-Выберите, чем обменяться: **только планом** или **кодом и планом**:
+Для работы с удалённым репозиторием используйте `git task push` и `git task pull`.
+`git task push` отправляет коммиты текущей ветки, затем публикует план.
+`git task pull` получает и интегрирует изменения кода, затем получает общий план
+и сверяет статусы задач.
 
-| Команда | Код | Общий план |
-|---|---|---|
-| `git task team publish` | Не отправляет | Публикует |
-| `git task push` | Отправляет коммиты текущей ветки | Публикует |
-| `git task team fetch` | Не получает | Получает и согласует с локальным |
-| `git task pull` | Получает и интегрирует в текущую ветку | Получает и согласует с локальным |
+Для обмена только планом используйте `git task team publish`, чтобы опубликовать
+его, или `git task team fetch`, чтобы получить и согласовать с локальным.
+Эти команды не отправляют и не получают код.
 
 Для `git task push` и `git task pull` настройте upstream текущей ветки кода
-в том же remote, что и план. Push сначала отправляет код, затем публикует план,
-включая изменения статусов из merge-hooks. Pull сначала интегрирует код, затем
-получает план и сверяет статусы задач. Изменения задач по-прежнему пытаются
-публиковаться автоматически.
+в том же remote, что и план. Изменения задач по-прежнему пытаются публиковаться
+автоматически.
 
 Код и план передаются отдельно: при успехе кода и отказе плана повторите
 оставшуюся операцию плана, указанную командой. Offline-работа остаётся
