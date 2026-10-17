@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"git-task/internal/app"
+	"git-task/internal/diagnostic"
 )
 
 // Streams holds the command's input, result output, and diagnostics.
@@ -21,9 +22,11 @@ type Streams struct {
 	RunEditor    func(context.Context, string, string, string) error
 }
 
-type usageError struct{ message string }
+type usageError struct{ error }
 
-func (e *usageError) Error() string { return e.message }
+func (e *usageError) Unwrap() error { return e.error }
+
+func (e *usageError) Diagnostic() error { return e.error }
 
 // Run executes a command and returns the process exit code. It never exits the
 // process, so the caller can release resources before calling os.Exit.
@@ -33,6 +36,7 @@ func Run(ctx context.Context, args []string, version string, streams Streams) in
 
 // RunWithPlans connects repository operations while preserving lazy discovery.
 func RunWithPlans(ctx context.Context, args []string, version string, streams Streams, open OpenPlans) int {
+	language := diagnosticLanguage()
 	if len(args) > 0 && args[0] == "_hook" {
 		runHook(ctx, args[1:], streams, open)
 		return 0
@@ -62,7 +66,7 @@ func RunWithPlans(ctx context.Context, args []string, version string, streams St
 	err := execute(ctx, args, version, streams, wrapped)
 	if opened != nil && mutatesPlan(command) {
 		if publishErr := opened.PublishRecordedActions(ctx); publishErr != nil {
-			fmt.Fprintf(streams.Err, "Предупреждение: публикация не подтверждена, локальная очередь сохранена: %v; git task team publish.\n", publishErr)
+			fmt.Fprintln(streams.Err, diagnostic.Render(language, diagnostic.Errorf("Предупреждение: публикация не подтверждена, локальная очередь сохранена: %v; git task team publish.", publishErr)))
 		}
 		for _, n := range opened.TakeNotices() {
 			if _, writeErr := fmt.Fprintf(streams.Err, "Уведомление [%s]: %s\n", n.Code, n.Message); writeErr != nil {
@@ -78,13 +82,13 @@ func RunWithPlans(ctx context.Context, args []string, version string, streams St
 	switch {
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		code = 130
-		err = fmt.Errorf("операция отменена: %w", err)
+		err = diagnostic.Errorf("операция отменена: %w", err)
 	case errors.As(err, &usage):
 		code = 2
 	}
 	// A failed diagnostic write cannot be reported to that same stream. Keep the
 	// original nonzero status so a broken pipe cannot turn failure into success.
-	fmt.Fprintf(streams.Err, "Ошибка: %v\n", err)
+	fmt.Fprintln(streams.Err, diagnostic.Render(language, diagnostic.Errorf("Ошибка: %v", err)))
 	return code
 }
 
@@ -144,20 +148,20 @@ func execute(ctx context.Context, args []string, version string, streams Streams
 			return runPlan(ctx, command, args[1:], streams, open)
 		}
 		if planned(command) {
-			return fmt.Errorf("команда %q ещё не реализована; доступные команды: git task help", command)
+			return diagnostic.Errorf("команда %q ещё не реализована; доступные команды: git task help", command)
 		}
-		return &usageError{fmt.Sprintf("неизвестная команда %q; используйте git task help", command)}
+		return &usageError{diagnostic.Errorf("неизвестная команда %q; используйте git task help", command)}
 	}
 	positionals, help, err := parseInfoArgs(command, args[1:])
 	if err != nil {
 		return err
 	}
 	if help && (args[0] == "--help" || args[0] == "--version") {
-		return &usageError{"повтор или конфликт флагов --help/--version"}
+		return &usageError{diagnostic.New("повтор или конфликт флагов --help/--version")}
 	}
 	if command == "version" {
 		if len(positionals) != 0 {
-			return &usageError{"version не принимает позиционные аргументы"}
+			return &usageError{diagnostic.New("version не принимает позиционные аргументы")}
 		}
 		if help {
 			return writeHelp(out, command)
@@ -166,7 +170,7 @@ func execute(ctx context.Context, args []string, version string, streams Streams
 		return err
 	}
 	if len(positionals) > 1 {
-		return &usageError{"help принимает не более одного имени команды"}
+		return &usageError{diagnostic.New("help принимает не более одного имени команды")}
 	}
 	if help {
 		return writeHelp(out, "help")
@@ -197,14 +201,14 @@ func parseInfoArgs(command string, args []string) ([]string, bool, error) {
 			continue
 		}
 		if arg != "--help" {
-			return nil, false, &usageError{fmt.Sprintf("неизвестный флаг %q", arg)}
+			return nil, false, &usageError{diagnostic.Errorf("неизвестный флаг %q", arg)}
 		}
 		if seenHelp {
-			return nil, false, &usageError{"флаг --help указан повторно"}
+			return nil, false, &usageError{diagnostic.New("флаг --help указан повторно")}
 		}
 		seenHelp = true
 		if err := fs.Parse([]string{arg}); err != nil {
-			return nil, false, &usageError{err.Error()}
+			return nil, false, &usageError{err}
 		}
 	}
 	return positionals, help, nil

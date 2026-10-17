@@ -2,9 +2,10 @@ package git
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"strings"
+
+	"git-task/internal/diagnostic"
 )
 
 func (c *Client) HooksDirectory(ctx context.Context) (string, error) {
@@ -13,7 +14,7 @@ func (c *Client) HooksDirectory(ctx context.Context) (string, error) {
 		return "", err
 	}
 	if repo.GitDir != repo.CommonDir {
-		return "", fmt.Errorf("дополнительные worktree не поддерживаются")
+		return "", diagnostic.Errorf("дополнительные worktree не поддерживаются")
 	}
 	r, err := c.Run(ctx, "config", "--show-scope", "--get", "core.hooksPath")
 	if err != nil && !exitCode(err, 1) {
@@ -22,7 +23,7 @@ func (c *Client) HooksDirectory(ctx context.Context) (string, error) {
 	if err == nil {
 		scope, _, ok := strings.Cut(string(r.Stdout), "\t")
 		if !ok || scope != "local" {
-			return "", fmt.Errorf("core.hooksPath задан вне локальной конфигурации; используйте ручное подключение из README.md, общий каталог не изменён")
+			return "", diagnostic.Errorf("core.hooksPath задан вне локальной конфигурации; используйте ручное подключение из README.md, общий каталог не изменён")
 		}
 	}
 	r, err = c.Run(ctx, "rev-parse", "--path-format=absolute", "--git-path", "hooks")
@@ -31,12 +32,12 @@ func (c *Client) HooksDirectory(ctx context.Context) (string, error) {
 	}
 	path := outputLine(r.Stdout)
 	if !filepath.IsAbs(path) {
-		return "", fmt.Errorf("Git вернул не абсолютный путь hooks: %q", path)
+		return "", diagnostic.Errorf("Git вернул не абсолютный путь hooks: %q", path)
 	}
 	path = filepath.Clean(path)
 	rel, err := filepath.Rel(repo.GitDir, path)
 	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", fmt.Errorf("core.hooksPath находится вне каталога этого Git-репозитория; используйте ручное подключение из README.md, каталог не изменён")
+		return "", diagnostic.Errorf("core.hooksPath находится вне каталога этого Git-репозитория; используйте ручное подключение из README.md, каталог не изменён")
 	}
 	return path, nil
 }

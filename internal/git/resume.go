@@ -2,8 +2,9 @@ package git
 
 import (
 	"context"
-	"fmt"
 	"strings"
+
+	"git-task/internal/diagnostic"
 )
 
 func (c *Client) HeadLogEntry(ctx context.Context) (string, error) {
@@ -16,7 +17,7 @@ func (c *Client) CheckoutResume(ctx context.Context, branch, operation string) e
 		return err
 	}
 	if !hexID(operation) {
-		return fmt.Errorf("неверная идентичность операции resume")
+		return diagnostic.Errorf("неверная идентичность операции resume")
 	}
 	child := c.forOperation(operation)
 	var env []string
@@ -36,7 +37,7 @@ func (c *Client) OwnsResume(ctx context.Context, branch, commit, operation strin
 		return false, err
 	}
 	if !hexID(commit) || !hexID(operation) {
-		return false, fmt.Errorf("неверная идентичность операции resume")
+		return false, diagnostic.Errorf("неверная идентичность операции resume")
 	}
 	head, err := c.HeadState(ctx)
 	if err != nil || head != (Head{Ref: "refs/heads/" + branch, Commit: commit}) {

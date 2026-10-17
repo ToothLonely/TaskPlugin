@@ -3,11 +3,12 @@ package task
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"slices"
+
+	"git-task/internal/diagnostic"
 )
 
-var ErrSharedConflict = errors.New("несовместимые изменения общего плана; обе версии сохранены")
+var ErrSharedConflict = diagnostic.New("несовместимые изменения общего плана; обе версии сохранены")
 
 type Receipt struct {
 	ID     string `json:"id"`

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/task"
 )
 
@@ -18,7 +19,7 @@ func (s *Store) SaveShared(ctx context.Context, base Snapshot, next task.Plan) (
 		return false, err
 	}
 	if next.Revision <= base.Plan.Revision {
-		return false, fmt.Errorf("общая запись требует увеличения revision")
+		return false, diagnostic.Errorf("общая запись требует увеличения revision")
 	}
 	if base.dir != s.dir || len(base.raw) == 0 {
 		return false, ErrConflict
@@ -45,7 +46,7 @@ func (s *Store) SaveShared(ctx context.Context, base Snapshot, next task.Plan) (
 		return false, err
 	}
 	if !ignored {
-		return false, fmt.Errorf(".git-task не исключён из Git; выполните init с прежним target")
+		return false, diagnostic.Errorf(".git-task не исключён из Git; выполните init с прежним target")
 	}
 	if err = s.install(ctx, base.raw, data); err != nil {
 		return false, err
@@ -74,11 +75,11 @@ func (s *Store) PreserveShared(ctx context.Context, data []byte, cause error) (r
 			if readErr != nil || !bytes.Equal(old, data) {
 				return errors.Join(cause, ErrConflict, readErr)
 			}
-			return fmt.Errorf("полученная версия сохранена в %s: %w", path, cause)
+			return diagnostic.Errorf("полученная версия сохранена в %s: %w", path, cause)
 		}
 		return errors.Join(cause, err)
 	}
 	_, writeErr := f.Write(data)
 	err = errors.Join(writeErr, f.Sync(), f.Close())
-	return fmt.Errorf("полученная версия сохранена в %s: %w", f.Name(), errors.Join(cause, err))
+	return diagnostic.Errorf("полученная версия сохранена в %s: %w", f.Name(), errors.Join(cause, err))
 }

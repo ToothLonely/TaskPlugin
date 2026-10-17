@@ -7,6 +7,9 @@
 Git Task extends Git with task tracking: the `git task` command links a task
 to a branch and updates its status as work progresses.
 
+Errors automatically use your system language: Russian or English. Unsupported or
+undetectable languages fall back to English. There is no manual language setting.
+
 ## 1. Install Git Task
 
 You need Git 2.51.0 or later. Open
@@ -193,6 +196,10 @@ in the local queue. Regular Git commands remain available.
 
 Git Task — дополнение к Git для ведения задач: команда `git task` связывает задачу
 с веткой и обновляет её статус по результатам работы.
+
+Ошибки автоматически выводятся на языке системы: русском или английском.
+Если язык не поддерживается или не определён, используется английский.
+Ручной настройки языка нет.
 
 ## 1. Установите Git Task
 

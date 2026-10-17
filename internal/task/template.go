@@ -3,9 +3,10 @@ package task
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"unicode/utf8"
+
+	"git-task/internal/diagnostic"
 )
 
 type Template struct {
@@ -28,12 +29,12 @@ func ReadTemplate(data []byte) (Template, error) {
 		return result, err
 	}
 	if err := checkJSON(json.NewDecoder(bytes.NewReader(data))); err != nil {
-		return result, fmt.Errorf("%w: JSON: %v", ErrInvalid, err)
+		return result, diagnostic.Errorf("%w: JSON: %v", ErrInvalid, err)
 	}
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&result); err != nil {
-		return Template{}, fmt.Errorf("%w: шаблон JSON: %v", ErrInvalid, err)
+		return Template{}, diagnostic.Errorf("%w: шаблон JSON: %v", ErrInvalid, err)
 	}
 	var extra any
 	if err := dec.Decode(&extra); err != io.EOF {

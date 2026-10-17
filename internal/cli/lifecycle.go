@@ -7,6 +7,7 @@ import (
 	"io"
 	"strings"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/task"
 )
 
@@ -47,31 +48,31 @@ func parseLifecycleArgs(command string, args []string) (lifecycleArgs, error) {
 		boolean := name == "--help" || command == "move" && name == "--end"
 		valued := name == "--id" || (command == "pause" || command == "resume") && name == "--attempt" || command == "edit" && (name == "--title" || name == "--description") || command == "move" && (name == "--after" || name == "--before")
 		if !boolean && !valued {
-			return result, &usageError{fmt.Sprintf("%s: неизвестный флаг или лишний аргумент %q", command, arg)}
+			return result, &usageError{diagnostic.Errorf("%s: неизвестный флаг или лишний аргумент %q", command, arg)}
 		}
 		if seen[name] {
-			return result, &usageError{fmt.Sprintf("флаг %s указан повторно", name)}
+			return result, &usageError{diagnostic.Errorf("флаг %s указан повторно", name)}
 		}
 		seen[name] = true
 		if boolean {
 			if hasValue {
-				return result, &usageError{fmt.Sprintf("флаг %s не принимает значение", name)}
+				return result, &usageError{diagnostic.Errorf("флаг %s не принимает значение", name)}
 			}
 		} else {
 			if !hasValue {
 				i++
 				if i == len(args) || strings.HasPrefix(args[i], "--") {
-					return result, &usageError{fmt.Sprintf("флаг %s требует значение", name)}
+					return result, &usageError{diagnostic.Errorf("флаг %s требует значение", name)}
 				}
 				value = args[i]
 			}
 			if name != "--description" && strings.TrimSpace(value) == "" {
-				return result, &usageError{fmt.Sprintf("пустое значение %s", name)}
+				return result, &usageError{diagnostic.Errorf("пустое значение %s", name)}
 			}
 			arg = name + "=" + value
 		}
 		if err := fs.Parse([]string{arg}); err != nil {
-			return result, &usageError{err.Error()}
+			return result, &usageError{err}
 		}
 	}
 	if seen["--title"] {
@@ -87,10 +88,10 @@ func parseLifecycleArgs(command string, args []string) (lifecycleArgs, error) {
 		}
 	}
 	if positions > 1 || command == "move" && !result.help && positions != 1 {
-		return result, &usageError{"move требует ровно один из --after, --before, --end"}
+		return result, &usageError{diagnostic.New("move требует ровно один из --after, --before, --end")}
 	}
 	if result.id == "" && !result.help {
-		return result, &usageError{command + " требует --id <id>"}
+		return result, &usageError{diagnostic.Errorf("%s требует --id <id>", command)}
 	}
 	return result, nil
 }
@@ -104,7 +105,7 @@ func runLifecycle(ctx context.Context, command string, args []string, streams St
 		return writeHelp(streams.Out, command)
 	}
 	if open == nil {
-		return fmt.Errorf("операции плана не подключены")
+		return diagnostic.Errorf("операции плана не подключены")
 	}
 	plans, err := open(ctx)
 	if err != nil {
@@ -140,7 +141,7 @@ func runLifecycle(ctx context.Context, command string, args []string, streams St
 		action = map[string]string{"edit": "Задача отредактирована", "move": "Задача перемещена", "pause": "Задача приостановлена", "archive": "Задача архивирована", "resume": "Работа продолжена"}[command]
 	}
 	if _, err = fmt.Fprintf(streams.Out, "%s: [%s] %s — %s\n", action, item.ID, item.Status, item.Title); err != nil {
-		return fmt.Errorf("операция %s выполнена для %s; ошибка вывода: %w", command, item.ID, err)
+		return diagnostic.Errorf("операция %s выполнена для %s; ошибка вывода: %w", command, item.ID, err)
 	}
 	return nil
 }

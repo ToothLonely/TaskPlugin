@@ -5,14 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/task"
 )
 
-var ErrTemplate = errors.New("план ещё является шаблоном: заполните target_branch и tasks в .git-task/plan.json, затем выполните git task init --apply")
+var ErrTemplate = diagnostic.New("план ещё является шаблоном: заполните target_branch и tasks в .git-task/plan.json, затем выполните git task init --apply")
 
 type TemplateResult struct {
 	Created  bool
@@ -50,7 +50,7 @@ func (s *Store) templateSource(apply bool) ([]byte, bool, error) {
 		}
 		for _, name := range []string{"plan.backup.json", "plan.template.json"} {
 			if _, err = os.Lstat(filepath.Join(s.dir, name)); err == nil {
-				return nil, false, fmt.Errorf("шаблон рядом с историей плана %s; сохраните файлы и разберите замену вручную", name)
+				return nil, false, diagnostic.Errorf("шаблон рядом с историей плана %s; сохраните файлы и разберите замену вручную", name)
 			} else if !errors.Is(err, os.ErrNotExist) {
 				return nil, false, err
 			}
@@ -76,7 +76,7 @@ func (s *Store) InitTemplate(ctx context.Context, apply bool) (result TemplateRe
 		return result, err
 	}
 	if apply && errors.Is(err, os.ErrNotExist) {
-		return result, fmt.Errorf("шаблон отсутствует; сначала выполните git task init: %w", err)
+		return result, diagnostic.Errorf("шаблон отсутствует; сначала выполните git task init: %w", err)
 	}
 	if err = os.MkdirAll(s.dir, 0700); err != nil {
 		return result, err
@@ -88,7 +88,7 @@ func (s *Store) InitTemplate(ctx context.Context, apply bool) (result TemplateRe
 	defer func() {
 		releaseErr := unlock()
 		if releaseErr != nil && (result.Created || result.Applied) {
-			releaseErr = fmt.Errorf("файл уже сохранён; ошибка снятия блокировки: %w", releaseErr)
+			releaseErr = diagnostic.Errorf("файл уже сохранён; ошибка снятия блокировки: %w", releaseErr)
 		}
 		err = errors.Join(err, releaseErr)
 	}()

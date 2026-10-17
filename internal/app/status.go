@@ -30,6 +30,7 @@ type StatusWarning struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
 	TaskID  string `json:"task_id,omitempty"`
+	Cause   error  `json:"-"`
 }
 
 type LastCompletion struct {
@@ -113,7 +114,7 @@ func (p *Plans) StatusReport(ctx context.Context) (StatusReport, error) {
 	}
 	report, err := statusReport(plan, StatusRepository{Root: p.git.Dir, TargetBranch: plan.TargetBranch, CurrentBranch: head.Branch, HeadCommit: head.Commit, HeadCommittedAt: head.CommittedAt, Detached: head.Detached, Unborn: head.Unborn}, pending)
 	if receiveErr != nil {
-		report.Warnings = append(report.Warnings, StatusWarning{Code: "shared_receive_failed", Message: receiveErr.Error()})
+		report.Warnings = append(report.Warnings, StatusWarning{Code: "shared_receive_failed", Message: receiveErr.Error(), Cause: receiveErr})
 	}
 	return report, err
 }

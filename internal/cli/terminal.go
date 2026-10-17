@@ -4,14 +4,15 @@ import (
 	"bufio"
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"time"
+
+	"git-task/internal/diagnostic"
 )
 
 func OpenTerminalDialogue(in, out *os.File) (Dialogue, error) {
 	if !isTerminal(in) || !isTerminal(out) {
-		return nil, fmt.Errorf("--select требует терминал ввода и диагностики; используйте --id, --title или --new")
+		return nil, diagnostic.Errorf("--select требует терминал ввода и диагностики; используйте --id, --title или --new")
 	}
 	return newTerminalDialogue(in, out)
 }

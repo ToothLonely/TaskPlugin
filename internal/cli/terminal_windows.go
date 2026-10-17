@@ -3,13 +3,14 @@ package cli
 import (
 	"context"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"os"
 	"syscall"
 	"time"
 	"unicode/utf16"
 	"unsafe"
+
+	"git-task/internal/diagnostic"
 )
 
 var consoleDLL = syscall.NewLazyDLL("kernel32.dll")
@@ -29,7 +30,7 @@ type consoleDialogue struct {
 
 func newTerminalDialogue(in, out *os.File) (Dialogue, error) {
 	if err := readConsoleEvent.Find(); err != nil {
-		return nil, fmt.Errorf("неблокирующее чтение консоли недоступно: %w", err)
+		return nil, diagnostic.Errorf("неблокирующее чтение консоли недоступно: %w", err)
 	}
 	return &consoleDialogue{in: in, out: out}, nil
 }
@@ -49,7 +50,7 @@ func (d *consoleDialogue) ReadLine(ctx context.Context) (string, error) {
 		var record [20]byte
 		ok, _, err := readConsoleEvent.Call(d.in.Fd(), uintptr(unsafe.Pointer(&record[0])), 1, uintptr(unsafe.Pointer(&count)), consoleReadNoWait)
 		if ok == 0 {
-			return "", fmt.Errorf("чтение консоли: %w", err)
+			return "", diagnostic.Errorf("чтение консоли: %w", err)
 		}
 		if count == 0 {
 			select {

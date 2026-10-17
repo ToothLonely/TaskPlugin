@@ -2,16 +2,16 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"slices"
 	"time"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/task"
 )
 
 func (p *Plans) ReconcileTeam(ctx context.Context, commits ...string) error {
 	if len(commits) != 2 {
-		return fmt.Errorf("team reconcile требует --before <oid> --after <oid> из post-receive")
+		return diagnostic.Errorf("team reconcile требует --before <oid> --after <oid> из post-receive")
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -20,7 +20,7 @@ func (p *Plans) ReconcileTeam(ctx context.Context, commits ...string) error {
 		return err
 	}
 	if initial.Plan.Team == nil {
-		return fmt.Errorf("сначала подключите командный режим")
+		return diagnostic.Errorf("сначала подключите командный режим")
 	}
 	if commits[0] != "" || commits[1] != "" {
 		event := task.ServerEvent{Before: commits[0], After: commits[1]}
@@ -55,7 +55,7 @@ func (p *Plans) ReconcileTeam(ctx context.Context, commits ...string) error {
 			return err
 		}
 		if !included {
-			return fmt.Errorf("история target_branch переписана; серверное событие сохранено")
+			return diagnostic.Errorf("история target_branch переписана; серверное событие сохранено")
 		}
 		commits = []string{event.Before, event.After}
 		for _, t := range base.Plan.Tasks {
@@ -112,7 +112,7 @@ func (p *Plans) ReconcileTeam(ctx context.Context, commits ...string) error {
 				return err
 			}
 			if current != check.tip {
-				return fmt.Errorf("ссылка кода изменилась во время серверной сверки; событие сохранено")
+				return diagnostic.Errorf("ссылка кода изменилась во время серверной сверки; событие сохранено")
 			}
 		}
 		if _, err := p.save(ctx, base, next); err != nil {

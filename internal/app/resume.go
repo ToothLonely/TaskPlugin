@@ -3,9 +3,9 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/storage"
 	"git-task/internal/task"
 	"git-task/internal/tracking"
@@ -31,7 +31,7 @@ func (p *Plans) Resume(ctx context.Context, id string, attemptIDs ...string) (re
 			return err
 		}
 		if a.Status == task.Active {
-			return fmt.Errorf("задача %s уже запущена: %w", id, task.ErrTransition)
+			return diagnostic.Errorf("задача %s уже запущена: %w", id, task.ErrTransition)
 		}
 		if _, err = next.Resume(id, a.ID); err != nil {
 			return err
@@ -42,24 +42,24 @@ func (p *Plans) Resume(ctx context.Context, id string, attemptIDs ...string) (re
 			return err
 		}
 		if commit == "" {
-			return fmt.Errorf("связанная ветка %q отсутствует; используйте attach <branch> --id %s --rebind", branch, id)
+			return diagnostic.Errorf("связанная ветка %q отсутствует; используйте attach <branch> --id %s --rebind", branch, id)
 		}
 		log, err := p.git.BranchLog(ctx, branch)
 		if err != nil {
 			return err
 		}
 		if !tracking.BindingContinuous(a, log, commit) {
-			return fmt.Errorf("связь ветки %q не подтверждена; используйте attach <branch> --id %s --rebind", branch, id)
+			return diagnostic.Errorf("связь ветки %q не подтверждена; используйте attach <branch> --id %s --rebind", branch, id)
 		}
 		in, err := p.prepareIntent(ctx, "resume", id, branch, base.Plan.TargetBranch, "refs/heads/"+branch)
 		if err != nil {
 			return err
 		}
 		if in.Base != commit {
-			return fmt.Errorf("ветка изменена до resume")
+			return diagnostic.Errorf("ветка изменена до resume")
 		}
 		if in.Head.Ref == "" {
-			return fmt.Errorf("HEAD отсоединён; сначала явно выберите ветку")
+			return diagnostic.Errorf("HEAD отсоединён; сначала явно выберите ветку")
 		}
 		in.BranchLog = log.Digest()
 		in.HeadLog, err = p.git.HeadLogEntry(ctx)
@@ -94,7 +94,7 @@ func (p *Plans) Resume(ctx context.Context, id string, attemptIDs ...string) (re
 			}
 		}
 		if err = p.point(ctx, "checked-out"); err != nil {
-			return fmt.Errorf("Git мог уже переключить ветку; требуется doctor: %w", errors.Join(checkoutErr, err, storage.ErrOperation))
+			return diagnostic.Errorf("Git мог уже переключить ветку; требуется doctor: %w", errors.Join(checkoutErr, err, storage.ErrOperation))
 		}
 		if err = p.verifyEffect(ctx, in); err != nil {
 			return errors.Join(checkoutErr, err, storage.ErrOperation)
@@ -103,17 +103,17 @@ func (p *Plans) Resume(ctx context.Context, id string, attemptIDs ...string) (re
 			return errors.Join(checkoutErr, err, storage.ErrOperation)
 		}
 		if err = p.commit(ctx, op, journal); err != nil {
-			return fmt.Errorf("ветка уже переключена; требуется doctor: %w", errors.Join(checkoutErr, err, storage.ErrOperation))
+			return diagnostic.Errorf("ветка уже переключена; требуется doctor: %w", errors.Join(checkoutErr, err, storage.ErrOperation))
 		}
 		result, _ = next.FindID(id)
 		if err = p.point(ctx, "committed"); err != nil {
-			return fmt.Errorf("задача уже продолжена; требуется doctor: %w", errors.Join(checkoutErr, err, storage.ErrOperation))
+			return diagnostic.Errorf("задача уже продолжена; требуется doctor: %w", errors.Join(checkoutErr, err, storage.ErrOperation))
 		}
 		if err = op.Close(journal); err != nil {
-			return fmt.Errorf("задача уже продолжена; журнал не закрыт: %w", errors.Join(checkoutErr, err))
+			return diagnostic.Errorf("задача уже продолжена; журнал не закрыт: %w", errors.Join(checkoutErr, err))
 		}
 		if checkoutErr != nil {
-			return fmt.Errorf("задача уже продолжена; Git/hook сообщил ошибку: %w", checkoutErr)
+			return diagnostic.Errorf("задача уже продолжена; Git/hook сообщил ошибку: %w", checkoutErr)
 		}
 		return nil
 	})
@@ -126,7 +126,7 @@ func (p *Plans) verifyResumeBranch(ctx context.Context, in startIntent) error {
 		return err
 	}
 	if in.BranchLog == "" || log.Digest() != in.BranchLog {
-		return fmt.Errorf("журнал связанной ветки изменён: %w", storage.ErrOperation)
+		return diagnostic.Errorf("журнал связанной ветки изменён: %w", storage.ErrOperation)
 	}
 	return nil
 }
@@ -140,7 +140,7 @@ func (p *Plans) resumeUnchanged(ctx context.Context, in startIntent) error {
 		return err
 	}
 	if entry != in.HeadLog {
-		return fmt.Errorf("журнал HEAD изменён: %w", storage.ErrOperation)
+		return diagnostic.Errorf("журнал HEAD изменён: %w", storage.ErrOperation)
 	}
 	if err := p.unchangedBase(ctx, in); err != nil {
 		return err

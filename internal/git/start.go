@@ -2,14 +2,14 @@ package git
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"git-task/internal/diagnostic"
 )
 
-var ErrInProgress = errors.New("незавершённая Git-операция")
+var ErrInProgress = diagnostic.New("незавершённая Git-операция")
 
 // Head records both symbolic identity and commit, including detached HEAD.
 type Head struct {
@@ -50,7 +50,7 @@ func (c *Client) BranchCommit(ctx context.Context, branch string) (string, error
 	}
 	_, err = c.Run(ctx, "symbolic-ref", "--quiet", ref)
 	if err == nil {
-		return "", fmt.Errorf("символическая ветка не поддерживается: %s", branch)
+		return "", diagnostic.Errorf("символическая ветка не поддерживается: %s", branch)
 	}
 	if !exitCode(err, 1) {
 		return "", err
@@ -63,7 +63,7 @@ func (c *Client) BranchCommit(ctx context.Context, branch string) (string, error
 // not revision expressions. Ref enumeration avoids Git's DWIM precedence.
 func (c *Client) ResolveBase(ctx context.Context, input string) (commit, ref string, err error) {
 	if input == "" || strings.HasPrefix(input, "-") || strings.ContainsRune(input, '\x00') {
-		return "", "", fmt.Errorf("неверное основание %q", input)
+		return "", "", diagnostic.Errorf("неверное основание %q", input)
 	}
 	r, err := c.Run(ctx, "for-each-ref", "--format=%(refname)")
 	if err != nil {
@@ -85,7 +85,7 @@ func (c *Client) ResolveBase(ctx context.Context, input string) (commit, ref str
 		}
 	}
 	if len(matches) != 1 {
-		return "", "", fmt.Errorf("основание %q отсутствует или неоднозначно", input)
+		return "", "", diagnostic.Errorf("основание %q отсутствует или неоднозначно", input)
 	}
 	resolved := matches[0]
 	r, err = c.Run(ctx, "rev-parse", "--verify", "--end-of-options", resolved+"^{commit}")
@@ -132,7 +132,7 @@ func (c *Client) checkState(ctx context.Context, switching, postMerge bool) erro
 					continue
 				}
 			}
-			return fmt.Errorf("%w: %s", ErrInProgress, name)
+			return diagnostic.Errorf("%w: %s", ErrInProgress, name)
 		}
 		if !os.IsNotExist(err) {
 			return err
@@ -143,7 +143,7 @@ func (c *Client) checkState(ctx context.Context, switching, postMerge bool) erro
 		return err
 	}
 	if len(unmerged.Stdout) != 0 {
-		return fmt.Errorf("%w: в индексе остались неразрешённые конфликты", ErrInProgress)
+		return diagnostic.Errorf("%w: в индексе остались неразрешённые конфликты", ErrInProgress)
 	}
 	if switching {
 		r, err := c.Run(ctx, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=none")
@@ -151,7 +151,7 @@ func (c *Client) checkState(ctx context.Context, switching, postMerge bool) erro
 			return err
 		}
 		if len(r.Stdout) != 0 {
-			return fmt.Errorf("start/resume требуют чистого индекса и рабочего дерева")
+			return diagnostic.Errorf("start/resume требуют чистого индекса и рабочего дерева")
 		}
 	}
 	return nil
@@ -161,7 +161,7 @@ func (c *Client) checkState(ctx context.Context, switching, postMerge bool) erro
 // aliases on the actual filesystem (not the core.ignoreCase setting).
 func (c *Client) CheckTreeStorage(ctx context.Context, commit string) error {
 	if !hexID(commit) {
-		return fmt.Errorf("ожидается commit ID")
+		return diagnostic.Errorf("ожидается commit ID")
 	}
 	r, err := c.Run(ctx, "ls-tree", "--full-tree", "--name-only", "-z", commit)
 	if err != nil {
@@ -172,7 +172,7 @@ func (c *Client) CheckTreeStorage(ctx context.Context, commit string) error {
 		return err
 	}
 	if tracked {
-		return fmt.Errorf("целевое дерево отслеживает .git-task")
+		return diagnostic.Errorf("целевое дерево отслеживает .git-task")
 	}
 	return nil
 }
@@ -185,7 +185,7 @@ func (c *Client) CreateBranch(ctx context.Context, branch, commit, operation str
 		return err
 	}
 	if !hexID(commit) || !hexID(operation) {
-		return fmt.Errorf("неверная идентичность операции")
+		return diagnostic.Errorf("неверная идентичность операции")
 	}
 	child := c.forOperation(operation)
 	_, err = child.Run(ctx, "update-ref", "--no-deref", "--create-reflog", "-m", "git-task start "+operation, ref, commit, strings.Repeat("0", len(commit)))

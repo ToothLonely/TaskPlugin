@@ -5,6 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"io"
+
+	"git-task/internal/diagnostic"
 )
 
 func runExchange(ctx context.Context, command string, args []string, streams Streams, open OpenPlans) error {
@@ -22,10 +24,10 @@ func runExchange(ctx context.Context, command string, args []string, streams Str
 	modes := 0
 	for _, arg := range args {
 		if arg != "--help" && !(command == "pull" && (arg == "--ff-only" || arg == "--merge" || arg == "--rebase")) {
-			return &usageError{"неподдерживаемый аргумент " + command + ": " + arg}
+			return &usageError{diagnostic.Errorf("неподдерживаемый аргумент %s: %s", command, arg)}
 		}
 		if seen[arg] {
-			return &usageError{"повтор флага " + arg}
+			return &usageError{diagnostic.Errorf("повтор флага %s", arg)}
 		}
 		seen[arg] = true
 		if arg != "--help" {
@@ -33,17 +35,17 @@ func runExchange(ctx context.Context, command string, args []string, streams Str
 			mode = arg[2:]
 		}
 		if err := fs.Parse([]string{arg}); err != nil {
-			return &usageError{err.Error()}
+			return &usageError{err}
 		}
 	}
 	if modes > 1 {
-		return &usageError{"выберите только один режим pull: --ff-only, --merge или --rebase"}
+		return &usageError{diagnostic.New("выберите только один режим pull: --ff-only, --merge или --rebase")}
 	}
 	if help {
 		return writeHelp(streams.Out, command)
 	}
 	if open == nil {
-		return fmt.Errorf("операции плана не подключены")
+		return diagnostic.Errorf("операции плана не подключены")
 	}
 	p, err := open(ctx)
 	if err != nil {

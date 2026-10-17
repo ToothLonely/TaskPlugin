@@ -2,8 +2,9 @@ package git
 
 import (
 	"context"
-	"fmt"
 	"strings"
+
+	"git-task/internal/diagnostic"
 )
 
 type CodeUpstream struct {
@@ -22,7 +23,7 @@ func (c *Client) configValue(ctx context.Context, key string) (string, error) {
 	}
 	values := strings.Split(strings.TrimSuffix(string(r.Stdout), "\x00"), "\x00")
 	if len(values) != 1 {
-		return "", fmt.Errorf("ожидается одно значение %s", key)
+		return "", diagnostic.Errorf("ожидается одно значение %s", key)
 	}
 	return values[0], nil
 }
@@ -38,14 +39,14 @@ func (c *Client) CodeUpstream(ctx context.Context, remote string, pulling bool) 
 	}
 	branch, ok := strings.CutPrefix(h.Ref, "refs/heads/")
 	if !ok || branch == PlanBranch {
-		return u, fmt.Errorf("нужна обычная текущая ветка кода, не detached HEAD или git-task-plan")
+		return u, diagnostic.Errorf("нужна обычная текущая ветка кода, не detached HEAD или git-task-plan")
 	}
 	configured, err := c.configValue(ctx, "branch."+branch+".remote")
 	if err != nil {
 		return u, err
 	}
 	if configured != remote {
-		return u, fmt.Errorf("remote upstream текущей ветки должен совпадать с remote плана %s; настройте upstream явно", remote)
+		return u, diagnostic.Errorf("remote upstream текущей ветки должен совпадать с remote плана %s; настройте upstream явно", remote)
 	}
 	ref, err := c.configValue(ctx, "branch."+branch+".merge")
 	if err != nil {
@@ -53,7 +54,7 @@ func (c *Client) CodeUpstream(ctx context.Context, remote string, pulling bool) 
 	}
 	target, ok := strings.CutPrefix(ref, "refs/heads/")
 	if !ok || target == PlanBranch {
-		return u, fmt.Errorf("нужен единственный upstream ветки кода; настройте upstream явно")
+		return u, diagnostic.Errorf("нужен единственный upstream ветки кода; настройте upstream явно")
 	}
 	if _, err := c.BranchRef(ctx, target); err != nil {
 		return u, err
@@ -64,7 +65,7 @@ func (c *Client) CodeUpstream(ctx context.Context, remote string, pulling bool) 
 			return u, err
 		}
 		if value != "" && value != remote {
-			return u, fmt.Errorf("%s указывает на другой remote; обмен остановлен", key)
+			return u, diagnostic.Errorf("%s указывает на другой remote; обмен остановлен", key)
 		}
 	}
 	r, err := c.Run(ctx, "config", "--bool", "--get", "remote."+remote+".mirror")
@@ -72,7 +73,7 @@ func (c *Client) CodeUpstream(ctx context.Context, remote string, pulling bool) 
 		return u, err
 	}
 	if outputLine(r.Stdout) == "true" {
-		return u, fmt.Errorf("mirror remote не поддерживается")
+		return u, diagnostic.Errorf("mirror remote не поддерживается")
 	}
 	var urls []string
 	for _, push := range []bool{false, true} {
@@ -86,12 +87,12 @@ func (c *Client) CodeUpstream(ctx context.Context, remote string, pulling bool) 
 		}
 		url := outputLine(r.Stdout)
 		if url == "" || strings.ContainsAny(url, "\r\n\x00") {
-			return u, fmt.Errorf("обмен требует единственный fetch и push URL")
+			return u, diagnostic.Errorf("обмен требует единственный fetch и push URL")
 		}
 		urls = append(urls, url)
 	}
 	if urls[0] != urls[1] {
-		return u, fmt.Errorf("fetch и push URL различаются; обмен остановлен")
+		return u, diagnostic.Errorf("fetch и push URL различаются; обмен остановлен")
 	}
 	if err := c.CheckStart(ctx, pulling); err != nil {
 		return u, err
@@ -105,7 +106,7 @@ func (c *Client) PushCode(ctx context.Context, u CodeUpstream) error {
 		for _, line := range strings.Split(string(r.Stdout), "\n") {
 			fields := strings.Split(line, "\t")
 			if len(fields) == 3 && fields[1] == u.Head.Ref+":"+u.Ref && (fields[0] == " " || fields[0] == "*" || fields[0] == "=") {
-				return fmt.Errorf("Git подтвердил отправку ветки кода, но завершился ошибкой: %w", err)
+				return diagnostic.Errorf("Git подтвердил отправку ветки кода, но завершился ошибкой: %w", err)
 			}
 		}
 	}
@@ -114,7 +115,7 @@ func (c *Client) PushCode(ctx context.Context, u CodeUpstream) error {
 
 func (c *Client) PullCode(ctx context.Context, u CodeUpstream, mode string) error {
 	if mode != "ff-only" && mode != "merge" && mode != "rebase" {
-		return fmt.Errorf("неподдерживаемый режим pull")
+		return diagnostic.Errorf("неподдерживаемый режим pull")
 	}
 	if _, err := c.RunNetwork(ctx, "fetch", "--no-tags", "--no-recurse-submodules", "--", u.Remote, u.Ref); err != nil {
 		return err
@@ -137,7 +138,7 @@ func (c *Client) PullCode(ctx context.Context, u CodeUpstream, mode string) erro
 		return err
 	}
 	if head != u.Head {
-		return fmt.Errorf("HEAD изменился во время получения кода; интеграция не начата")
+		return diagnostic.Errorf("HEAD изменился во время получения кода; интеграция не начата")
 	}
 	if err := c.CheckStart(ctx, true); err != nil {
 		return err
@@ -151,7 +152,7 @@ func (c *Client) PullCode(ctx context.Context, u CodeUpstream, mode string) erro
 	case "rebase":
 		args = append(args, "--rebase=true", "--ff")
 	default:
-		return fmt.Errorf("неподдерживаемый режим pull")
+		return diagnostic.Errorf("неподдерживаемый режим pull")
 	}
 	_, err = c.RunNetwork(ctx, append(args, "--", ".", tip)...)
 	return err
@@ -159,11 +160,11 @@ func (c *Client) PullCode(ctx context.Context, u CodeUpstream, mode string) erro
 
 func (c *Client) checkRebaseStorage(ctx context.Context, head, tip string) error {
 	if !objectID(head) || !objectID(tip) {
-		return fmt.Errorf("ожидаются commit ID для проверки rebase")
+		return diagnostic.Errorf("ожидаются commit ID для проверки rebase")
 	}
 	r, err := c.Run(ctx, "rev-list", "--parents", head, "^"+tip, "--")
 	if err != nil {
-		return fmt.Errorf("не удалось проверить историю перед rebase: %w", err)
+		return diagnostic.Errorf("не удалось проверить историю перед rebase: %w", err)
 	}
 	checked := make(map[string]bool)
 	for _, commit := range strings.Fields(string(r.Stdout)) {
@@ -171,7 +172,7 @@ func (c *Client) checkRebaseStorage(ctx context.Context, head, tip string) error
 			continue
 		}
 		if err := c.CheckTreeStorage(ctx, commit); err != nil {
-			return fmt.Errorf("rebase не начат: дерево локального коммита или его родителя %s небезопасно для .git-task: %w", commit, err)
+			return diagnostic.Errorf("rebase не начат: дерево локального коммита или его родителя %s небезопасно для .git-task: %w", commit, err)
 		}
 		checked[commit] = true
 	}

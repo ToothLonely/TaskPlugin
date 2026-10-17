@@ -7,16 +7,16 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/task"
 )
 
 // ErrOperation requires explicit recovery, never an automatic repeat of Git.
-var ErrOperation = errors.New("незавершённая операция: сохранён operation.json; требуется явное восстановление")
+var ErrOperation = diagnostic.New("незавершённая операция: сохранён operation.json; требуется явное восстановление")
 
 func (s *Store) noOperation() error {
 	_, err := os.Lstat(filepath.Join(s.dir, "operation.json"))
@@ -87,13 +87,13 @@ func decodeJournal(data []byte) (*Journal, error) {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&j); err != nil {
-		return nil, fmt.Errorf("повреждён operation.json: %w", err)
+		return nil, diagnostic.Errorf("повреждён operation.json: %w", err)
 	}
 	if err := decoder.Decode(new(any)); err != io.EOF {
-		return nil, fmt.Errorf("повреждён operation.json: лишние данные")
+		return nil, diagnostic.Errorf("повреждён operation.json: лишние данные")
 	}
 	if j.Version != 1 || j.Digest != j.checksum() {
-		return nil, fmt.Errorf("повреждён operation.json: версия или контрольная сумма")
+		return nil, diagnostic.Errorf("повреждён operation.json: версия или контрольная сумма")
 	}
 	if _, err := decode(j.Original); err != nil {
 		return nil, err
@@ -129,14 +129,14 @@ func (o *Operation) Prepare(ctx context.Context, base Snapshot, next task.Plan, 
 		return nil, err
 	}
 	if next.Revision <= original.Revision {
-		return nil, fmt.Errorf("операция требует увеличения revision")
+		return nil, diagnostic.Errorf("операция требует увеличения revision")
 	}
 	ignored, err := o.store.guard.StorageIgnored(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if !ignored {
-		return nil, fmt.Errorf(".git-task не исключён из Git")
+		return nil, diagnostic.Errorf(".git-task не исключён из Git")
 	}
 	payload, err := json.Marshal(intent)
 	if err != nil {
@@ -167,7 +167,7 @@ func (o *Operation) verify(j *Journal) error {
 		return err
 	}
 	if !bytes.Equal(current, j.raw) {
-		return fmt.Errorf("журнал изменён: %w", ErrConflict)
+		return diagnostic.Errorf("журнал изменён: %w", ErrConflict)
 	}
 	return nil
 }

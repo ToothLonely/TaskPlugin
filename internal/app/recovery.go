@@ -3,8 +3,8 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/storage"
 )
 
@@ -35,7 +35,7 @@ func (p *Plans) recoverStart(ctx context.Context, preview *storage.Repair) (reco
 			return err
 		}
 		if in.ID == "" || in.TaskID == "" || (in.Kind != "start" && in.Kind != "attach" && in.Kind != "rebind" && in.Kind != "resume") {
-			return fmt.Errorf("неизвестное намерение операции")
+			return diagnostic.Errorf("неизвестное намерение операции")
 		}
 		if err = p.git.CheckStart(ctx, false); err != nil {
 			return err
@@ -73,7 +73,7 @@ func (p *Plans) recoverStart(ctx context.Context, preview *storage.Repair) (reco
 			return err
 		}
 		if err = op.Close(journal); err != nil {
-			return fmt.Errorf("план сохранён; журнал не закрыт: %w", err)
+			return diagnostic.Errorf("план сохранён; журнал не закрыт: %w", err)
 		}
 		recovered = true
 		return nil

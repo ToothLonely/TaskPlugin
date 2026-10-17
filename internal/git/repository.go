@@ -2,14 +2,14 @@ package git
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"path/filepath"
 	"strings"
+
+	"git-task/internal/diagnostic"
 )
 
 // ErrNotWorkTree indicates a repository without a usable working tree.
-var ErrNotWorkTree = errors.New("требуется рабочее дерево Git; bare-репозиторий не поддерживается")
+var ErrNotWorkTree = diagnostic.New("требуется рабочее дерево Git; bare-репозиторий не поддерживается")
 
 // Repository contains absolute paths resolved by Git, not guessed from .git.
 // Discovery alone does not establish support for plan operations (for example,
@@ -26,7 +26,7 @@ type Repository struct {
 func (c *Client) Discover(ctx context.Context) (Repository, error) {
 	inside, err := c.Run(ctx, "rev-parse", "--is-inside-work-tree")
 	if err != nil {
-		return Repository{}, fmt.Errorf("не удалось обнаружить рабочий репозиторий Git: %w", err)
+		return Repository{}, diagnostic.Errorf("не удалось обнаружить рабочий репозиторий Git: %w", err)
 	}
 	if outputLine(inside.Stdout) != "true" {
 		return Repository{}, ErrNotWorkTree
@@ -45,11 +45,11 @@ func (c *Client) Discover(ctx context.Context) (Repository, error) {
 		args := append([]string{"rev-parse", "--path-format=absolute"}, query.args...)
 		result, err := c.Run(ctx, args...)
 		if err != nil {
-			return Repository{}, fmt.Errorf("не удалось определить пути репозитория: %w", err)
+			return Repository{}, diagnostic.Errorf("не удалось определить пути репозитория: %w", err)
 		}
 		path := outputLine(result.Stdout)
 		if !filepath.IsAbs(path) {
-			return Repository{}, fmt.Errorf("Git вернул не абсолютный путь: %q", path)
+			return Repository{}, diagnostic.Errorf("Git вернул не абсолютный путь: %q", path)
 		}
 		*query.dest = filepath.Clean(path)
 	}

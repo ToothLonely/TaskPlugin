@@ -1,8 +1,9 @@
 package task
 
 import (
-	"fmt"
 	"slices"
+
+	"git-task/internal/diagnostic"
 )
 
 // Position selects at most one explicit location by exact task ID.
@@ -40,7 +41,7 @@ func (pos Position) index(order []string) (int, error) {
 	}
 	i := slices.Index(order, anchor)
 	if i < 0 {
-		return 0, fmt.Errorf("%w: опорная задача %q", ErrNotFound, anchor)
+		return 0, diagnostic.Errorf("%w: опорная задача %q", ErrNotFound, anchor)
 	}
 	if pos.Before != "" {
 		return i, nil

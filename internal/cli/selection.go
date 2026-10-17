@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"git-task/internal/app"
+	"git-task/internal/diagnostic"
 	"git-task/internal/task"
 )
 
@@ -75,7 +76,7 @@ func chooseStart(ctx context.Context, plans *app.Plans, options app.StartOptions
 					options.New = title
 					return options, nil
 				}
-				if _, err := fmt.Fprintln(streams.Err, "Название не должно быть пустым."); err != nil {
+				if _, err := fmt.Fprintln(streams.Err, diagnostic.Render(diagnosticLanguage(), diagnostic.New("Название не должно быть пустым."))); err != nil {
 					return result, err
 				}
 			}
@@ -85,7 +86,7 @@ func chooseStart(ctx context.Context, plans *app.Plans, options app.StartOptions
 				options.ID = available[index-1].ID
 				return options, nil
 			}
-			if _, err := fmt.Fprintln(streams.Err, "Неверный выбор; введите номер доступной задачи, n или 0."); err != nil {
+			if _, err := fmt.Fprintln(streams.Err, diagnostic.Render(diagnosticLanguage(), diagnostic.New("Неверный выбор; введите номер доступной задачи, n или 0."))); err != nil {
 				return result, err
 			}
 		}

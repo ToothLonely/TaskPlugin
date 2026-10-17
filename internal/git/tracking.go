@@ -6,13 +6,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"strings"
+
+	"git-task/internal/diagnostic"
 )
 
-var ErrHistoryUnavailable = errors.New("недостаточно локальной истории или превышен бюджет сверки")
+var ErrHistoryUnavailable = diagnostic.New("недостаточно локальной истории или превышен бюджет сверки")
 
 const historyLimit = 4096
 
@@ -83,7 +84,7 @@ func fullOID(s string, zero bool) bool {
 
 func (c *Client) HasObject(ctx context.Context, oid string) (bool, error) {
 	if !fullOID(oid, false) {
-		return false, fmt.Errorf("ожидается полный commit ID")
+		return false, diagnostic.Errorf("ожидается полный commit ID")
 	}
 	_, err := c.Run(ctx, "rev-parse", "--verify", "--quiet", "--end-of-options", oid+"^{commit}")
 	if exitCode(err, 1) {
@@ -94,7 +95,7 @@ func (c *Client) HasObject(ctx context.Context, oid string) (bool, error) {
 
 func (c *Client) IsAncestor(ctx context.Context, ancestor, commit string) (bool, error) {
 	if !fullOID(ancestor, false) || !fullOID(commit, false) {
-		return false, fmt.Errorf("ожидается полный commit ID")
+		return false, diagnostic.Errorf("ожидается полный commit ID")
 	}
 	_, err := c.Run(ctx, "merge-base", "--is-ancestor", ancestor, commit)
 	if exitCode(err, 1) {
@@ -106,7 +107,7 @@ func (c *Client) IsAncestor(ctx context.Context, ancestor, commit string) (bool,
 func (c *Client) OwnWork(ctx context.Context, tip, target, base string) (string, error) {
 	for _, oid := range []string{tip, target, base} {
 		if !fullOID(oid, false) {
-			return "", fmt.Errorf("ожидается полный commit ID")
+			return "", diagnostic.Errorf("ожидается полный commit ID")
 		}
 	}
 	r, err := c.Run(ctx, "rev-list", "--no-merges", "--max-count=1", tip, "^"+target, "^"+base, "--")
@@ -115,7 +116,7 @@ func (c *Client) OwnWork(ctx context.Context, tip, target, base string) (string,
 
 func (c *Client) FirstParentRange(ctx context.Context, target, base string) ([]string, error) {
 	if !fullOID(target, false) || !fullOID(base, false) {
-		return nil, fmt.Errorf("ожидается полный commit ID")
+		return nil, diagnostic.Errorf("ожидается полный commit ID")
 	}
 	r, err := c.Run(ctx, "rev-list", "--first-parent", "--max-count=4097", target, "^"+base, "--")
 	if err != nil {
@@ -133,7 +134,7 @@ func (c *Client) FirstParentRange(ctx context.Context, target, base string) ([]s
 
 func (c *Client) Parents(ctx context.Context, commit string) ([]string, error) {
 	if !fullOID(commit, false) {
-		return nil, fmt.Errorf("ожидается полный commit ID")
+		return nil, diagnostic.Errorf("ожидается полный commit ID")
 	}
 	r, err := c.Run(ctx, "rev-list", "--parents", "--max-count=1", commit, "--")
 	if err != nil {

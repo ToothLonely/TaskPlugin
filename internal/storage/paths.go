@@ -2,10 +2,11 @@ package storage
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"git-task/internal/diagnostic"
 )
 
 // inspectPath rejects symlinks (including Windows junctions reported by Lstat)
@@ -25,7 +26,7 @@ func inspectPath(path string, directory bool) error {
 		return err
 	}
 	if directory && !info.IsDir() || !directory && !info.Mode().IsRegular() {
-		return fmt.Errorf("небезопасный служебный путь: %s", path)
+		return diagnostic.Errorf("небезопасный служебный путь: %s", path)
 	}
 	return nil
 }
@@ -72,7 +73,7 @@ func (s *Store) inspect(holdingLock bool) error {
 				return err
 			}
 			if err := validateBackup(name, data); err != nil {
-				return fmt.Errorf("резервная копия требует разбора: %w", err)
+				return diagnostic.Errorf("резервная копия требует разбора: %w", err)
 			}
 		case "write.lock":
 			if !holdingLock {
@@ -90,13 +91,13 @@ func (s *Store) inspect(holdingLock bool) error {
 				continue
 			}
 			if strings.HasPrefix(name, "pending-") {
-				return fmt.Errorf("%w: сохранён файл %s; требуется разбор прерванной записи", ErrInterrupted, filepath.Join(s.dir, name))
+				return diagnostic.Errorf("%w: сохранён файл %s; требуется разбор прерванной записи", ErrInterrupted, filepath.Join(s.dir, name))
 			}
-			return fmt.Errorf("чужой файл в .git-task: %s", name)
+			return diagnostic.Errorf("чужой файл в .git-task: %s", name)
 		}
 	}
 	if !hasPlan && len(entries) > 0 && !(holdingLock && len(entries) == 1 && entries[0].Name() == "write.lock") {
-		return fmt.Errorf("%w: отсутствует plan.json; сохранены служебные данные", ErrInterrupted)
+		return diagnostic.Errorf("%w: отсутствует plan.json; сохранены служебные данные", ErrInterrupted)
 	}
 	return nil
 }

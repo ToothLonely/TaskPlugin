@@ -140,7 +140,7 @@ func TestGitProcessHelper(t *testing.T) {
 
 func TestLocalOnlyEnvironment(t *testing.T) {
 	c := isolatedClient(t)
-	c.Env = append(c.Env, "GIT_NO_LAZY_FETCH=0", "GIT_ALLOW_PROTOCOL=https", "GIT_TERMINAL_PROMPT=1")
+	c.Env = append(c.Env, "GIT_NO_LAZY_FETCH=0", "GIT_ALLOW_PROTOCOL=https", "GIT_TERMINAL_PROMPT=1", "LC_ALL=fr_FR.UTF-8", "LANGUAGE=fr")
 	settings := map[string]string{}
 	for _, entry := range c.environment() {
 		key, value, _ := strings.Cut(entry, "=")
@@ -151,6 +151,9 @@ func TestLocalOnlyEnvironment(t *testing.T) {
 	}
 	if settings["GIT_NO_LAZY_FETCH"] != "1" || settings["GIT_TERMINAL_PROMPT"] != "0" || settings["GIT_ALLOW_PROTOCOL"] != "" {
 		t.Fatal("local-only policy was overridden")
+	}
+	if settings["LC_ALL"] != "C" || settings["LANGUAGE"] != "C" {
+		t.Fatal("Git diagnostic language was overridden")
 	}
 	// A local file transport is enough to prove transport refusal, without any
 	// network access even if the implementation regresses.

@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"cmp"
 	"encoding/json"
-	"fmt"
 	"math"
 	"reflect"
 	"slices"
 	"unicode/utf8"
+
+	"git-task/internal/diagnostic"
 )
 
 func ApplyPlan(data []byte) (Plan, bool, error) {
@@ -19,7 +20,7 @@ func ApplyPlan(data []byte) (Plan, bool, error) {
 		return Plan{}, false, err
 	}
 	if err := checkJSONFields(json.NewDecoder(bytes.NewReader(data)), true); err != nil {
-		return Plan{}, false, fmt.Errorf("%w: JSON: %v", ErrInvalid, err)
+		return Plan{}, false, diagnostic.Errorf("%w: JSON: %v", ErrInvalid, err)
 	}
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(data, &fields); err != nil || fields == nil {

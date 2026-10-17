@@ -3,11 +3,11 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/storage"
 	"git-task/internal/task"
 	"git-task/internal/transfer"
@@ -29,7 +29,7 @@ func (p *Plans) PrepareImport(ctx context.Context, path, format string) (*Import
 		return nil, storage.ErrOperation
 	}
 	if len(base.Plan.Tasks) != 0 {
-		return nil, fmt.Errorf("импорт требует пустой план; существующие задачи сохранены")
+		return nil, diagnostic.Errorf("импорт требует пустой план; существующие задачи сохранены")
 	}
 	data, err := readImportFile(path)
 	if err != nil {
@@ -45,10 +45,10 @@ func (p *Plans) PrepareImport(ctx context.Context, path, format string) (*Import
 	case "json":
 		next, err = transfer.DecodeJSON(data)
 	default:
-		return nil, fmt.Errorf("неизвестный формат %q", format)
+		return nil, diagnostic.Errorf("неизвестный формат %q", format)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("импорт %s: %w", path, err)
+		return nil, diagnostic.Errorf("импорт %s: %w", path, err)
 	}
 	canonical, err := transfer.EncodeJSON(next)
 	if err != nil {
@@ -63,11 +63,11 @@ func readImportFile(path string) (data []byte, err error) {
 		return nil, err
 	}
 	if !info.Mode().IsRegular() {
-		return nil, fmt.Errorf("источник импорта должен быть обычным файлом: %s", path)
+		return nil, diagnostic.Errorf("источник импорта должен быть обычным файлом: %s", path)
 	}
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("чтение импорта: %w", err)
+		return nil, diagnostic.Errorf("чтение импорта: %w", err)
 	}
 	defer func() { err = errors.Join(err, f.Close()) }()
 	info, err = f.Stat()
@@ -75,14 +75,14 @@ func readImportFile(path string) (data []byte, err error) {
 		return nil, err
 	}
 	if !info.Mode().IsRegular() {
-		return nil, fmt.Errorf("источник импорта должен быть обычным файлом: %s", path)
+		return nil, diagnostic.Errorf("источник импорта должен быть обычным файлом: %s", path)
 	}
 	return io.ReadAll(f)
 }
 
 func (p *Plans) ApplyImport(ctx context.Context, preview *ImportPreview) error {
 	if preview == nil {
-		return fmt.Errorf("отсутствует подготовленный импорт")
+		return diagnostic.Errorf("отсутствует подготовленный импорт")
 	}
 	current, err := p.store.Load(ctx)
 	if err != nil {
@@ -95,7 +95,7 @@ func (p *Plans) ApplyImport(ctx context.Context, preview *ImportPreview) error {
 		return storage.ErrOperation
 	}
 	if len(current.Plan.Tasks) != 0 {
-		return fmt.Errorf("импорт требует пустой план")
+		return diagnostic.Errorf("импорт требует пустой план")
 	}
 	next, err := transfer.DecodeJSON(preview.data)
 	if err != nil {

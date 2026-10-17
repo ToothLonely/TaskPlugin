@@ -5,15 +5,16 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	"git-task/internal/diagnostic"
 )
 
 // ErrUnavailable means that the Git executable could not be found or started.
-var ErrUnavailable = errors.New("Git недоступен; установите Git и проверьте PATH")
+var ErrUnavailable = diagnostic.New("Git недоступен; установите Git и проверьте PATH")
 
 // Client runs Git in Dir. Env is a complete environment; nil inherits the
 // process environment. Configure the client before using it and do not mutate
@@ -28,7 +29,7 @@ type Client struct {
 func New(dir string) (*Client, error) {
 	path, err := exec.LookPath("git")
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrUnavailable, err)
+		return nil, diagnostic.Errorf("%w: %w", ErrUnavailable, err)
 	}
 	return &Client{Dir: dir, executable: path}, nil
 }
@@ -51,9 +52,13 @@ type CommandError struct {
 }
 
 func (e *CommandError) Error() string {
-	message := fmt.Sprintf("Git %q завершился с кодом %d", e.Args, e.Result.ExitCode)
+	return e.Diagnostic().Error()
+}
+
+func (e *CommandError) Diagnostic() error {
+	message := diagnostic.Errorf("Git %q завершился с кодом %d", e.Args, e.Result.ExitCode)
 	if stderr := strings.TrimSpace(string(e.Result.Stderr)); stderr != "" {
-		message += ": " + stderr
+		return diagnostic.Errorf("%v: %s", message, stderr)
 	}
 	return message
 }
@@ -105,7 +110,7 @@ func (c *Client) runCommand(ctx context.Context, input []byte, network, transpor
 		result.ExitCode = cmd.ProcessState.ExitCode()
 	}
 	if ctx.Err() != nil {
-		return result, fmt.Errorf("вызов Git прерван: %w", ctx.Err())
+		return result, diagnostic.Errorf("вызов Git прерван: %w", ctx.Err())
 	}
 	if err == nil {
 		return result, nil
@@ -116,9 +121,9 @@ func (c *Client) runCommand(ctx context.Context, input []byte, network, transpor
 	}
 	_, executableErr := os.Stat(c.executable)
 	if errors.Is(err, exec.ErrNotFound) || errors.Is(executableErr, os.ErrNotExist) {
-		return result, fmt.Errorf("%w: %w", ErrUnavailable, err)
+		return result, diagnostic.Errorf("%w: %w", ErrUnavailable, err)
 	}
-	return result, fmt.Errorf("не удалось выполнить Git: %w", err)
+	return result, diagnostic.Errorf("не удалось выполнить Git: %w", err)
 }
 
 func (c *Client) environment() []string {
@@ -126,14 +131,14 @@ func (c *Client) environment() []string {
 	if env == nil {
 		env = os.Environ()
 	}
-	result := make([]string, 0, len(env)+3)
+	result := make([]string, 0, len(env)+5)
 	for _, entry := range env {
 		key, _, _ := strings.Cut(entry, "=")
 		switch strings.ToUpper(key) {
-		case "GIT_NO_LAZY_FETCH", "GIT_TERMINAL_PROMPT", "GIT_ALLOW_PROTOCOL":
+		case "GIT_NO_LAZY_FETCH", "GIT_TERMINAL_PROMPT", "GIT_ALLOW_PROTOCOL", "LC_ALL", "LANGUAGE":
 			continue
 		}
 		result = append(result, entry)
 	}
-	return append(result, "GIT_NO_LAZY_FETCH=1", "GIT_TERMINAL_PROMPT=0", "GIT_ALLOW_PROTOCOL=")
+	return append(result, "LC_ALL=C", "LANGUAGE=C", "GIT_NO_LAZY_FETCH=1", "GIT_TERMINAL_PROMPT=0", "GIT_ALLOW_PROTOCOL=")
 }

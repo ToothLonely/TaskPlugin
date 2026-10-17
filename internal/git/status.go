@@ -2,9 +2,10 @@ package git
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
+
+	"git-task/internal/diagnostic"
 )
 
 type StatusHead struct {
@@ -25,7 +26,7 @@ func (c *Client) StatusHead(ctx context.Context) (StatusHead, error) {
 	} else {
 		ref := outputLine(r.Stdout)
 		if !strings.HasPrefix(ref, "refs/heads/") {
-			return head, fmt.Errorf("HEAD ссылается вне локальных веток: %q", ref)
+			return head, diagnostic.Errorf("HEAD ссылается вне локальных веток: %q", ref)
 		}
 		branch := strings.TrimPrefix(ref, "refs/heads/")
 		head.Branch = &branch
@@ -55,7 +56,7 @@ func (c *Client) StatusHead(ctx context.Context) (StatusHead, error) {
 		}
 		committedAt, err := time.Parse(time.RFC3339, outputLine(r.Stdout))
 		if err != nil {
-			return head, fmt.Errorf("неверное время Git-коммита: %w", err)
+			return head, diagnostic.Errorf("неверное время Git-коммита: %w", err)
 		}
 		head.CommittedAt = &committedAt
 	}

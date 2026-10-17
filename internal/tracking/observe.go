@@ -3,9 +3,9 @@ package tracking
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/git"
 	"git-task/internal/task"
 )
@@ -247,7 +247,7 @@ func (r Result) Recheck(ctx context.Context, reader Reader, a task.Attempt) erro
 		return err
 	}
 	if tip != r.tip || target != r.target || b.Digest() != r.branchLog || t.Digest() != r.targetLog {
-		return fmt.Errorf("Git изменён во время сверки; повторите sync")
+		return diagnostic.Errorf("Git изменён во время сверки; повторите sync")
 	}
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/git"
 	"git-task/internal/storage"
 	"git-task/internal/task"
@@ -84,4 +85,4 @@ func (p *Plans) StatusState(ctx context.Context) (task.Plan, bool, error) {
 	return plan, false, err
 }
 
-var ErrReceive = errors.New("общая версия не применена; показан локальный план")
+var ErrReceive = diagnostic.New("общая версия не применена; показан локальный план")

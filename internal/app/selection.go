@@ -2,8 +2,8 @@ package app
 
 import (
 	"context"
-	"fmt"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/storage"
 	"git-task/internal/task"
 )
@@ -31,7 +31,7 @@ func (p *Plans) PrepareSelection(ctx context.Context, options StartOptions) (*St
 		return nil, err
 	}
 	if existing != "" {
-		return nil, fmt.Errorf("ветка %q уже существует", options.Branch)
+		return nil, diagnostic.Errorf("ветка %q уже существует", options.Branch)
 	}
 	intent, err := p.prepareIntent(ctx, "start", "", options.Branch, snapshot.Plan.TargetBranch, options.From)
 	if err != nil {

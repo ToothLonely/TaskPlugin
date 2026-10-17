@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"git-task/internal/diagnostic"
 )
 
 func runComplete(ctx context.Context, args []string, streams Streams, open OpenPlans) error {
@@ -23,49 +25,49 @@ func runComplete(ctx context.Context, args []string, streams Streams, open OpenP
 	for i := 0; i < len(args); i++ {
 		if args[i] == "--" {
 			if i+1 != len(args) {
-				return &usageError{"complete не принимает позиционные аргументы"}
+				return &usageError{diagnostic.New("complete не принимает позиционные аргументы")}
 			}
 			break
 		}
 		name, value, valued := strings.Cut(args[i], "=")
 		if seen[name] {
-			return &usageError{fmt.Sprintf("флаг %s указан повторно", name)}
+			return &usageError{diagnostic.Errorf("флаг %s указан повторно", name)}
 		}
 		seen[name] = true
 		switch name {
 		case "--yes", "--help":
 			if valued {
-				return &usageError{fmt.Sprintf("флаг %s не принимает значение", name)}
+				return &usageError{diagnostic.Errorf("флаг %s не принимает значение", name)}
 			}
 			if err := fs.Parse([]string{name}); err != nil {
-				return &usageError{err.Error()}
+				return &usageError{err}
 			}
 		case "--id", "--commit", "--attempt":
 			if !valued {
 				i++
 				if i == len(args) || strings.HasPrefix(args[i], "--") {
-					return &usageError{fmt.Sprintf("флаг %s требует значение", name)}
+					return &usageError{diagnostic.Errorf("флаг %s требует значение", name)}
 				}
 				value = args[i]
 			}
 			if strings.TrimSpace(value) == "" {
-				return &usageError{fmt.Sprintf("пустое значение %s", name)}
+				return &usageError{diagnostic.Errorf("пустое значение %s", name)}
 			}
 			if err := fs.Parse([]string{name + "=" + value}); err != nil {
-				return &usageError{err.Error()}
+				return &usageError{err}
 			}
 		default:
-			return &usageError{fmt.Sprintf("неверный аргумент complete: %q", args[i])}
+			return &usageError{diagnostic.Errorf("неверный аргумент complete: %q", args[i])}
 		}
 	}
 	if help {
 		return writeHelp(streams.Out, "complete")
 	}
 	if id == "" {
-		return &usageError{"complete требует --id"}
+		return &usageError{diagnostic.New("complete требует --id")}
 	}
 	if open == nil {
-		return fmt.Errorf("операции плана не подключены")
+		return diagnostic.Errorf("операции плана не подключены")
 	}
 	plans, err := open(ctx)
 	if err != nil {
@@ -94,18 +96,18 @@ func runComplete(ctx context.Context, args []string, streams Streams, open OpenP
 		return err
 	}
 	if _, err := fmt.Fprintf(streams.Out, "[%s] %s — %s\n", item.ID, item.Status, item.Title); err != nil {
-		return fmt.Errorf("задача уже завершена; ошибка вывода: %w", err)
+		return diagnostic.Errorf("задача уже завершена; ошибка вывода: %w", err)
 	}
 	return nil
 }
 
 func confirmComplete(ctx context.Context, streams Streams) (confirmed bool, err error) {
 	if streams.OpenDialogue == nil {
-		return false, fmt.Errorf("подтверждение complete требует терминал; используйте --yes")
+		return false, diagnostic.Errorf("подтверждение complete требует терминал; используйте --yes")
 	}
 	input, err := streams.OpenDialogue()
 	if err != nil {
-		return false, fmt.Errorf("подтверждение complete требует терминал; используйте --yes: %w", err)
+		return false, diagnostic.Errorf("подтверждение complete требует терминал; используйте --yes: %w", err)
 	}
 	defer func() { err = errors.Join(err, input.Close()) }()
 	line, err := promptLine(ctx, input, streams.Err, "Подтвердить связь с задачей и завершить? [да/НЕТ]: ")

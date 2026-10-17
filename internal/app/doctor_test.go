@@ -59,7 +59,7 @@ func TestDoctorHookDiagnosisBoundary(t *testing.T) {
 				if f.Problem != (mode != "result") || f.Next == "" {
 					t.Fatalf("hook finding: %+v", f)
 				}
-				if mode == "result" && !strings.Contains(f.Detail, "provided-hook") {
+				if mode == "result" && !strings.Contains(f.Detail.Error(), "provided-hook") {
 					t.Fatalf("supplied result missing: %+v", f)
 				}
 			}
@@ -305,9 +305,9 @@ func TestDoctorPendingLostAckAndForeignApproachStayReadOnly(t *testing.T) {
 	}
 	found := false
 	for _, finding := range d.Findings {
-		if finding.Name == "подход" && strings.Contains(finding.Detail, item.ActiveAttempt.ID) {
+		if finding.Name == "подход" && strings.Contains(finding.Detail.Error(), item.ActiveAttempt.ID) {
 			found = true
-			if finding.Problem || !strings.Contains(finding.Detail, "local=false") || !strings.Contains(finding.Detail, "Alice") {
+			if finding.Problem || !strings.Contains(finding.Detail.Error(), "local=false") || !strings.Contains(finding.Detail.Error(), "Alice") {
 				t.Fatalf("foreign approach: %+v", finding)
 			}
 		}

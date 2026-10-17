@@ -2,11 +2,12 @@ package task
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"git-task/internal/diagnostic"
 )
 
 func blank(s string) bool { return strings.TrimSpace(s) == "" }
@@ -145,7 +146,7 @@ func (p Plan) Validate() error {
 		}
 		ids[t.ID] = true
 		if err := t.validate(); err != nil {
-			return fmt.Errorf("задача %q: %w", t.ID, err)
+			return diagnostic.Errorf("задача %q: %w", t.ID, err)
 		}
 		for _, a := range t.Attempts {
 			if attempts[a.ID] {
@@ -167,7 +168,7 @@ func (p Plan) Validate() error {
 					return invalid("неверная цель подхода")
 				}
 				if owner, ok := branches[a.Branch]; ok {
-					return fmt.Errorf("%w: %q (%s, %s)", ErrBranchInUse, a.Branch, owner, t.ID)
+					return diagnostic.Errorf("%w: %q (%s, %s)", ErrBranchInUse, a.Branch, owner, t.ID)
 				}
 				branches[a.Branch] = t.ID
 			}

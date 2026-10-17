@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"git-task/internal/diagnostic"
 	"git-task/internal/git"
 	"git-task/internal/storage"
 )
@@ -20,7 +21,7 @@ func (p *Plans) PrepareRepair(ctx context.Context, action string) (*RepairPrevie
 	}
 	if r.Plan != nil && r.Plan.Team != nil {
 		if err := checkQueue(*r.Plan); err != nil {
-			return nil, fmt.Errorf("backup содержит несовместимую очередь; исходники сохранены: %w", err)
+			return nil, diagnostic.Errorf("backup содержит несовместимую очередь; исходники сохранены: %w", err)
 		}
 	}
 	preview := &RepairPreview{Storage: r}
@@ -39,7 +40,7 @@ func (p *Plans) ApplyRepair(ctx context.Context, preview *RepairPreview) (string
 		return "", err
 	}
 	if preview == nil || preview.Storage == nil {
-		return "", fmt.Errorf("нет предпросмотра repair")
+		return "", diagnostic.Errorf("нет предпросмотра repair")
 	}
 	if preview.Storage.Action == "recover-start" {
 		if preview.Storage.NoChange {
@@ -57,7 +58,7 @@ func (p *Plans) ApplyRepair(ctx context.Context, preview *RepairPreview) (string
 	}
 	path, err := p.store.ApplyRepair(ctx, preview.Storage)
 	if err != nil && path != "" {
-		err = errors.Join(err, fmt.Errorf("оригинал сохранён: %s", path))
+		err = errors.Join(err, diagnostic.Errorf("оригинал сохранён: %s", path))
 	}
 	return path, err
 }

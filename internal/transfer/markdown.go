@@ -5,6 +5,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/task"
 )
 
@@ -21,24 +22,24 @@ func DecodeMarkdown(data []byte, target string) (task.Plan, error) {
 			line = strings.TrimSuffix(line, "\r")
 		}
 		if !utf8.ValidString(line) || strings.ContainsRune(line, '\r') {
-			return task.Plan{}, fmt.Errorf("строка %d: требуется UTF-8 и LF/CRLF", i+1)
+			return task.Plan{}, diagnostic.Errorf("строка %d: требуется UTF-8 и LF/CRLF", i+1)
 		}
 		if strings.TrimSpace(line) == "" || heading(line) {
 			continue
 		}
 		if len(line) < 6 || line[:3] != "- [" || line[4:6] != "] " || !strings.ContainsRune(" xX", rune(line[3])) {
-			return task.Plan{}, fmt.Errorf("строка %d: ожидается плоский пункт - [ ] title или - [x] title", i+1)
+			return task.Plan{}, diagnostic.Errorf("строка %d: ожидается плоский пункт - [ ] title или - [x] title", i+1)
 		}
 		added, err := plan.Add(line[6:], "", task.Position{})
 		if err != nil {
-			return task.Plan{}, fmt.Errorf("строка %d: %w", i+1, err)
+			return task.Plan{}, diagnostic.Errorf("строка %d: %w", i+1, err)
 		}
 		if line[3] != ' ' {
 			completed = append(completed, added.ID)
 		}
 	}
 	if len(plan.Tasks) == 0 {
-		return task.Plan{}, fmt.Errorf("Markdown не содержит пунктов чеклиста")
+		return task.Plan{}, diagnostic.Errorf("Markdown не содержит пунктов чеклиста")
 	}
 	for _, id := range completed {
 		if _, err := plan.Complete(id, "imported-"+id, task.Completion{Source: task.Imported, TargetBranch: target}); err != nil {
@@ -64,7 +65,7 @@ func EncodeMarkdown(plan task.Plan) ([]byte, error) {
 			return nil, err
 		}
 		if strings.ContainsAny(item.Title, "\r\n\u0085\u2028\u2029") {
-			return nil, fmt.Errorf("задача %q: title содержит перевод строки; используйте --format json", id)
+			return nil, diagnostic.Errorf("задача %q: title содержит перевод строки; используйте --format json", id)
 		}
 		mark := " "
 		if item.Status == task.Done {

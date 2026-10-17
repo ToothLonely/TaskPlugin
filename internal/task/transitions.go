@@ -1,10 +1,11 @@
 package task
 
 import (
-	"fmt"
 	"math"
 	"slices"
 	"time"
+
+	"git-task/internal/diagnostic"
 )
 
 // Start applies an already successful Git start to an explicitly resolved ID.
@@ -15,7 +16,7 @@ func (p *Plan) Start(id string, a Attempt, again bool) (bool, error) {
 			return false, ErrAgainRequired
 		}
 		if t.Status == Archived || again && t.Status != Done {
-			return false, fmt.Errorf("%w: start из %s; для paused используйте resume", ErrTransition, t.Status)
+			return false, diagnostic.Errorf("%w: start из %s; для paused используйте resume", ErrTransition, t.Status)
 		}
 		if a.Completion != nil || len(a.Rebindings) != 0 || a.OriginalBranch != a.Branch {
 			return false, invalid("start требует новый подход")
@@ -36,7 +37,7 @@ func (p *Plan) Attach(id string, a Attempt) (bool, error) {
 		return false, err
 	}
 	if t.Status == Archived || t.Status == Done {
-		return false, fmt.Errorf("%w: attach из %s", ErrTransition, t.Status)
+		return false, diagnostic.Errorf("%w: attach из %s", ErrTransition, t.Status)
 	}
 	return p.Start(id, a, false)
 }
@@ -95,7 +96,7 @@ func (p *Plan) Archive(id string) (bool, error) {
 func (p *Plan) Rebind(id, branch, base string, observed time.Time, attemptIDs ...string) (bool, error) {
 	return p.change(id, func(_ *Plan, t *Task) (bool, error) {
 		if t.Status != Active && t.Status != Paused {
-			return false, fmt.Errorf("%w: rebind из %s", ErrTransition, t.Status)
+			return false, diagnostic.Errorf("%w: rebind из %s", ErrTransition, t.Status)
 		}
 		a, err := t.selected(attemptIDs)
 		if err != nil {
@@ -122,16 +123,16 @@ func (p *Plan) Complete(id, attemptID string, c Completion) (bool, error) {
 			if old.ID == attemptID && old.Completion != nil {
 				previous := old.Completion
 				if previous.Source != c.Source || previous.Commit != c.Commit || previous.WorkCommit != c.WorkCommit || previous.MergeKind != c.MergeKind || previous.TargetBranch != c.TargetBranch || previous.TargetBefore != c.TargetBefore {
-					return false, fmt.Errorf("%w: история завершения неизменяема", ErrTransition)
+					return false, diagnostic.Errorf("%w: история завершения неизменяема", ErrTransition)
 				}
 				return false, nil
 			}
 		}
 		if t.Status != Todo && t.Status != Active && t.Status != Paused {
-			return false, fmt.Errorf("%w: complete из %s", ErrTransition, t.Status)
+			return false, diagnostic.Errorf("%w: complete из %s", ErrTransition, t.Status)
 		}
 		if c.Source == Imported && t.Status != Todo {
-			return false, fmt.Errorf("%w: imported требует todo", ErrTransition)
+			return false, diagnostic.Errorf("%w: imported требует todo", ErrTransition)
 		}
 		if c.TargetBranch != next.TargetBranch {
 			return false, invalid("неверная цель завершения")
@@ -183,7 +184,7 @@ func (p *Plan) CompleteManual(id, attemptID, commit string, at time.Time) (bool,
 		if commit == "" {
 			return false, nil
 		}
-		return false, fmt.Errorf("%w: новое доказательство для done", ErrTransition)
+		return false, diagnostic.Errorf("%w: новое доказательство для done", ErrTransition)
 	}
 	if t.Status != Todo {
 		ids := []string{}

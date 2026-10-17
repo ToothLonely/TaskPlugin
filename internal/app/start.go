@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/git"
 	"git-task/internal/storage"
 	"git-task/internal/task"
@@ -65,7 +66,7 @@ func selectStart(plan *task.Plan, options StartOptions) (task.Task, error) {
 		}
 	}
 	if options.Branch == "" || selectors > 1 || options.Again && (options.ID == "" && options.Title == "") {
-		return task.Task{}, fmt.Errorf("неверные параметры start")
+		return task.Task{}, diagnostic.Errorf("неверные параметры start")
 	}
 	var selected task.Task
 	var err error
@@ -80,7 +81,7 @@ func selectStart(plan *task.Plan, options StartOptions) (task.Task, error) {
 		selected, err = plan.FirstTodo()
 	}
 	if options.Title != "" && errors.Is(err, task.ErrAmbiguous) {
-		return task.Task{}, fmt.Errorf("%w; укажите --id", err)
+		return task.Task{}, diagnostic.Errorf("%w; укажите --id", err)
 	}
 	if err != nil {
 		return task.Task{}, err
@@ -90,7 +91,7 @@ func selectStart(plan *task.Plan, options StartOptions) (task.Task, error) {
 		if options.Title != "" {
 			selector = fmt.Sprintf("--title %q", options.Title)
 		}
-		return task.Task{}, fmt.Errorf("%w; git task start %q %s --again", task.ErrAgainRequired, options.Branch, selector)
+		return task.Task{}, diagnostic.Errorf("%w; git task start %q %s --again", task.ErrAgainRequired, options.Branch, selector)
 	}
 	return selected, nil
 }
@@ -108,13 +109,13 @@ func (p *Plans) Start(ctx context.Context, options StartOptions) (result task.Ta
 		}
 		if options.Selection != nil {
 			if !base.SameVersion(options.Selection.snapshot) {
-				return fmt.Errorf("%w; повторите --select", storage.ErrConflict)
+				return diagnostic.Errorf("%w; повторите --select", storage.ErrConflict)
 			}
 			if err := p.unchangedBase(ctx, options.Selection.intent); err != nil {
-				return fmt.Errorf("основание меню изменилось; повторите --select: %w", err)
+				return diagnostic.Errorf("основание меню изменилось; повторите --select: %w", err)
 			}
 			if err := p.sameHead(ctx, options.Selection.intent.Head); err != nil {
-				return fmt.Errorf("повторите --select: %w", err)
+				return diagnostic.Errorf("повторите --select: %w", err)
 			}
 		}
 		next := base.Plan
@@ -130,14 +131,14 @@ func (p *Plans) Start(ctx context.Context, options StartOptions) (result task.Ta
 			return err
 		}
 		if existing != "" {
-			return fmt.Errorf("ветка %q уже существует", options.Branch)
+			return diagnostic.Errorf("ветка %q уже существует", options.Branch)
 		}
 		intent, err := p.prepareIntent(ctx, "start", selected.ID, options.Branch, base.Plan.TargetBranch, options.From)
 		if err != nil {
 			return err
 		}
 		if intent.Head.Ref == "" {
-			return fmt.Errorf("HEAD отсоединён; сначала явно выберите ветку")
+			return diagnostic.Errorf("HEAD отсоединён; сначала явно выберите ветку")
 		}
 		now := time.Now().UTC()
 		attempt := task.Attempt{ID: intent.ID, Branch: intent.Branch, OriginalBranch: intent.Branch, TargetBranch: intent.Target, BaseCommit: intent.Base, StartedAt: &now}
@@ -195,7 +196,7 @@ func (p *Plans) Start(ctx context.Context, options StartOptions) (result task.Ta
 			return err
 		}
 		if !owned {
-			return fmt.Errorf("созданная ветка изменена до checkout: %w", storage.ErrOperation)
+			return diagnostic.Errorf("созданная ветка изменена до checkout: %w", storage.ErrOperation)
 		}
 		if err = p.unchangedBase(ctx, intent); err != nil {
 			return err
@@ -226,10 +227,10 @@ func (p *Plans) Start(ctx context.Context, options StartOptions) (result task.Ta
 			return errors.Join(checkoutErr, err)
 		}
 		if err = op.Close(journal); err != nil {
-			return fmt.Errorf("задача уже запущена; журнал не закрыт: %w", errors.Join(checkoutErr, err))
+			return diagnostic.Errorf("задача уже запущена; журнал не закрыт: %w", errors.Join(checkoutErr, err))
 		}
 		if checkoutErr != nil {
-			return fmt.Errorf("задача уже запущена; Git/hook сообщил ошибку: %w", checkoutErr)
+			return diagnostic.Errorf("задача уже запущена; Git/hook сообщил ошибку: %w", checkoutErr)
 		}
 		return nil
 	})
@@ -244,7 +245,7 @@ func (p *Plans) prepareIntent(ctx context.Context, kind, id, branch, target, fro
 		return in, err
 	}
 	if in.TargetCommit == "" {
-		return in, fmt.Errorf("целевая ветка %q отсутствует", target)
+		return in, diagnostic.Errorf("целевая ветка %q отсутствует", target)
 	}
 	in.Base, in.BaseRef = in.TargetCommit, "refs/heads/"+target
 	if from != "" {
@@ -267,7 +268,7 @@ func (p *Plans) sameHead(ctx context.Context, expected git.Head) error {
 		return err
 	}
 	if actual != expected {
-		return fmt.Errorf("HEAD изменён; требуется восстановление")
+		return diagnostic.Errorf("HEAD изменён; требуется восстановление")
 	}
 	return nil
 }
@@ -278,7 +279,7 @@ func (p *Plans) unchangedBase(ctx context.Context, in startIntent) error {
 		return err
 	}
 	if target != in.TargetCommit {
-		return fmt.Errorf("целевая ветка изменена; требуется восстановление")
+		return diagnostic.Errorf("целевая ветка изменена; требуется восстановление")
 	}
 	if in.BaseRef != "" {
 		actual, _, err := p.git.ResolveBase(ctx, in.BaseRef)
@@ -286,7 +287,7 @@ func (p *Plans) unchangedBase(ctx context.Context, in startIntent) error {
 			return err
 		}
 		if actual != in.Base {
-			return fmt.Errorf("основание изменено; требуется восстановление")
+			return diagnostic.Errorf("основание изменено; требуется восстановление")
 		}
 	}
 	return nil
@@ -305,7 +306,7 @@ func (p *Plans) verifyEffect(ctx context.Context, in startIntent) error {
 			return err
 		}
 		if !owned {
-			return fmt.Errorf("переключение resume не подтверждено: %w", storage.ErrOperation)
+			return diagnostic.Errorf("переключение resume не подтверждено: %w", storage.ErrOperation)
 		}
 		return nil
 	}
@@ -315,7 +316,7 @@ func (p *Plans) verifyEffect(ctx context.Context, in startIntent) error {
 			return err
 		}
 		if !owned {
-			return fmt.Errorf("владение созданной веткой не подтверждено")
+			return diagnostic.Errorf("владение созданной веткой не подтверждено")
 		}
 		return p.sameHead(ctx, git.Head{Ref: "refs/heads/" + in.Branch, Commit: in.Base})
 	}
@@ -324,7 +325,7 @@ func (p *Plans) verifyEffect(ctx context.Context, in startIntent) error {
 		return err
 	}
 	if actual != in.Base {
-		return fmt.Errorf("привязываемая ветка изменена")
+		return diagnostic.Errorf("привязываемая ветка изменена")
 	}
 	return nil
 }

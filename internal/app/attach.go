@@ -3,9 +3,9 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/git"
 	"git-task/internal/storage"
 	"git-task/internal/task"
@@ -29,14 +29,14 @@ func (p *Plans) Attach(ctx context.Context, branch, id string, rebind bool, atte
 		}
 		id = selected.ID
 		if branch == base.Plan.TargetBranch {
-			return fmt.Errorf("нельзя привязать целевую ветку")
+			return diagnostic.Errorf("нельзя привязать целевую ветку")
 		}
 		commit, err := p.git.BranchCommit(ctx, branch)
 		if err != nil {
 			return err
 		}
 		if commit == "" {
-			return fmt.Errorf("ветка %q отсутствует", branch)
+			return diagnostic.Errorf("ветка %q отсутствует", branch)
 		}
 		if err = p.git.CheckStart(ctx, false); err != nil {
 			return err

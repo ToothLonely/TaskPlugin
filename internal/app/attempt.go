@@ -2,10 +2,10 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"slices"
 	"strings"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/task"
 )
 
@@ -15,7 +15,7 @@ func (p *Plans) author(ctx context.Context) (string, error) {
 
 func (p *Plans) selectAttempt(ctx context.Context, plan task.Plan, item task.Task, ids []string) (task.Attempt, error) {
 	if len(ids) > 1 {
-		return task.Attempt{}, fmt.Errorf("несколько селекторов подхода")
+		return task.Attempt{}, diagnostic.Errorf("несколько селекторов подхода")
 	}
 	if len(ids) == 1 && ids[0] != "" {
 		a, err := item.Attempt(ids[0])
@@ -41,7 +41,7 @@ func (p *Plans) selectAttempt(ctx context.Context, plan task.Plan, item task.Tas
 		matches = append(matches, a)
 	}
 	if len(matches) != 1 {
-		return task.Attempt{}, fmt.Errorf("%w: используйте --attempt <id>", task.ErrAmbiguous)
+		return task.Attempt{}, diagnostic.Errorf("%w: используйте --attempt <id>", task.ErrAmbiguous)
 	}
 	return matches[0], nil
 }
@@ -60,7 +60,7 @@ func markLocal(plan *task.Plan, id string) {
 
 func validateRemoteName(name string) error {
 	if name == "" || strings.HasPrefix(name, "-") || strings.ContainsAny(name, "/\\ \x00\r\n:") {
-		return fmt.Errorf("неверное имя remote")
+		return diagnostic.Errorf("неверное имя remote")
 	}
 	return nil
 }

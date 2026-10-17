@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
+
+	"git-task/internal/diagnostic"
 )
 
 func (s *Store) exclude(ctx context.Context) error {
@@ -35,7 +36,7 @@ func (s *Store) exclude(ctx context.Context) error {
 		_, writeErr := f.Write(suffix)
 		err = errors.Join(writeErr, f.Sync(), f.Close())
 		if err != nil {
-			return fmt.Errorf("запись info/exclude: %w", err)
+			return diagnostic.Errorf("запись info/exclude: %w", err)
 		}
 	}
 	ignored, err := s.guard.StorageIgnored(ctx)
@@ -43,7 +44,7 @@ func (s *Store) exclude(ctx context.Context) error {
 		return err
 	}
 	if !ignored {
-		return fmt.Errorf("правила Git переопределяют /.git-task/; исправьте конфликт исключений")
+		return diagnostic.Errorf("правила Git переопределяют /.git-task/; исправьте конфликт исключений")
 	}
 	return nil
 }

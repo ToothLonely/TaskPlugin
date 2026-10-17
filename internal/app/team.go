@@ -9,6 +9,7 @@ import (
 	"slices"
 	"time"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/git"
 	"git-task/internal/storage"
 	"git-task/internal/task"
@@ -29,11 +30,11 @@ func (p *Plans) Connect(ctx context.Context, remote string) error {
 		return storage.ErrOperation
 	}
 	if base.Plan.TargetBranch == git.PlanBranch {
-		return fmt.Errorf("служебная ветка не может быть target_branch")
+		return diagnostic.Errorf("служебная ветка не может быть target_branch")
 	}
 	if base.Plan.Team != nil {
 		if base.Plan.Team.Remote != remote {
-			return fmt.Errorf("план уже подключён к remote %s", base.Plan.Team.Remote)
+			return diagnostic.Errorf("план уже подключён к remote %s", base.Plan.Team.Remote)
 		}
 		return p.Publish(ctx)
 	}
@@ -76,7 +77,7 @@ func (p *Plans) localPlanBranch(ctx context.Context) (string, error) {
 		return "", err
 	}
 	if head.Ref == "refs/heads/"+git.PlanBranch {
-		return "", fmt.Errorf("переключитесь с ветки git-task-plan на ветку кода")
+		return "", diagnostic.Errorf("переключитесь с ветки git-task-plan на ветку кода")
 	}
 	tip, err := p.git.BranchCommit(ctx, git.PlanBranch)
 	if err != nil || tip == "" {
@@ -94,7 +95,7 @@ func (p *Plans) localPlanBranch(ctx context.Context) (string, error) {
 
 func decodeBase(plan task.Plan) (task.Plan, error) {
 	if plan.Team == nil {
-		return task.Plan{}, fmt.Errorf("командный режим не подключён; git task team connect --remote <name>")
+		return task.Plan{}, diagnostic.Errorf("командный режим не подключён; git task team connect --remote <name>")
 	}
 	return task.ValidateShared(plan.Team.Base)
 }
@@ -113,7 +114,7 @@ func checkQueue(plan task.Plan) error {
 		return err
 	}
 	if !reflect.DeepEqual(material(expected), material(plan)) {
-		return fmt.Errorf("%w: локальная правка вне очереди; сохраните JSON экспортом", task.ErrSharedConflict)
+		return diagnostic.Errorf("%w: локальная правка вне очереди; сохраните JSON экспортом", task.ErrSharedConflict)
 	}
 	return nil
 }
@@ -161,7 +162,7 @@ func (p *Plans) applyReceived(ctx context.Context, base storage.Snapshot, tip st
 		return p.store.PreserveShared(ctx, data, err)
 	}
 	if tip == "" && base.Plan.Team.BaseCommit != "" {
-		return fmt.Errorf("общая ветка исчезла; локальный план и очередь сохранены")
+		return diagnostic.Errorf("общая ветка исчезла; локальный план и очередь сохранены")
 	}
 	if err := task.ValidateSharedAdvance(old, remote); err != nil {
 		return p.store.PreserveShared(ctx, data, err)
@@ -292,7 +293,7 @@ func (p *Plans) Publish(ctx context.Context) error {
 			return p.store.PreserveShared(ctx, data, err)
 		}
 		if tip == "" && base.Plan.Team.BaseCommit != "" {
-			return fmt.Errorf("общая ветка исчезла; публикация остановлена")
+			return diagnostic.Errorf("общая ветка исчезла; публикация остановлена")
 		}
 		if err := task.ValidateSharedAdvance(old, remote); err != nil {
 			return p.store.PreserveShared(ctx, data, err)
@@ -339,7 +340,7 @@ func (p *Plans) Publish(ctx context.Context) error {
 		}
 		return p.applyReceived(ctx, base, commit, true)
 	}
-	return fmt.Errorf("%w: исчерпаны три попытки; очередь сохранена, git task team publish", git.ErrPushRace)
+	return diagnostic.Errorf("%w: исчерпаны три попытки; очередь сохранена, git task team publish", git.ErrPushRace)
 }
 
 func (p *Plans) PublishIfConnected(ctx context.Context) error {

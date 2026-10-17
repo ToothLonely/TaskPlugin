@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"git-task/internal/app"
+	"git-task/internal/diagnostic"
 	"git-task/internal/storage"
 	"git-task/internal/task"
 )
@@ -57,20 +58,20 @@ func parsePlanArgs(command string, args []string) (planArgs, error) {
 		boolean := name == "--help" || command == "add" && name == "--end" || command == "init" && name == "--apply"
 		valued := command == "init" && name == "--target" || command == "add" && (name == "--description" || name == "--after" || name == "--before")
 		if !boolean && !valued {
-			return result, &usageError{fmt.Sprintf("неизвестный флаг %q", name)}
+			return result, &usageError{diagnostic.Errorf("неизвестный флаг %q", name)}
 		}
 		if seen[name] {
-			return result, &usageError{fmt.Sprintf("флаг %s указан повторно", name)}
+			return result, &usageError{diagnostic.Errorf("флаг %s указан повторно", name)}
 		}
 		seen[name] = true
 		if boolean {
 			if hasValue {
-				return result, &usageError{fmt.Sprintf("флаг %s не принимает значение", name)}
+				return result, &usageError{diagnostic.Errorf("флаг %s не принимает значение", name)}
 			}
 		} else if !hasValue {
 			i++
 			if i == len(args) || strings.HasPrefix(args[i], "--") {
-				return result, &usageError{fmt.Sprintf("флаг %s требует значение", name)}
+				return result, &usageError{diagnostic.Errorf("флаг %s требует значение", name)}
 			}
 			value = args[i]
 		}
@@ -79,15 +80,15 @@ func parsePlanArgs(command string, args []string) (planArgs, error) {
 			parsedFlag += "=" + value
 		}
 		if err := fs.Parse([]string{parsedFlag}); err != nil {
-			return result, &usageError{err.Error()}
+			return result, &usageError{err}
 		}
 		if valued && name != "--description" && strings.TrimSpace(value) == "" {
-			return result, &usageError{fmt.Sprintf("пустое значение %s", name)}
+			return result, &usageError{diagnostic.Errorf("пустое значение %s", name)}
 		}
 	}
 	result.targetSet = seen["--target"]
 	if result.apply && result.targetSet {
-		return result, &usageError{"--apply и --target взаимоисключающие; укажите target_branch в шаблоне"}
+		return result, &usageError{diagnostic.New("--apply и --target взаимоисключающие; укажите target_branch в шаблоне")}
 	}
 	count := 0
 	for _, name := range []string{"--after", "--before", "--end"} {
@@ -96,19 +97,19 @@ func parsePlanArgs(command string, args []string) (planArgs, error) {
 		}
 	}
 	if count > 1 {
-		return result, &usageError{"--after, --before и --end взаимоисключающие"}
+		return result, &usageError{diagnostic.New("--after, --before и --end взаимоисключающие")}
 	}
 	expected := 0
 	if command == "add" {
 		expected = 1
 	}
 	if len(positionals) > expected || !result.help && len(positionals) != expected {
-		return result, &usageError{fmt.Sprintf("%s: требуется позиционных аргументов: %d", command, expected)}
+		return result, &usageError{diagnostic.Errorf("%s: требуется позиционных аргументов: %d", command, expected)}
 	}
 	if len(positionals) == 1 {
 		result.title = positionals[0]
 		if strings.TrimSpace(result.title) == "" {
-			return result, &usageError{"title не должен быть пустым"}
+			return result, &usageError{diagnostic.New("title не должен быть пустым")}
 		}
 	}
 	return result, nil
@@ -123,7 +124,7 @@ func runPlan(ctx context.Context, command string, args []string, streams Streams
 		return writeHelp(streams.Out, command)
 	}
 	if open == nil {
-		return fmt.Errorf("операции плана не подключены")
+		return diagnostic.Errorf("операции плана не подключены")
 	}
 	plans, err := open(ctx)
 	if err != nil {
@@ -136,14 +137,14 @@ func runPlan(ctx context.Context, command string, args []string, streams Streams
 			return err
 		}
 		if err = writeWarnings(streams.Err, plan); err != nil {
-			return fmt.Errorf("сверка выполнена; ошибка вывода: %w", err)
+			return diagnostic.Errorf("сверка выполнена; ошибка вывода: %w", err)
 		}
 		message := "План согласован с Git; изменений нет."
 		if changed {
 			message = "План обновлён по локальным данным Git."
 		}
 		if _, err = fmt.Fprintln(streams.Out, message); err != nil {
-			return fmt.Errorf("сверка выполнена; ошибка вывода: %w", err)
+			return diagnostic.Errorf("сверка выполнена; ошибка вывода: %w", err)
 		}
 		return nil
 	case "init":
@@ -168,12 +169,12 @@ func runPlan(ctx context.Context, command string, args []string, streams Streams
 		}
 		if unborn {
 			if _, err = fmt.Fprintln(streams.Err, "Предупреждение: в репозитории ещё нет commit; запуск задач потребует существующего основания."); err != nil {
-				return fmt.Errorf("инициализация выполнена; не удалось вывести предупреждение: %w", err)
+				return diagnostic.Errorf("инициализация выполнена; не удалось вывести предупреждение: %w", err)
 			}
 		}
 		_, err = fmt.Fprintln(streams.Out, message)
 		if err != nil {
-			return fmt.Errorf("инициализация выполнена; не удалось вывести результат: %w", err)
+			return diagnostic.Errorf("инициализация выполнена; не удалось вывести результат: %w", err)
 		}
 		return err
 	case "add":
@@ -183,11 +184,11 @@ func runPlan(ctx context.Context, command string, args []string, streams Streams
 		}
 		_, err = fmt.Fprintf(streams.Out, "Добавлена [%s]: %s\n", added.ID, added.Title)
 		if err != nil {
-			return fmt.Errorf("задача %s уже добавлена; не удалось вывести результат: %w", added.ID, err)
+			return diagnostic.Errorf("задача %s уже добавлена; не удалось вывести результат: %w", added.ID, err)
 		}
 		return err
 	}
-	return &usageError{"неизвестная команда плана"}
+	return &usageError{diagnostic.New("неизвестная команда плана")}
 }
 
 func writeWarnings(out io.Writer, plan task.Plan) error {

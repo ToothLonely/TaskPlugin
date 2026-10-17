@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -14,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"git-task/internal/app"
+	"git-task/internal/diagnostic"
 	"git-task/internal/task"
 )
 
@@ -24,23 +24,23 @@ type editDocument struct {
 
 func parseEditDocument(data []byte) (task.EditOptions, error) {
 	if !utf8.Valid(data) {
-		return task.EditOptions{}, fmt.Errorf("документ редактора должен быть UTF-8")
+		return task.EditOptions{}, diagnostic.Errorf("документ редактора должен быть UTF-8")
 	}
 	var document editDocument
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	opening, err := decoder.Token()
 	if err != nil || opening != json.Delim('{') {
-		return task.EditOptions{}, fmt.Errorf("документ редактора должен быть JSON-объектом")
+		return task.EditOptions{}, diagnostic.Errorf("документ редактора должен быть JSON-объектом")
 	}
 	seen := map[string]bool{}
 	for decoder.More() {
 		token, err := decoder.Token()
 		if err != nil {
-			return task.EditOptions{}, fmt.Errorf("невалидный документ редактора: %w", err)
+			return task.EditOptions{}, diagnostic.Errorf("невалидный документ редактора: %w", err)
 		}
 		key, ok := token.(string)
 		if !ok || seen[key] || key != "title" && key != "description" {
-			return task.EditOptions{}, fmt.Errorf("неизвестное или повторное поле редактора: %v", token)
+			return task.EditOptions{}, diagnostic.Errorf("неизвестное или повторное поле редактора: %v", token)
 		}
 		seen[key] = true
 		field := &document.Title
@@ -48,17 +48,17 @@ func parseEditDocument(data []byte) (task.EditOptions, error) {
 			field = &document.Description
 		}
 		if err := decoder.Decode(field); err != nil {
-			return task.EditOptions{}, fmt.Errorf("невалидное поле %s: %w", key, err)
+			return task.EditOptions{}, diagnostic.Errorf("невалидное поле %s: %w", key, err)
 		}
 	}
 	if closing, err := decoder.Token(); err != nil || closing != json.Delim('}') {
-		return task.EditOptions{}, fmt.Errorf("невалидный документ редактора")
+		return task.EditOptions{}, diagnostic.Errorf("невалидный документ редактора")
 	}
 	if err := decoder.Decode(new(any)); err != io.EOF {
-		return task.EditOptions{}, fmt.Errorf("лишние данные в документе редактора")
+		return task.EditOptions{}, diagnostic.Errorf("лишние данные в документе редактора")
 	}
 	if document.Title == nil || document.Description == nil {
-		return task.EditOptions{}, fmt.Errorf("документ требует строковые title и description")
+		return task.EditOptions{}, diagnostic.Errorf("документ требует строковые title и description")
 	}
 	return task.EditOptions{Title: document.Title, Description: document.Description}, nil
 }
@@ -83,11 +83,11 @@ func editInEditor(ctx context.Context, plans *app.Plans, preview *app.EditPrevie
 	keep := false
 	defer func() {
 		if keep {
-			err = fmt.Errorf("результат редактора сохранён: %s: %w", path, err)
+			err = diagnostic.Errorf("результат редактора сохранён: %s: %w", path, err)
 			return
 		}
 		if removeErr := os.Remove(path); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-			err = errors.Join(err, fmt.Errorf("удаление временного документа %s: %w", path, removeErr))
+			err = errors.Join(err, diagnostic.Errorf("удаление временного документа %s: %w", path, removeErr))
 		}
 	}()
 	if err = errors.Join(writeEditDocument(f, data), f.Close()); err != nil {
@@ -110,7 +110,7 @@ func editInEditor(ctx context.Context, plans *app.Plans, preview *app.EditPrevie
 		return item, false, err
 	}
 	if !info.Mode().IsRegular() {
-		return item, false, fmt.Errorf("редактор заменил документ небезопасным путём")
+		return item, false, diagnostic.Errorf("редактор заменил документ небезопасным путём")
 	}
 	f, err = os.Open(path)
 	if err != nil {
@@ -152,9 +152,9 @@ func launchEditor(ctx context.Context, command, path, dir string, streams Stream
 		}
 		var exit *exec.ExitError
 		if errors.As(err, &exit) {
-			return fmt.Errorf("редактирование отменено редактором (код %d): %w", exit.ExitCode(), context.Canceled)
+			return diagnostic.Errorf("редактирование отменено редактором (код %d): %w", exit.ExitCode(), context.Canceled)
 		}
-		return fmt.Errorf("не удалось запустить редактор; используйте --title/--description: %w", err)
+		return diagnostic.Errorf("не удалось запустить редактор; используйте --title/--description: %w", err)
 	}
 	return nil
 }
@@ -168,7 +168,7 @@ func splitEditor(command string) ([]string, error) {
 	for i := 0; i < len(runes); i++ {
 		ch := runes[i]
 		if ch == 0 {
-			return nil, fmt.Errorf("NUL в настройке редактора")
+			return nil, diagnostic.Errorf("NUL в настройке редактора")
 		}
 		if ch == '\\' && i+1 < len(runes) {
 			next := runes[i+1]
@@ -202,13 +202,13 @@ func splitEditor(command string) ([]string, error) {
 		}
 	}
 	if quote != 0 {
-		return nil, fmt.Errorf("незакрытая кавычка в настройке редактора")
+		return nil, diagnostic.Errorf("незакрытая кавычка в настройке редактора")
 	}
 	if started {
 		args = append(args, string(word))
 	}
 	if len(args) == 0 || args[0] == "" {
-		return nil, fmt.Errorf("пустая команда редактора")
+		return nil, diagnostic.Errorf("пустая команда редактора")
 	}
 	return args, nil
 }

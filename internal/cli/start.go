@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"git-task/internal/app"
+	"git-task/internal/diagnostic"
 	"git-task/internal/task"
 )
 
@@ -46,31 +47,31 @@ func parseStartArgs(command string, args []string) (startArgs, error) {
 		}
 		name, value, hasValue := strings.Cut(arg, "=")
 		if !strings.HasPrefix(name, "--") || fs.Lookup(strings.TrimPrefix(name, "--")) == nil {
-			return result, &usageError{fmt.Sprintf("неизвестный флаг %q", name)}
+			return result, &usageError{diagnostic.Errorf("неизвестный флаг %q", name)}
 		}
 		if seen[name] {
-			return result, &usageError{fmt.Sprintf("флаг %s указан повторно", name)}
+			return result, &usageError{diagnostic.Errorf("флаг %s указан повторно", name)}
 		}
 		seen[name] = true
 		boolean := name == "--help" || name == "--again" || name == "--select" || name == "--rebind"
 		if boolean && hasValue {
-			return result, &usageError{fmt.Sprintf("флаг %s не принимает значение", name)}
+			return result, &usageError{diagnostic.Errorf("флаг %s не принимает значение", name)}
 		}
 		if !boolean {
 			if !hasValue {
 				i++
 				if i == len(args) || strings.HasPrefix(args[i], "--") {
-					return result, &usageError{fmt.Sprintf("флаг %s требует значение", name)}
+					return result, &usageError{diagnostic.Errorf("флаг %s требует значение", name)}
 				}
 				value = args[i]
 			}
 			if strings.TrimSpace(value) == "" {
-				return result, &usageError{fmt.Sprintf("пустое значение %s", name)}
+				return result, &usageError{diagnostic.Errorf("пустое значение %s", name)}
 			}
 			name += "=" + value
 		}
 		if err := fs.Parse([]string{name}); err != nil {
-			return result, &usageError{err.Error()}
+			return result, &usageError{err}
 		}
 	}
 	selectors := 0
@@ -80,25 +81,25 @@ func parseStartArgs(command string, args []string) (startArgs, error) {
 		}
 	}
 	if selectors > 1 {
-		return result, &usageError{"--id, --title, --new и --select взаимоисключающие"}
+		return result, &usageError{diagnostic.New("--id, --title, --new и --select взаимоисключающие")}
 	}
 	if len(positionals) > 1 || !result.help && len(positionals) != 1 {
-		return result, &usageError{command + ": требуется ровно одно имя ветки"}
+		return result, &usageError{diagnostic.Errorf("%s: требуется ровно одно имя ветки", command)}
 	}
 	if len(positionals) == 1 {
 		result.options.Branch = positionals[0]
 		if strings.TrimSpace(positionals[0]) == "" || strings.HasPrefix(positionals[0], "-") {
-			return result, &usageError{"неверное имя ветки"}
+			return result, &usageError{diagnostic.New("неверное имя ветки")}
 		}
 	}
 	if result.options.Again && (!seen["--id"] && !seen["--title"]) {
-		return result, &usageError{"--again требует --id или --title"}
+		return result, &usageError{diagnostic.New("--again требует --id или --title")}
 	}
 	if command == "attach" && !result.help && !seen["--id"] {
-		return result, &usageError{"attach требует --id"}
+		return result, &usageError{diagnostic.New("attach требует --id")}
 	}
 	if seen["--attempt"] && !result.rebind {
-		return result, &usageError{"--attempt требует attach --rebind"}
+		return result, &usageError{diagnostic.New("--attempt требует attach --rebind")}
 	}
 	return result, nil
 }
@@ -113,11 +114,11 @@ func runStart(ctx context.Context, command string, args []string, streams Stream
 	}
 	if parsed.selectMenu {
 		if streams.OpenDialogue == nil {
-			return fmt.Errorf("--select требует терминал ввода и диагностики; используйте --id, --title или --new")
+			return diagnostic.Errorf("--select требует терминал ввода и диагностики; используйте --id, --title или --new")
 		}
 	}
 	if open == nil {
-		return fmt.Errorf("операции плана не подключены")
+		return diagnostic.Errorf("операции плана не подключены")
 	}
 	plans, err := open(ctx)
 	if err != nil {
@@ -140,7 +141,7 @@ func runStart(ctx context.Context, command string, args []string, streams Stream
 	}
 	_, err = fmt.Fprintf(streams.Out, "Задача [%s] %s: %s\n", result.ID, result.Status, parsed.options.Branch)
 	if err != nil {
-		return fmt.Errorf("операция выполнена; не удалось вывести результат: %w", err)
+		return diagnostic.Errorf("операция выполнена; не удалось вывести результат: %w", err)
 	}
 	return nil
 }

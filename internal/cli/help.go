@@ -1,8 +1,9 @@
 package cli
 
 import (
-	"fmt"
 	"io"
+
+	"git-task/internal/diagnostic"
 )
 
 func writeHelp(out io.Writer, topic string) error {
@@ -85,9 +86,9 @@ func writeHelp(out io.Writer, topic string) error {
 		text = "Использование: git task export [--format markdown / --format json] [--output <path>]\nСнимок без sync; по умолчанию markdown в stdout. Существующий output не перезаписывается. JSON сохраняет общий снимок без локальных наблюдений, очереди и настроек подключения.\n"
 	default:
 		if planned(topic) {
-			return fmt.Errorf("команда %q ещё не реализована", topic)
+			return diagnostic.Errorf("команда %q ещё не реализована", topic)
 		}
-		return &usageError{fmt.Sprintf("нет справки для неизвестной команды %q", topic)}
+		return &usageError{diagnostic.Errorf("нет справки для неизвестной команды %q", topic)}
 	}
 	switch topic {
 	case "":

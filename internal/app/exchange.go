@@ -3,9 +3,9 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/git"
 	"git-task/internal/storage"
 )
@@ -33,16 +33,16 @@ func (p *Plans) Push(ctx context.Context) error {
 		return err
 	}
 	if err := p.git.PushCode(ctx, u); err != nil {
-		return fmt.Errorf("push кода завершился ошибкой (удалённая ветка могла измениться); публикация плана не запускалась, очередь сохранена: %w", err)
+		return diagnostic.Errorf("push кода завершился ошибкой (удалённая ветка могла измениться); публикация плана не запускалась, очередь сохранена: %w", err)
 	}
 	if err := p.point(ctx, "exchange-code-pushed"); err != nil {
-		return fmt.Errorf("код отправлен, сверка и публикация плана не выполнены; git task sync, затем git task team publish: %w", err)
+		return diagnostic.Errorf("код отправлен, сверка и публикация плана не выполнены; git task sync, затем git task team publish: %w", err)
 	}
 	if _, _, err := p.Sync(ctx); err != nil {
-		return fmt.Errorf("код отправлен, локальная сверка плана не завершена; git task sync, затем git task team publish: %w", err)
+		return diagnostic.Errorf("код отправлен, локальная сверка плана не завершена; git task sync, затем git task team publish: %w", err)
 	}
 	if err := p.Publish(ctx); err != nil {
-		return fmt.Errorf("код отправлен, публикация плана не подтверждена; локальная очередь сохранена, git task team publish: %w", err)
+		return diagnostic.Errorf("код отправлен, публикация плана не подтверждена; локальная очередь сохранена, git task team publish: %w", err)
 	}
 	return nil
 }
@@ -52,7 +52,7 @@ func (p *Plans) Pull(ctx context.Context, mode string) error {
 		mode = "ff-only"
 	}
 	if mode != "ff-only" && mode != "merge" && mode != "rebase" {
-		return fmt.Errorf("неподдерживаемый режим pull")
+		return diagnostic.Errorf("неподдерживаемый режим pull")
 	}
 	u, err := p.prepareExchange(ctx, true)
 	if err != nil {
@@ -62,13 +62,13 @@ func (p *Plans) Pull(ctx context.Context, mode string) error {
 		return p.pullFailure(ctx, u.Head, err)
 	}
 	if err := p.point(ctx, "exchange-code-pulled"); err != nil {
-		return fmt.Errorf("код обновлён, получение и сверка плана не выполнены; git task team fetch, затем git task sync: %w", err)
+		return diagnostic.Errorf("код обновлён, получение и сверка плана не выполнены; git task team fetch, затем git task sync: %w", err)
 	}
 	if err := p.FetchTeam(ctx); err != nil {
-		return fmt.Errorf("код обновлён, общий план не получен или не согласован; локальная очередь сохранена, git task team fetch, затем git task sync: %w", err)
+		return diagnostic.Errorf("код обновлён, общий план не получен или не согласован; локальная очередь сохранена, git task team fetch, затем git task sync: %w", err)
 	}
 	if _, _, err := p.Sync(ctx); err != nil {
-		return fmt.Errorf("код обновлён, общий план получен, локальная сверка не завершена; git task sync: %w", err)
+		return diagnostic.Errorf("код обновлён, общий план получен, локальная сверка не завершена; git task sync: %w", err)
 	}
 	return nil
 }
@@ -78,16 +78,16 @@ func (p *Plans) pullFailure(ctx context.Context, before git.Head, cause error) e
 	defer cancel()
 	after, headErr := p.git.HeadState(check)
 	stateErr := p.git.CheckStart(check, false)
-	state := "HEAD не изменился"
+	state := diagnostic.New("HEAD не изменился")
 	if headErr != nil {
-		state = "состояние HEAD не подтверждено"
+		state = diagnostic.New("состояние HEAD не подтверждено")
 	} else if after != before {
-		state = "HEAD уже изменился"
+		state = diagnostic.New("HEAD уже изменился")
 	}
 	if errors.Is(stateErr, git.ErrInProgress) {
-		state += "; интеграция не завершена, разрешите конфликт/операцию Git"
+		state = diagnostic.Errorf("%v; интеграция не завершена, разрешите конфликт/операцию Git", state)
 	} else if stateErr != nil {
-		state += "; состояние интеграции не подтверждено"
+		state = diagnostic.Errorf("%v; состояние интеграции не подтверждено", state)
 	}
-	return fmt.Errorf("pull кода завершился ошибкой: %s; последующие получение и сверка плана не запускались (hooks могли применить уже полученные данные). После завершения Git: git task team fetch, затем git task sync: %w", state, errors.Join(cause, headErr, stateErr))
+	return diagnostic.Errorf("pull кода завершился ошибкой: %s; последующие получение и сверка плана не запускались (hooks могли применить уже полученные данные). После завершения Git: git task team fetch, затем git task sync: %w", state, errors.Join(cause, headErr, stateErr))
 }

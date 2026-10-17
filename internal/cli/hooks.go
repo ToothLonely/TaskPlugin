@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/git"
 	"git-task/internal/hooks"
 )
@@ -16,13 +17,13 @@ func runHooks(ctx context.Context, args []string, streams Streams) error {
 		return err
 	}
 	if len(positionals) > 1 || len(positionals) == 1 && positionals[0] != "install" && positionals[0] != "uninstall" {
-		return &usageError{"hooks требует install или uninstall"}
+		return &usageError{diagnostic.New("hooks требует install или uninstall")}
 	}
 	if help {
 		return writeHelp(streams.Out, "hooks")
 	}
 	if len(positionals) != 1 {
-		return &usageError{"hooks требует install или uninstall"}
+		return &usageError{diagnostic.New("hooks требует install или uninstall")}
 	}
 	client, err := git.New("")
 	if err != nil {
@@ -63,7 +64,7 @@ func runHook(ctx context.Context, args []string, streams Streams, open OpenPlans
 			return err
 		}
 		if len(args) == 0 {
-			return fmt.Errorf("не указано событие hook")
+			return diagnostic.Errorf("не указано событие hook")
 		}
 		if err := hooks.Validate(args[0], args[1:], streams.In); err != nil {
 			return err
@@ -72,7 +73,7 @@ func runHook(ctx context.Context, args []string, streams Streams, open OpenPlans
 			return nil
 		}
 		if open == nil {
-			return fmt.Errorf("tracking недоступен")
+			return diagnostic.Errorf("tracking недоступен")
 		}
 		plans, err := open(ctx)
 		if err != nil {
@@ -100,6 +101,6 @@ func runHook(ctx context.Context, args []string, streams Streams, open OpenPlans
 		return writeWarnings(streams.Err, plan)
 	}()
 	if err != nil {
-		fmt.Fprintf(streams.Err, "Предупреждение git-task: tracking не выполнен: %v. Git-операция уже произошла; выполните git task sync.\n", err)
+		fmt.Fprintln(streams.Err, diagnostic.Render(diagnosticLanguage(), diagnostic.Errorf("Предупреждение git-task: tracking не выполнен: %v. Git-операция уже произошла; выполните git task sync.", err)))
 	}
 }

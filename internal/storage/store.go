@@ -5,17 +5,17 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/task"
 )
 
 var (
-	ErrLocked      = errors.New("хранилище заблокировано: write.lock; проверьте владельца, не снимайте блокировку по возрасту")
-	ErrConflict    = errors.New("план изменён после чтения; сравните сохранённый результат с текущими данными")
-	ErrInterrupted = errors.New("незавершённая запись хранилища")
+	ErrLocked      = diagnostic.New("хранилище заблокировано: write.lock; проверьте владельца, не снимайте блокировку по возрасту")
+	ErrConflict    = diagnostic.New("план изменён после чтения; сравните сохранённый результат с текущими данными")
+	ErrInterrupted = diagnostic.New("незавершённая запись хранилища")
 )
 
 // Guard provides the repository checks needed by storage, without exposing Git commands.
@@ -72,7 +72,7 @@ func (s *Store) Load(ctx context.Context) (Snapshot, error) {
 func (s *Store) load() (Snapshot, error) {
 	data, err := readFile(filepath.Join(s.dir, "plan.json"))
 	if errors.Is(err, os.ErrNotExist) {
-		return Snapshot{}, fmt.Errorf("план отсутствует; выполните git task init: %w", err)
+		return Snapshot{}, diagnostic.Errorf("план отсутствует; выполните git task init: %w", err)
 	}
 	if err != nil {
 		return Snapshot{}, err
@@ -112,7 +112,7 @@ func (s *Store) Init(ctx context.Context, target string) (created bool, err erro
 		return false, err
 	}
 	if err == nil && previous.Plan.TargetBranch != target {
-		return false, fmt.Errorf("план уже использует target %q", previous.Plan.TargetBranch)
+		return false, diagnostic.Errorf("план уже использует target %q", previous.Plan.TargetBranch)
 	}
 	if err = os.MkdirAll(s.dir, 0700); err != nil {
 		return false, err
@@ -124,7 +124,7 @@ func (s *Store) Init(ctx context.Context, target string) (created bool, err erro
 	defer func() {
 		if releaseErr := unlock(); releaseErr != nil {
 			if created {
-				releaseErr = fmt.Errorf("план уже создан; ошибка снятия блокировки: %w", releaseErr)
+				releaseErr = diagnostic.Errorf("план уже создан; ошибка снятия блокировки: %w", releaseErr)
 			}
 			err = errors.Join(err, releaseErr)
 		}
@@ -141,7 +141,7 @@ func (s *Store) Init(ctx context.Context, target string) (created bool, err erro
 		return false, err
 	}
 	if exists && previous.Plan.TargetBranch != target {
-		return false, fmt.Errorf("план уже использует target %q", previous.Plan.TargetBranch)
+		return false, diagnostic.Errorf("план уже использует target %q", previous.Plan.TargetBranch)
 	}
 	if err = s.exclude(ctx); err != nil {
 		return false, err
@@ -195,7 +195,7 @@ func (s *Store) save(ctx context.Context, base Snapshot, next task.Plan, importi
 		return false, err
 	}
 	if base.dir != s.dir || len(base.raw) == 0 {
-		return false, fmt.Errorf("снимок не принадлежит этому хранилищу")
+		return false, diagnostic.Errorf("снимок не принадлежит этому хранилищу")
 	}
 	original, err := decode(base.raw)
 	if err != nil {
@@ -215,7 +215,7 @@ func (s *Store) save(ctx context.Context, base Snapshot, next task.Plan, importi
 	defer func() {
 		if releaseErr := unlock(); releaseErr != nil {
 			if changed {
-				releaseErr = fmt.Errorf("план уже сохранён; ошибка снятия блокировки: %w", releaseErr)
+				releaseErr = diagnostic.Errorf("план уже сохранён; ошибка снятия блокировки: %w", releaseErr)
 			}
 			err = errors.Join(err, releaseErr)
 		}
@@ -230,20 +230,20 @@ func (s *Store) save(ctx context.Context, base Snapshot, next task.Plan, importi
 		return false, s.preserveConflict(data, err)
 	}
 	if importing && len(original.Tasks) != 0 {
-		return false, fmt.Errorf("импорт требует пустой план")
+		return false, diagnostic.Errorf("импорт требует пустой план")
 	}
 	if bytes.Equal(canonical, data) {
 		return false, nil
 	}
 	if !importing && next.Revision <= original.Revision {
-		return false, fmt.Errorf("изменение требует увеличения revision")
+		return false, diagnostic.Errorf("изменение требует увеличения revision")
 	}
 	ignored, err := s.guard.StorageIgnored(ctx)
 	if err != nil {
 		return false, err
 	}
 	if !ignored {
-		return false, fmt.Errorf(".git-task не исключён из Git; выполните init с прежним target")
+		return false, diagnostic.Errorf(".git-task не исключён из Git; выполните init с прежним target")
 	}
 	if err = s.install(ctx, base.raw, data); err != nil {
 		return false, err

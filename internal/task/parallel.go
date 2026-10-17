@@ -4,8 +4,9 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"slices"
+
+	"git-task/internal/diagnostic"
 )
 
 type TeamState struct {
@@ -60,7 +61,7 @@ func (t Task) Attempt(id string) (Attempt, error) {
 			return a.clone(), nil
 		}
 	}
-	return Attempt{}, fmt.Errorf("%w: подход %q", ErrNotFound, id)
+	return Attempt{}, diagnostic.Errorf("%w: подход %q", ErrNotFound, id)
 }
 
 func (t *Task) project(id string) {
@@ -103,14 +104,14 @@ func (t *Task) selected(ids []string) (*Attempt, error) {
 			t.ActiveAttempt = &t.Attempts[i]
 			return t.ActiveAttempt, nil
 		}
-		return nil, fmt.Errorf("%w: подход %q", ErrNotFound, id)
+		return nil, diagnostic.Errorf("%w: подход %q", ErrNotFound, id)
 	}
 	if len(t.Attempts) == 0 {
 		return nil, ErrTransition
 	}
 	t.project(id)
 	if t.ActiveAttempt == nil {
-		return nil, fmt.Errorf("%w: используйте --attempt <id>", ErrAmbiguous)
+		return nil, diagnostic.Errorf("%w: используйте --attempt <id>", ErrAmbiguous)
 	}
 	return t.ActiveAttempt, nil
 }

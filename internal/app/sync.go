@@ -7,6 +7,7 @@ import (
 	"slices"
 	"time"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/git"
 	"git-task/internal/storage"
 	"git-task/internal/task"
@@ -156,7 +157,7 @@ func (p *Plans) sync(ctx context.Context, snapshot storage.Snapshot, postMerge b
 	}
 	if blocked == nil {
 		if err := checkState(); err != nil {
-			return task.Plan{}, false, fmt.Errorf("Git изменён во время сверки: %w", err)
+			return task.Plan{}, false, diagnostic.Errorf("Git изменён во время сверки: %w", err)
 		}
 	}
 	changed, err := p.save(ctx, snapshot, next)

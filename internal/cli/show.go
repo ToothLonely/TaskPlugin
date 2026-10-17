@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"git-task/internal/app"
+	"git-task/internal/diagnostic"
 	"git-task/internal/task"
 )
 
@@ -46,7 +47,7 @@ func runShow(ctx context.Context, args []string, streams Streams, open OpenPlans
 		return writeHelp(streams.Out, "show")
 	}
 	if open == nil {
-		return fmt.Errorf("операции плана не подключены")
+		return diagnostic.Errorf("операции плана не подключены")
 	}
 	plans, err := open(ctx)
 	if err != nil {

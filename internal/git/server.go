@@ -2,8 +2,9 @@ package git
 
 import (
 	"context"
-	"fmt"
 	"strings"
+
+	"git-task/internal/diagnostic"
 )
 
 func (c *Client) FetchCodeRef(ctx context.Context, remote, branch string) (string, error) {
@@ -24,7 +25,7 @@ func (c *Client) FetchCodeRef(ctx context.Context, remote, branch string) (strin
 		return "", err
 	}
 	if strings.TrimSpace(string(r.Stdout)) != tip {
-		return "", fmt.Errorf("ссылка кода изменилась во время fetch")
+		return "", diagnostic.Errorf("ссылка кода изменилась во время fetch")
 	}
 	return tip, nil
 }
@@ -46,7 +47,7 @@ func (c *Client) RemoteCodeTip(ctx context.Context, remote, branch string) (stri
 	}
 	fields := strings.Fields(string(r.Stdout))
 	if len(fields) != 2 || fields[1] != ref || !objectID(fields[0]) {
-		return "", fmt.Errorf("неверная ссылка кода")
+		return "", diagnostic.Errorf("неверная ссылка кода")
 	}
 	return fields[0], nil
 }
@@ -54,7 +55,7 @@ func (c *Client) RemoteCodeTip(ctx context.Context, remote, branch string) (stri
 func (c *Client) ServerWork(ctx context.Context, base, tip, before, after string) (string, error) {
 	for _, oid := range []string{base, tip, before, after} {
 		if !objectID(oid) {
-			return "", fmt.Errorf("неверный commit серверного события")
+			return "", diagnostic.Errorf("неверный commit серверного события")
 		}
 	}
 	for _, pair := range [][2]string{{before, after}, {base, tip}, {tip, after}} {
@@ -79,7 +80,7 @@ func (c *Client) ServerWork(ctx context.Context, base, tip, before, after string
 	}
 	work := strings.TrimSpace(string(r.Stdout))
 	if work != "" && !objectID(work) {
-		return "", fmt.Errorf("неверное доказательство работы")
+		return "", diagnostic.Errorf("неверное доказательство работы")
 	}
 	return work, nil
 }

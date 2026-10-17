@@ -73,7 +73,7 @@ func TestDoctorJournalSnapshotChangedDuringInspection(t *testing.T) {
 			}
 			before := doctorFiles(t, s)
 			f := s.inspectJournal(data)
-			if !f.Problem || !strings.Contains(f.Next, "повторите git task doctor") || !strings.Contains(f.Detail, "изменилось") {
+			if !f.Problem || !strings.Contains(f.Next, "повторите git task doctor") || !strings.Contains(f.Detail.Error(), "изменилось") {
 				t.Fatalf("concurrent journal diagnosis: %+v", f)
 			}
 			if !reflect.DeepEqual(before, doctorFiles(t, s)) {

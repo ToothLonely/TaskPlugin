@@ -395,7 +395,7 @@ exit 11`)
 			t.Fatal(err)
 		}
 		r, err := f.git.Run(f.ctx, "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "--allow-empty", "-m", "work")
-		if err != nil || !strings.Contains(string(r.Stderr), "Git-операция уже произошла") {
+		if err != nil || !strings.Contains(string(r.Stderr), "The Git operation has already occurred") {
 			t.Fatalf("commit blocked or no warning: %v %s", err, r.Stderr)
 		}
 		if !bytes.Equal(before, f.planBytes()) {

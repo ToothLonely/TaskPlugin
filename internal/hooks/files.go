@@ -3,9 +3,10 @@ package hooks
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
+
+	"git-task/internal/diagnostic"
 )
 
 type fileState struct {
@@ -29,7 +30,7 @@ func inspect(path string, directory bool) error {
 		return err
 	}
 	if directory && !info.IsDir() || !directory && !info.Mode().IsRegular() {
-		return fmt.Errorf("небезопасный путь hooks: %s", path)
+		return diagnostic.Errorf("небезопасный путь hooks: %s", path)
 	}
 	return nil
 }
@@ -88,7 +89,7 @@ func replace(path string, before, after fileState) (err error) {
 		return err
 	}
 	if !equal(current, before) {
-		return fmt.Errorf("hook изменён внешним процессом: %s", path)
+		return diagnostic.Errorf("hook изменён внешним процессом: %s", path)
 	}
 	if !after.exists {
 		if !current.exists {

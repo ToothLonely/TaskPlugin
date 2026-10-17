@@ -2,9 +2,10 @@ package hooks
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
+
+	"git-task/internal/diagnostic"
 )
 
 func (i Installer) Diagnose(ctx context.Context) ([]string, error) {
@@ -21,7 +22,7 @@ func (i Installer) Diagnose(ctx context.Context) ([]string, error) {
 	}
 	var result []string
 	if _, err := os.Lstat(filepath.Join(dir, ".git-task-hooks.lock")); err == nil {
-		return nil, fmt.Errorf("lock hooks требует ручного разбора: %s", dir)
+		return nil, diagnostic.Errorf("lock hooks требует ручного разбора: %s", dir)
 	} else if !os.IsNotExist(err) {
 		return nil, err
 	}
@@ -30,13 +31,13 @@ func (i Installer) Diagnose(ctx context.Context) ([]string, error) {
 			continue
 		}
 		if !equal(e.current, e.record.installed()) {
-			return nil, fmt.Errorf("установка hook %s прервана; повторите hooks install", e.record.Event)
+			return nil, diagnostic.Errorf("установка hook %s прервана; повторите hooks install", e.record.Event)
 		}
 		if err := inspect(e.record.Binary, false); err != nil {
 			return nil, err
 		}
 		if _, err := os.Stat(e.record.Binary); err != nil {
-			return nil, fmt.Errorf("бинарник hook отсутствует: %s: %w", e.record.Binary, err)
+			return nil, diagnostic.Errorf("бинарник hook отсутствует: %s: %w", e.record.Binary, err)
 		}
 		result = append(result, e.record.Event)
 	}
@@ -51,7 +52,7 @@ func (i Installer) Diagnose(ctx context.Context) ([]string, error) {
 		}
 		if !stored.exists && current.exists {
 			if !supported(current) {
-				return result, fmt.Errorf("hook %s требует ручного подключения по README.md", event)
+				return result, diagnostic.Errorf("hook %s требует ручного подключения по README.md", event)
 			}
 			result = append(result, event+" (чужой обработчик сохранён; git-task не подключён)")
 		}

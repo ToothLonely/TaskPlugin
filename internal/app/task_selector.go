@@ -2,10 +2,10 @@ package app
 
 import (
 	"errors"
-	"fmt"
 	"slices"
 	"strings"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/task"
 )
 
@@ -30,7 +30,7 @@ func selectTaskID(plan task.Plan, selector string) (task.Task, error) {
 		return plan.FindID(matches[0])
 	default:
 		slices.Sort(matches)
-		return task.Task{}, fmt.Errorf("%w: префикс ID %q совпадает с задачами %s; укажите более длинный или полный ID", task.ErrAmbiguous, selector, strings.Join(matches, ", "))
+		return task.Task{}, diagnostic.Errorf("%w: префикс ID %q совпадает с задачами %s; укажите более длинный или полный ID", task.ErrAmbiguous, selector, strings.Join(matches, ", "))
 	}
 }
 

@@ -3,10 +3,11 @@ package git
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"git-task/internal/diagnostic"
 )
 
 // CheckStorage rejects unsupported repositories and metadata tracked in either
@@ -17,7 +18,7 @@ func (c *Client) CheckStorage(ctx context.Context) error {
 		return err
 	}
 	if repo.GitDir != repo.CommonDir {
-		return fmt.Errorf("дополнительные worktree не поддерживаются")
+		return diagnostic.Errorf("дополнительные worktree не поддерживаются")
 	}
 	r, err := c.Run(ctx, "worktree", "list", "--porcelain", "-z")
 	if err != nil {
@@ -30,21 +31,21 @@ func (c *Client) CheckStorage(ctx context.Context) error {
 		}
 	}
 	if worktrees != 1 {
-		return fmt.Errorf("дополнительные worktree не поддерживаются")
+		return diagnostic.Errorf("дополнительные worktree не поддерживаются")
 	}
 	r, err = c.Run(ctx, "rev-parse", "--is-shallow-repository")
 	if err != nil {
 		return err
 	}
 	if outputLine(r.Stdout) != "false" {
-		return fmt.Errorf("shallow-репозиторий не поддерживается")
+		return diagnostic.Errorf("shallow-репозиторий не поддерживается")
 	}
 	r, err = c.Run(ctx, "config", "--get", "extensions.partialClone")
 	if err != nil && !exitCode(err, 1) {
 		return err
 	}
 	if len(r.Stdout) != 0 {
-		return fmt.Errorf("partial clone не поддерживается")
+		return diagnostic.Errorf("partial clone не поддерживается")
 	}
 	r, err = c.Run(ctx, "config", "--type=bool", "--get-regexp", `^remote\..*\.promisor$`)
 	if err != nil && !exitCode(err, 1) {
@@ -52,7 +53,7 @@ func (c *Client) CheckStorage(ctx context.Context) error {
 	}
 	for _, line := range strings.Split(string(r.Stdout), "\n") {
 		if strings.HasSuffix(strings.TrimSpace(line), " true") {
-			return fmt.Errorf("partial clone не поддерживается")
+			return diagnostic.Errorf("partial clone не поддерживается")
 		}
 	}
 	r, err = c.Run(ctx, "ls-files", "-z", "--", ":(top,icase,literal).git-task")
@@ -64,7 +65,7 @@ func (c *Client) CheckStorage(ctx context.Context) error {
 		return err
 	}
 	if tracked {
-		return fmt.Errorf(".git-task уже отслеживается в индексе")
+		return diagnostic.Errorf(".git-task уже отслеживается в индексе")
 	}
 	exists, err := c.HasCommit(ctx)
 	if err != nil {
@@ -82,7 +83,7 @@ func (c *Client) CheckStorage(ctx context.Context) error {
 			return err
 		}
 		if tracked {
-			return fmt.Errorf(".git-task уже отслеживается в HEAD")
+			return diagnostic.Errorf(".git-task уже отслеживается в HEAD")
 		}
 	}
 	return nil
@@ -169,7 +170,7 @@ func caseInsensitiveDirectory(root string) (bool, error) {
 			return os.SameFile(original, alias), nil
 		}
 	}
-	return false, fmt.Errorf("нельзя определить совпадение регистров служебного пути без изменения каталога %s", root)
+	return false, diagnostic.Errorf("нельзя определить совпадение регистров служебного пути без изменения каталога %s", root)
 }
 
 // HasCommit distinguishes an unborn branch from an unexpected Git failure.

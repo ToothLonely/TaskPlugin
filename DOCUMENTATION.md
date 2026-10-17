@@ -9,6 +9,12 @@
 Git Task is a standalone `git-task` program available as the external Git command `git task`.
 Running `git-task start feature/search` directly is equivalent to `git task start feature/search`.
 
+Errors automatically use Russian or English according to the system locale. An
+unsupported or undetectable language falls back to English. There is no language
+flag or application setting. Help, normal command output, and saved plan text keep
+their existing language. Git diagnostics use English as a fallback; output from
+third-party hooks and editors is preserved as supplied by those programs.
+
 ## Contents
 
 - [Command syntax](#command-syntax).
@@ -638,6 +644,12 @@ cause automatic completion. Processing is synchronous and can delay a push by up
 
 Git Task — отдельная программа `git-task`, доступная как внешняя команда Git `git task`.
 Прямой вызов `git-task start feature/search` эквивалентен `git task start feature/search`.
+
+Язык ошибок определяется автоматически по системной локали: поддерживаются русский
+и английский. Неподдерживаемый или неопределённый язык заменяется английским.
+Флага и настройки языка в приложении нет. Справка, обычные результаты команд и
+сохранённый текст плана сохраняют прежний язык. Диагностика Git использует английский
+запасной вариант; вывод сторонних hooks и редакторов сохраняется как передан ими.
 
 ## Содержание
 

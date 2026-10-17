@@ -2,8 +2,9 @@ package git
 
 import (
 	"context"
-	"fmt"
 	"strings"
+
+	"git-task/internal/diagnostic"
 )
 
 func (c *Client) Editor(ctx context.Context) (string, error) {
@@ -33,5 +34,5 @@ func (c *Client) Editor(ctx context.Context) (string, error) {
 			return editor, nil
 		}
 	}
-	return "", fmt.Errorf("редактор не настроен; используйте edit --title или --description")
+	return "", diagnostic.Errorf("редактор не настроен; используйте edit --title или --description")
 }

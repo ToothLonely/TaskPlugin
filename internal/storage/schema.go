@@ -2,13 +2,12 @@ package storage
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/task"
 )
 
-var ErrUnsupportedSchema = errors.New("неподдерживаемая версия схемы")
+var ErrUnsupportedSchema = diagnostic.New("неподдерживаемая версия схемы")
 
 func schemaVersion(data []byte) int {
 	var header struct {
@@ -26,13 +25,13 @@ func decode(data []byte) (task.Plan, error) {
 		Version int    `json:"schema_version"`
 	}
 	if err := json.Unmarshal(data, &header); err != nil {
-		return task.Plan{}, fmt.Errorf("повреждённый JSON: %w", err)
+		return task.Plan{}, diagnostic.Errorf("повреждённый JSON: %w", err)
 	}
 	if header.Format != task.Format {
-		return task.Plan{}, fmt.Errorf("чужой формат плана %q", header.Format)
+		return task.Plan{}, diagnostic.Errorf("чужой формат плана %q", header.Format)
 	}
 	if header.Version != task.SchemaVersion {
-		return task.Plan{}, fmt.Errorf("%w %d; поддерживается только схема %d", ErrUnsupportedSchema, header.Version, task.SchemaVersion)
+		return task.Plan{}, diagnostic.Errorf("%w %d; поддерживается только схема %d", ErrUnsupportedSchema, header.Version, task.SchemaVersion)
 	}
 	var plan task.Plan
 	if err := json.Unmarshal(data, &plan); err != nil {

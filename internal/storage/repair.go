@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/task"
 )
 
@@ -96,7 +97,7 @@ func (s *Store) PrepareRepair(ctx context.Context, action string) (*Repair, erro
 		return r, nil
 	}
 	if action != "restore-backup" && action != "unlock" {
-		return nil, fmt.Errorf("неизвестное восстановление %q", action)
+		return nil, diagnostic.Errorf("неизвестное восстановление %q", action)
 	}
 	if files["operation.json"] != nil {
 		return nil, ErrOperation
@@ -106,7 +107,7 @@ func (s *Store) PrepareRepair(ctx context.Context, action string) (*Repair, erro
 			return nil, ErrInterrupted
 		}
 		if name != "plan.json" && name != "plan.backup.json" && name != "plan.template.json" && name != "write.lock" && !(strings.HasPrefix(name, "conflict-") && strings.HasSuffix(name, ".json")) {
-			return nil, fmt.Errorf("чужой файл: %s", name)
+			return nil, diagnostic.Errorf("чужой файл: %s", name)
 		}
 	}
 	if action == "unlock" {
@@ -126,21 +127,21 @@ func (s *Store) PrepareRepair(ctx context.Context, action string) (*Repair, erro
 		return nil, ErrLocked
 	}
 	if files["plan.json"] == nil {
-		return nil, fmt.Errorf("нет оригинала; требуется ручной разбор")
+		return nil, diagnostic.Errorf("нет оригинала; требуется ручной разбор")
 	}
 	if _, err := decode(files["plan.json"]); err == nil {
-		return nil, fmt.Errorf("валидный план не заменяется backup")
+		return nil, diagnostic.Errorf("валидный план не заменяется backup")
 	}
 	var header struct {
 		Format  string `json:"format"`
 		Version int    `json:"schema_version"`
 	}
 	if json.Unmarshal(files["plan.json"], &header) == nil && (header.Format != task.Format || header.Version != task.SchemaVersion) {
-		return nil, fmt.Errorf("чужой формат или несовместимая схема не заменяются")
+		return nil, diagnostic.Errorf("чужой формат или несовместимая схема не заменяются")
 	}
 	backup, err := decode(files["plan.backup.json"])
 	if err != nil {
-		return nil, fmt.Errorf("backup текущей схемы невалиден: %w", err)
+		return nil, diagnostic.Errorf("backup текущей схемы невалиден: %w", err)
 	}
 	info, err := os.Lstat(filepath.Join(s.dir, "plan.backup.json"))
 	if err != nil {
@@ -183,7 +184,7 @@ func (s *Store) CheckRepair(r *Repair, holdingLock bool) error {
 
 func (s *Store) WithRepairOperation(ctx context.Context, r *Repair, run func(*Operation) error) (err error) {
 	if r == nil || r.Action != "recover-start" {
-		return fmt.Errorf("нет предпросмотра recover-start")
+		return diagnostic.Errorf("нет предпросмотра recover-start")
 	}
 	if r.files["write.lock"] == nil {
 		return s.WithOperation(ctx, run)
@@ -254,7 +255,7 @@ func (s *Store) ApplyRepair(ctx context.Context, r *Repair) (saved string, err e
 		return "", err
 	}
 	if r == nil || (r.Action != "unlock" && r.Action != "restore-backup") {
-		return "", fmt.Errorf("неверный repair")
+		return "", diagnostic.Errorf("неверный repair")
 	}
 	if r.NoChange {
 		return "", s.CheckRepair(r, false)
@@ -348,11 +349,11 @@ func (s *Store) ApplyRepair(ctx context.Context, r *Repair) (saved string, err e
 func absentOwner(data []byte) error {
 	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
 	if len(lines) != 4 || lines[0] != "git-task write lock" || !strings.HasPrefix(lines[1], "pid=") || !strings.HasPrefix(lines[2], "created=") || !strings.HasPrefix(lines[3], "host=") {
-		return fmt.Errorf("владельца lock нельзя проверить: неизвестный формат")
+		return diagnostic.Errorf("владельца lock нельзя проверить: неизвестный формат")
 	}
 	pid, err := strconv.Atoi(strings.TrimPrefix(lines[1], "pid="))
 	if err != nil || pid <= 0 {
-		return fmt.Errorf("неверный PID lock")
+		return diagnostic.Errorf("неверный PID lock")
 	}
 	if _, err := time.Parse(time.RFC3339Nano, strings.TrimPrefix(lines[2], "created=")); err != nil {
 		return err
@@ -362,7 +363,7 @@ func absentOwner(data []byte) error {
 		return err
 	}
 	if host != strings.TrimPrefix(lines[3], "host=") {
-		return fmt.Errorf("lock другого компьютера не снимается")
+		return diagnostic.Errorf("lock другого компьютера не снимается")
 	}
 	return processAbsent(pid)
 }

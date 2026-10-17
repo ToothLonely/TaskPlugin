@@ -3,11 +3,12 @@ package task
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"git-task/internal/diagnostic"
 )
 
 // MarshalJSON refuses to serialize an invalid plan.
@@ -29,7 +30,7 @@ func (p *Plan) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if err := checkJSON(json.NewDecoder(bytes.NewReader(data))); err != nil {
-		return fmt.Errorf("%w: JSON: %v", ErrInvalid, err)
+		return diagnostic.Errorf("%w: JSON: %v", ErrInvalid, err)
 	}
 	type wire Plan
 	var next struct {
@@ -39,7 +40,7 @@ func (p *Plan) UnmarshalJSON(data []byte) error {
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&next); err != nil {
-		return fmt.Errorf("%w: JSON: %v", ErrInvalid, err)
+		return diagnostic.Errorf("%w: JSON: %v", ErrInvalid, err)
 	}
 	var extra any
 	if err := dec.Decode(&extra); err != io.EOF {
@@ -107,7 +108,7 @@ func checkJSONFields(dec *json.Decoder, filling bool) error {
 		return err
 	}
 	if token == nil {
-		return fmt.Errorf("null не поддерживается; неизвестное поле должно отсутствовать")
+		return diagnostic.Errorf("null не поддерживается; неизвестное поле должно отсутствовать")
 	}
 	delim, ok := token.(json.Delim)
 	if !ok {
@@ -123,10 +124,10 @@ func checkJSONFields(dec *json.Decoder, filling bool) error {
 			}
 			name := key.(string)
 			if strings.ToLower(name) != name {
-				return fmt.Errorf("ключ %q должен иметь точное написание в нижнем регистре", name)
+				return diagnostic.Errorf("ключ %q должен иметь точное написание в нижнем регистре", name)
 			}
 			if seen[name] {
-				return fmt.Errorf("повтор ключа %q", name)
+				return diagnostic.Errorf("повтор ключа %q", name)
 			}
 			seen[name] = true
 			if name == "started_at" || name == "completed_at" || name == "observed_at" {
@@ -135,7 +136,7 @@ func checkJSONFields(dec *json.Decoder, filling bool) error {
 					return err
 				}
 				if !validJSONTime(value) {
-					return fmt.Errorf("некорректная дата %s", name)
+					return diagnostic.Errorf("некорректная дата %s", name)
 				}
 			} else if name == "attempts" || name == "warnings" || name == "rebindings" {
 				var raw json.RawMessage
@@ -147,7 +148,7 @@ func checkJSONFields(dec *json.Decoder, filling bool) error {
 					return err
 				}
 				if len(entries) == 0 {
-					return fmt.Errorf("пустое %s должно отсутствовать", name)
+					return diagnostic.Errorf("пустое %s должно отсутствовать", name)
 				}
 				if err := checkJSONFields(json.NewDecoder(bytes.NewReader(raw)), filling); err != nil {
 					return err
@@ -157,7 +158,7 @@ func checkJSONFields(dec *json.Decoder, filling bool) error {
 			}
 		}
 		if !filling && (seen["format"] && (!seen["revision"] || !seen["last_event"]) || seen["title"] && seen["status"] && !seen["revision"]) {
-			return fmt.Errorf("отсутствует обязательный счётчик")
+			return diagnostic.Errorf("отсутствует обязательный счётчик")
 		}
 	case '[':
 		for dec.More() {
@@ -166,7 +167,7 @@ func checkJSONFields(dec *json.Decoder, filling bool) error {
 			}
 		}
 	default:
-		return fmt.Errorf("неожиданный разделитель")
+		return diagnostic.Errorf("неожиданный разделитель")
 	}
 	_, err = dec.Token()
 	return err

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"git-task/internal/app"
+	"git-task/internal/diagnostic"
 	"git-task/internal/task"
 )
 
@@ -23,14 +24,14 @@ func parseStatusArgs(args []string) (machine, help bool, err error) {
 			break
 		}
 		if arg != "--json" && arg != "--help" {
-			return false, false, &usageError{fmt.Sprintf("status: неизвестный флаг или лишний аргумент %q", arg)}
+			return false, false, &usageError{diagnostic.Errorf("status: неизвестный флаг или лишний аргумент %q", arg)}
 		}
 		if seen[arg] {
-			return false, false, &usageError{fmt.Sprintf("флаг %s указан повторно", arg)}
+			return false, false, &usageError{diagnostic.Errorf("флаг %s указан повторно", arg)}
 		}
 		seen[arg] = true
 		if err := fs.Parse([]string{arg}); err != nil {
-			return false, false, &usageError{err.Error()}
+			return false, false, &usageError{err}
 		}
 	}
 	return machine, help, nil
@@ -45,7 +46,7 @@ func runStatus(ctx context.Context, args []string, streams Streams, open OpenPla
 		return writeHelp(streams.Out, "status")
 	}
 	if open == nil {
-		return fmt.Errorf("операции плана не подключены")
+		return diagnostic.Errorf("операции плана не подключены")
 	}
 	plans, err := open(ctx)
 	if err != nil {
@@ -54,6 +55,11 @@ func runStatus(ctx context.Context, args []string, streams Streams, open OpenPla
 	r, err := plans.StatusReport(ctx)
 	if err != nil {
 		return err
+	}
+	for i := range r.Warnings {
+		if r.Warnings[i].Cause != nil {
+			r.Warnings[i].Message = diagnostic.Render(diagnosticLanguage(), r.Warnings[i].Cause)
+		}
 	}
 	if err := writeStatusWarnings(streams.Err, r.Warnings); err != nil {
 		return err

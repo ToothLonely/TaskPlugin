@@ -3,21 +3,22 @@ package git
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
+
+	"git-task/internal/diagnostic"
 )
 
 const PlanBranch = "git-task-plan"
 
-var ErrPushRace = errors.New("служебная ветка изменена конкурентным push")
+var ErrPushRace = diagnostic.New("служебная ветка изменена конкурентным push")
 
 func remoteName(name string) error {
 	if name == "" || strings.HasPrefix(name, "-") {
-		return fmt.Errorf("неверное имя remote")
+		return diagnostic.Errorf("неверное имя remote")
 	}
 	for _, r := range name {
 		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_' || r == '.') {
-			return fmt.Errorf("неверное имя remote")
+			return diagnostic.Errorf("неверное имя remote")
 		}
 	}
 	return nil
@@ -45,7 +46,7 @@ func (c *Client) RemotePlanTip(ctx context.Context, name string) (string, error)
 	}
 	fields := strings.Fields(string(r.Stdout))
 	if len(fields) != 2 || fields[1] != "refs/heads/"+PlanBranch || !objectID(fields[0]) {
-		return "", fmt.Errorf("неверный ответ ls-remote")
+		return "", diagnostic.Errorf("неверный ответ ls-remote")
 	}
 	return fields[0], nil
 }
@@ -93,14 +94,14 @@ func (c *Client) CachedPlanTip(ctx context.Context, name string) (string, error)
 	}
 	value := strings.TrimSpace(string(r.Stdout))
 	if !objectID(value) {
-		return "", fmt.Errorf("неверная служебная ссылка")
+		return "", diagnostic.Errorf("неверная служебная ссылка")
 	}
 	return value, nil
 }
 
 func (c *Client) ReadPlanCommit(ctx context.Context, tip string) ([]byte, error) {
 	if !objectID(tip) {
-		return nil, fmt.Errorf("неверный commit плана")
+		return nil, diagnostic.Errorf("неверный commit плана")
 	}
 	r, err := c.Run(ctx, "ls-tree", "-z", tip)
 	if err != nil {
@@ -110,7 +111,7 @@ func (c *Client) ReadPlanCommit(ctx context.Context, tip string) ([]byte, error)
 	meta, path, ok := strings.Cut(entry, "\t")
 	fields := strings.Fields(meta)
 	if !ok || path != "plan.json" || len(fields) != 3 || fields[0] != "100644" || fields[1] != "blob" || !objectID(fields[2]) {
-		return nil, fmt.Errorf("чужая служебная ветка: ожидается только plan.json")
+		return nil, diagnostic.Errorf("чужая служебная ветка: ожидается только plan.json")
 	}
 	r, err = c.Run(ctx, "cat-file", "blob", fields[2])
 	return r.Stdout, err
@@ -118,7 +119,7 @@ func (c *Client) ReadPlanCommit(ctx context.Context, tip string) ([]byte, error)
 
 func (c *Client) PlanCommit(ctx context.Context, parent string, data []byte) (string, error) {
 	if parent != "" && !objectID(parent) {
-		return "", fmt.Errorf("неверный родитель")
+		return "", diagnostic.Errorf("неверный родитель")
 	}
 	r, err := c.run(ctx, data, false, "hash-object", "-w", "--stdin")
 	if err != nil {
@@ -126,7 +127,7 @@ func (c *Client) PlanCommit(ctx context.Context, parent string, data []byte) (st
 	}
 	blob := strings.TrimSpace(string(r.Stdout))
 	if !objectID(blob) {
-		return "", fmt.Errorf("неверный blob")
+		return "", diagnostic.Errorf("неверный blob")
 	}
 	r, err = c.run(ctx, []byte("100644 blob "+blob+"\tplan.json\n"), false, "mktree")
 	if err != nil {
@@ -134,7 +135,7 @@ func (c *Client) PlanCommit(ctx context.Context, parent string, data []byte) (st
 	}
 	tree := strings.TrimSpace(string(r.Stdout))
 	if !objectID(tree) {
-		return "", fmt.Errorf("неверное дерево")
+		return "", diagnostic.Errorf("неверное дерево")
 	}
 	args := []string{"commit-tree", tree}
 	if parent != "" {
@@ -146,7 +147,7 @@ func (c *Client) PlanCommit(ctx context.Context, parent string, data []byte) (st
 	}
 	commit := strings.TrimSpace(string(r.Stdout))
 	if !objectID(commit) {
-		return "", fmt.Errorf("неверный commit")
+		return "", diagnostic.Errorf("неверный commit")
 	}
 	return commit, nil
 }
@@ -156,7 +157,7 @@ func (c *Client) PushPlan(ctx context.Context, name, parent, commit string) erro
 		return err
 	}
 	if !objectID(commit) {
-		return fmt.Errorf("неверный commit")
+		return diagnostic.Errorf("неверный commit")
 	}
 	_, err := c.run(ctx, nil, true, "push", "--porcelain", "--no-follow-tags", "--no-recurse-submodules", "--", name, commit+":refs/heads/"+PlanBranch)
 	if err == nil {
@@ -176,7 +177,7 @@ func (c *Client) PushPlan(ctx context.Context, name, parent, commit string) erro
 
 func (c *Client) UpdatePlanBranch(ctx context.Context, old, next string) error {
 	if !objectID(next) || old != "" && !objectID(old) {
-		return fmt.Errorf("неверный commit")
+		return diagnostic.Errorf("неверный commit")
 	}
 	if old == "" {
 		old = strings.Repeat("0", len(next))

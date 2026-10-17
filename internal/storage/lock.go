@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"git-task/internal/diagnostic"
 )
 
 func (s *Store) lock() (func() error, error) {
@@ -51,7 +53,7 @@ func (s *Store) lockFile() (func() error, error) {
 			return err
 		}
 		if !os.SameFile(info, current) {
-			return fmt.Errorf("блокировка заменена внешним процессом: %s", path)
+			return diagnostic.Errorf("блокировка заменена внешним процессом: %s", path)
 		}
 		return os.Remove(path)
 	}, nil

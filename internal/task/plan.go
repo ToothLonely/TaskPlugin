@@ -1,8 +1,9 @@
 package task
 
 import (
-	"fmt"
 	"math"
+
+	"git-task/internal/diagnostic"
 )
 
 // Format and SchemaVersion identify this plan representation.
@@ -38,7 +39,7 @@ func (p Plan) index(id string) (int, error) {
 			return i, nil
 		}
 	}
-	return 0, fmt.Errorf("%w: %q", ErrNotFound, id)
+	return 0, diagnostic.Errorf("%w: %q", ErrNotFound, id)
 }
 
 // FindID returns an independent snapshot, using the exact JSON ID.
@@ -62,10 +63,10 @@ func (p Plan) FindTitle(title string) (Task, error) {
 		}
 	}
 	if len(matches) == 0 {
-		return Task{}, fmt.Errorf("%w: title %q", ErrNotFound, title)
+		return Task{}, diagnostic.Errorf("%w: title %q", ErrNotFound, title)
 	}
 	if len(matches) > 1 {
-		return Task{}, fmt.Errorf("%w: %q: %v", ErrAmbiguous, title, matches)
+		return Task{}, diagnostic.Errorf("%w: %q: %v", ErrAmbiguous, title, matches)
 	}
 	return p.FindID(matches[0])
 }
@@ -81,7 +82,7 @@ func (p Plan) FirstTodo() (Task, error) {
 			return t, nil
 		}
 	}
-	return Task{}, fmt.Errorf("%w: нет не начатых задач", ErrNotFound)
+	return Task{}, diagnostic.Errorf("%w: нет не начатых задач", ErrNotFound)
 }
 
 // change commits a validated copy only after the whole transition succeeds.

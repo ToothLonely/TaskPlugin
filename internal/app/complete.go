@@ -2,9 +2,9 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"time"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/storage"
 	"git-task/internal/task"
 )
@@ -40,7 +40,7 @@ func (p *Plans) PrepareComplete(ctx context.Context, id, commit string, attemptI
 			}
 		}
 		if commit != "" {
-			return nil, fmt.Errorf("%w: история done не переписывается", task.ErrTransition)
+			return nil, diagnostic.Errorf("%w: история done не переписывается", task.ErrTransition)
 		}
 		return &CompletionPreview{Task: item, NoChange: true, base: base, id: id}, nil
 	}
@@ -70,14 +70,14 @@ func (p *Plans) PrepareComplete(ctx context.Context, id, commit string, attemptI
 			return nil, err
 		}
 		if preview.target == "" {
-			return nil, fmt.Errorf("целевая ветка отсутствует")
+			return nil, diagnostic.Errorf("целевая ветка отсутствует")
 		}
 		included, err := p.git.IsAncestor(ctx, preview.commit, preview.target)
 		if err != nil {
 			return nil, err
 		}
 		if !included {
-			return nil, fmt.Errorf("commit не достижим из целевой ветки")
+			return nil, diagnostic.Errorf("commit не достижим из целевой ветки")
 		}
 		preview.Commit = preview.commit
 	}
@@ -86,7 +86,7 @@ func (p *Plans) PrepareComplete(ctx context.Context, id, commit string, attemptI
 
 func (p *Plans) ApplyComplete(ctx context.Context, preview *CompletionPreview) (task.Task, error) {
 	if preview == nil {
-		return task.Task{}, fmt.Errorf("отсутствует подготовленное завершение")
+		return task.Task{}, diagnostic.Errorf("отсутствует подготовленное завершение")
 	}
 	current, err := p.PrepareComplete(ctx, preview.id, preview.commit, preview.attemptID)
 	if err != nil {

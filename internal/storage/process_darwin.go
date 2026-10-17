@@ -2,8 +2,9 @@ package storage
 
 import (
 	"errors"
-	"fmt"
 	"syscall"
+
+	"git-task/internal/diagnostic"
 )
 
 func processAbsent(pid int) error {
@@ -12,7 +13,7 @@ func processAbsent(pid int) error {
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("нельзя проверить владельца: %w", err)
+		return diagnostic.Errorf("нельзя проверить владельца: %w", err)
 	}
-	return fmt.Errorf("PID %d существует; lock не снимается", pid)
+	return diagnostic.Errorf("PID %d существует; lock не снимается", pid)
 }

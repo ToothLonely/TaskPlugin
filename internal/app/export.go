@@ -3,10 +3,10 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/storage"
 	"git-task/internal/transfer"
 )
@@ -25,7 +25,7 @@ func (p *Plans) Export(ctx context.Context, format string) ([]byte, error) {
 	case "json":
 		return transfer.EncodeJSON(snapshot.Plan)
 	default:
-		return nil, fmt.Errorf("неизвестный формат %q", format)
+		return nil, diagnostic.Errorf("неизвестный формат %q", format)
 	}
 }
 
@@ -53,11 +53,11 @@ func (p *Plans) ExportFile(ctx context.Context, path string, data []byte) error 
 			return err
 		}
 		if protected {
-			return fmt.Errorf("экспорт в служебный каталог запрещён: %s", path)
+			return diagnostic.Errorf("экспорт в служебный каталог запрещён: %s", path)
 		}
 	}
 	if _, err := os.Lstat(path); err == nil {
-		return fmt.Errorf("путь экспорта уже существует: %s", path)
+		return diagnostic.Errorf("путь экспорта уже существует: %s", path)
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
@@ -99,7 +99,7 @@ func publishExport(ctx context.Context, path string, data []byte) (err error) {
 		return err
 	}
 	if err = os.Link(f.Name(), path); err != nil {
-		return fmt.Errorf("публикация экспорта без перезаписи: %w", err)
+		return diagnostic.Errorf("публикация экспорта без перезаписи: %w", err)
 	}
 	return nil
 }

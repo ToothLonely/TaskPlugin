@@ -1,9 +1,10 @@
 package task
 
 import (
-	"fmt"
 	"reflect"
 	"slices"
+
+	"git-task/internal/diagnostic"
 )
 
 func mergeField[T comparable](name string, before, local, remote T) (T, error) {
@@ -13,7 +14,7 @@ func mergeField[T comparable](name string, before, local, remote T) (T, error) {
 	if remote == before {
 		return local, nil
 	}
-	return remote, fmt.Errorf("%w: %s", ErrSharedConflict, name)
+	return remote, diagnostic.Errorf("%w: %s", ErrSharedConflict, name)
 }
 
 func mergeValue[T any](name string, before, local, remote T) (T, error) {
@@ -23,7 +24,7 @@ func mergeValue[T any](name string, before, local, remote T) (T, error) {
 	if reflect.DeepEqual(remote, before) {
 		return local, nil
 	}
-	return remote, fmt.Errorf("%w: %s", ErrSharedConflict, name)
+	return remote, diagnostic.Errorf("%w: %s", ErrSharedConflict, name)
 }
 
 func MergeShared(before, local, remote Plan) (Plan, error) {
@@ -51,7 +52,7 @@ func MergeShared(before, local, remote Plan) (Plan, error) {
 			if re == nil {
 				rt.ActiveAttempt = nil
 				if !reflect.DeepEqual(lt, rt) {
-					return Plan{}, fmt.Errorf("%w: коллизия задачи %s", ErrSharedConflict, lt.ID)
+					return Plan{}, diagnostic.Errorf("%w: коллизия задачи %s", ErrSharedConflict, lt.ID)
 				}
 			} else {
 				next.Tasks = append(next.Tasks, lt.clone())
@@ -59,11 +60,11 @@ func MergeShared(before, local, remote Plan) (Plan, error) {
 			continue
 		}
 		if re != nil {
-			return Plan{}, fmt.Errorf("%w: задача удалена %s", ErrSharedConflict, lt.ID)
+			return Plan{}, diagnostic.Errorf("%w: задача удалена %s", ErrSharedConflict, lt.ID)
 		}
 		mt, err := mergeTask(bt, lt, rt)
 		if err != nil {
-			return Plan{}, fmt.Errorf("задача %s: %w", lt.ID, err)
+			return Plan{}, diagnostic.Errorf("задача %s: %w", lt.ID, err)
 		}
 		for i := range next.Tasks {
 			if next.Tasks[i].ID == lt.ID {
@@ -73,7 +74,7 @@ func MergeShared(before, local, remote Plan) (Plan, error) {
 	}
 	for _, bt := range before.Tasks {
 		if _, err := local.FindID(bt.ID); err != nil {
-			return Plan{}, fmt.Errorf("%w: удаление задачи", ErrSharedConflict)
+			return Plan{}, diagnostic.Errorf("%w: удаление задачи", ErrSharedConflict)
 		}
 	}
 	next.Order, err = mergeOrder(before.Order, local.Order, remote.Order)
@@ -107,7 +108,7 @@ func mergeTask(b, l, r Task) (Task, error) {
 		return Task{}, err
 	}
 	if (la != ba && !reflect.DeepEqual(b.Attempts, r.Attempts)) || (ra != ba && !reflect.DeepEqual(b.Attempts, l.Attempts)) {
-		return Task{}, fmt.Errorf("%w: archive и изменение подходов", ErrSharedConflict)
+		return Task{}, diagnostic.Errorf("%w: archive и изменение подходов", ErrSharedConflict)
 	}
 	next.Attempts = slices.Clone(r.Attempts)
 	for _, a := range l.Attempts {
@@ -115,7 +116,7 @@ func mergeTask(b, l, r Task) (Task, error) {
 		other, re := r.Attempt(a.ID)
 		if be != nil {
 			if re == nil && !reflect.DeepEqual(a, other) {
-				return Task{}, fmt.Errorf("%w: коллизия подхода %s", ErrSharedConflict, a.ID)
+				return Task{}, diagnostic.Errorf("%w: коллизия подхода %s", ErrSharedConflict, a.ID)
 			}
 			if re != nil {
 				next.Attempts = append(next.Attempts, a.clone())
@@ -123,7 +124,7 @@ func mergeTask(b, l, r Task) (Task, error) {
 			continue
 		}
 		if re != nil {
-			return Task{}, fmt.Errorf("%w: удалён подход %s", ErrSharedConflict, a.ID)
+			return Task{}, diagnostic.Errorf("%w: удалён подход %s", ErrSharedConflict, a.ID)
 		}
 		merged, err := mergeAttempt(old, a, other)
 		if err != nil {
@@ -137,7 +138,7 @@ func mergeTask(b, l, r Task) (Task, error) {
 	}
 	for _, a := range b.Attempts {
 		if _, err := l.Attempt(a.ID); err != nil {
-			return Task{}, fmt.Errorf("%w: удаление подхода", ErrSharedConflict)
+			return Task{}, diagnostic.Errorf("%w: удаление подхода", ErrSharedConflict)
 		}
 	}
 	if archived {
@@ -157,7 +158,7 @@ func mergeTask(b, l, r Task) (Task, error) {
 func mergeAttempt(b, l, r Attempt) (Attempt, error) {
 	for _, a := range []Attempt{l, r} {
 		if a.Author != b.Author || a.OriginalBranch != b.OriginalBranch || a.TargetBranch != b.TargetBranch || !reflect.DeepEqual(a.StartedAt, b.StartedAt) {
-			return Attempt{}, fmt.Errorf("%w: неизменные поля подхода %s", ErrSharedConflict, b.ID)
+			return Attempt{}, diagnostic.Errorf("%w: неизменные поля подхода %s", ErrSharedConflict, b.ID)
 		}
 	}
 	next := r.clone()

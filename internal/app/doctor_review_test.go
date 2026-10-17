@@ -134,7 +134,7 @@ func TestDoctorReviewExactFilesAndChangedHooks(t *testing.T) {
 	}
 	found := false
 	for _, finding := range d.Findings {
-		if finding.Name == "hooks" && finding.Problem && strings.Contains(finding.Detail, "изменён") {
+		if finding.Name == "hooks" && finding.Problem && strings.Contains(finding.Detail.Error(), "изменён") {
 			found = true
 		}
 	}

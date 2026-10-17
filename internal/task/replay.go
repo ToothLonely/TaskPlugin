@@ -5,9 +5,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"slices"
+
+	"git-task/internal/diagnostic"
 )
 
 func Queue(before, after Plan) (Plan, error) {
@@ -82,7 +83,7 @@ func Replay(remote Plan, actions []Action) (Plan, error) {
 		for _, r := range remote.Actions {
 			if r.ID == action.ID {
 				if r.Digest != digest {
-					return Plan{}, fmt.Errorf("%w: коллизия действия %s", ErrSharedConflict, r.ID)
+					return Plan{}, diagnostic.Errorf("%w: коллизия действия %s", ErrSharedConflict, r.ID)
 				}
 				found = true
 			}

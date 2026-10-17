@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strings"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/git"
 )
 
@@ -80,7 +81,7 @@ func prepare(dir, binary string, install bool) ([]entry, error) {
 	}
 	for _, file := range files {
 		if strings.HasPrefix(file.Name(), ".git-task-pending-") {
-			return nil, fmt.Errorf("прерванная запись hooks требует ручного разбора: %s", filepath.Join(dir, file.Name()))
+			return nil, diagnostic.Errorf("прерванная запись hooks требует ручного разбора: %s", filepath.Join(dir, file.Name()))
 		}
 	}
 	var entries []entry
@@ -97,30 +98,30 @@ func prepare(dir, binary string, install bool) ([]entry, error) {
 			decoder := json.NewDecoder(bytes.NewReader(e.stored.data))
 			decoder.DisallowUnknownFields()
 			if err := decoder.Decode(&e.record); err != nil {
-				return nil, fmt.Errorf("журнал hooks требует разбора: %s: %w", e.journal, err)
+				return nil, diagnostic.Errorf("журнал hooks требует разбора: %s: %w", e.journal, err)
 			}
 			var extra any
 			if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
-				return nil, fmt.Errorf("лишние данные журнала hooks: %s", e.journal)
+				return nil, diagnostic.Errorf("лишние данные журнала hooks: %s", e.journal)
 			}
 			r := e.record
-			if r.Version != 1 || r.Event != event || !filepath.IsAbs(r.Binary) || strings.ContainsAny(r.Binary, "\x00\r\n") || r.Mode & ^os.FileMode(0777) != 0 || !supported(r.original()) || !bytes.Equal(r.Wrapper, wrapper(event, r.Binary, r.Original, enabled(r.original()))) {
-				return nil, fmt.Errorf("неизвестный или изменённый журнал hooks: %s", e.journal)
+			if (r.Version != 1 && r.Version != 2) || r.Event != event || !filepath.IsAbs(r.Binary) || strings.ContainsAny(r.Binary, "\x00\r\n") || r.Mode & ^os.FileMode(0777) != 0 || !supported(r.original()) || !bytes.Equal(r.Wrapper, versionedWrapper(event, r.Binary, r.Original, enabled(r.original()), r.Version)) {
+				return nil, diagnostic.Errorf("неизвестный или изменённый журнал hooks: %s", e.journal)
 			}
 			if !equal(e.current, r.installed()) && !equal(e.current, r.original()) {
-				return nil, fmt.Errorf("hook изменён после установки; сохранён без изменений: %s; используйте ручной разбор из README.md", e.path)
+				return nil, diagnostic.Errorf("hook изменён после установки; сохранён без изменений: %s; используйте ручной разбор из README.md", e.path)
 			}
 			if install && binary != r.Binary {
-				return nil, fmt.Errorf("hooks привязаны к другому бинарнику; сначала выполните hooks uninstall")
+				return nil, diagnostic.Errorf("hooks привязаны к другому бинарнику; сначала выполните hooks uninstall")
 			}
 		} else {
 			if !install {
 				continue
 			}
 			if !supported(e.current) {
-				return nil, fmt.Errorf("hook или сторонний менеджер не поддерживает автоматическую цепочку: %s; используйте ручное подключение из README.md", e.path)
+				return nil, diagnostic.Errorf("hook или сторонний менеджер не поддерживает автоматическую цепочку: %s; используйте ручное подключение из README.md", e.path)
 			}
-			e.record = record{Version: 1, Event: event, Binary: binary, Original: e.current.data, OriginalExists: e.current.exists, Mode: e.current.mode}
+			e.record = record{Version: 2, Event: event, Binary: binary, Original: e.current.data, OriginalExists: e.current.exists, Mode: e.current.mode}
 			e.record.Wrapper = wrapper(event, binary, e.current.data, enabled(e.current))
 		}
 		entries = append(entries, e)
@@ -131,14 +132,14 @@ func prepare(dir, binary string, install bool) ([]entry, error) {
 func (i Installer) Install(ctx context.Context) (bool, error) {
 	binary, err := filepath.Abs(i.Binary)
 	if err != nil || i.Binary == "" || strings.ContainsAny(binary, "\x00\r\n") {
-		return false, fmt.Errorf("неверный путь бинарника hooks")
+		return false, diagnostic.Errorf("неверный путь бинарника hooks")
 	}
 	info, err := os.Stat(binary)
 	if err != nil {
 		return false, err
 	}
 	if !info.Mode().IsRegular() {
-		return false, fmt.Errorf("бинарник hooks не является обычным файлом")
+		return false, diagnostic.Errorf("бинарник hooks не является обычным файлом")
 	}
 	return i.change(ctx, binary, true)
 }
@@ -186,7 +187,7 @@ func (i Installer) change(ctx context.Context, binary string, install bool) (cha
 				return changed, err
 			}
 			if !equal(current, e.stored) {
-				return changed, fmt.Errorf("журнал hooks изменён внешним процессом: %s", e.journal)
+				return changed, diagnostic.Errorf("журнал hooks изменён внешним процессом: %s", e.journal)
 			}
 		}
 		if install {
@@ -226,7 +227,7 @@ func (i Installer) change(ctx context.Context, binary string, install bool) (cha
 func lock(dir string) (func() error, error) {
 	path := filepath.Join(dir, ".git-task-hooks.lock")
 	if err := create(path, []byte(fmt.Sprintf("git-task hooks lock\npid=%d\n", os.Getpid())), 0600); err != nil {
-		return nil, fmt.Errorf("блокировка hooks недоступна; прерванную установку разберите вручную: %w", err)
+		return nil, diagnostic.Errorf("блокировка hooks недоступна; прерванную установку разберите вручную: %w", err)
 	}
 	info, err := os.Lstat(path)
 	if err != nil {
@@ -238,7 +239,7 @@ func lock(dir string) (func() error, error) {
 			return err
 		}
 		if !os.SameFile(info, current) {
-			return fmt.Errorf("блокировка hooks заменена внешним процессом")
+			return diagnostic.Errorf("блокировка hooks заменена внешним процессом")
 		}
 		return os.Remove(path)
 	}, nil

@@ -2,8 +2,8 @@ package app
 
 import (
 	"context"
-	"fmt"
 
+	"git-task/internal/diagnostic"
 	"git-task/internal/storage"
 	"git-task/internal/task"
 )
@@ -32,7 +32,7 @@ func (p *Plans) PrepareEdit(ctx context.Context, id string) (*EditPreview, error
 
 func (p *Plans) ApplyEdit(ctx context.Context, preview *EditPreview, opts task.EditOptions) (task.Task, bool, error) {
 	if preview == nil {
-		return task.Task{}, false, fmt.Errorf("отсутствует подготовленное редактирование")
+		return task.Task{}, false, diagnostic.Errorf("отсутствует подготовленное редактирование")
 	}
 	next := preview.base.Plan
 	if _, err := next.Edit(preview.id, opts); err != nil {

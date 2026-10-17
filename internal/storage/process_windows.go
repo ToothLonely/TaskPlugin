@@ -2,15 +2,16 @@ package storage
 
 import (
 	"errors"
-	"fmt"
 	"syscall"
 	"unsafe"
+
+	"git-task/internal/diagnostic"
 )
 
 func processAbsent(pid int) (err error) {
 	h, err := syscall.CreateToolhelp32Snapshot(syscall.TH32CS_SNAPPROCESS, 0)
 	if err != nil {
-		return fmt.Errorf("нельзя проверить владельца: %w", err)
+		return diagnostic.Errorf("нельзя проверить владельца: %w", err)
 	}
 	defer func() { err = errors.Join(err, syscall.CloseHandle(h)) }()
 	entry := syscall.ProcessEntry32{Size: uint32(unsafe.Sizeof(syscall.ProcessEntry32{}))}
@@ -19,10 +20,10 @@ func processAbsent(pid int) (err error) {
 			return nil
 		}
 		if next != nil {
-			return fmt.Errorf("нельзя проверить владельца: %w", next)
+			return diagnostic.Errorf("нельзя проверить владельца: %w", next)
 		}
 		if uint64(entry.ProcessID) == uint64(pid) {
-			return fmt.Errorf("PID %d существует; lock не снимается", pid)
+			return diagnostic.Errorf("PID %d существует; lock не снимается", pid)
 		}
 	}
 }
