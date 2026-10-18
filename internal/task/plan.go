@@ -119,3 +119,11 @@ func (p *Plan) change(id string, apply func(*Plan, *Task) (bool, error)) (bool, 
 	*p = next
 	return true, nil
 }
+
+func (p Plan) TaskSnapshots() map[string]Task {
+	result := make(map[string]Task, len(p.Tasks))
+	for _, t := range p.Tasks {
+		result[t.ID] = t.clone()
+	}
+	return result
+}

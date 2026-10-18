@@ -5,8 +5,30 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
+
+func TestDiscoverNewlinePath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows paths cannot contain a newline")
+	}
+	c := isolatedClient(t)
+	root := filepath.Join(t.TempDir(), "line\nbreak")
+	if err := os.Mkdir(root, 0700); err != nil {
+		t.Fatal(err)
+	}
+	c.Dir = root
+	mustRun(t, c, "init", "--initial-branch=main", "--template=")
+	repo, err := c.Discover(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	samePath(t, repo.Root, root)
+	samePath(t, repo.GitDir, filepath.Join(root, ".git"))
+	samePath(t, repo.CommonDir, filepath.Join(root, ".git"))
+	samePath(t, repo.ExcludePath, filepath.Join(root, ".git", "info", "exclude"))
+}
 
 func TestDiscover(t *testing.T) {
 	c := isolatedClient(t)

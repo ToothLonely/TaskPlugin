@@ -77,13 +77,17 @@ func (s *Store) load() (Snapshot, error) {
 	if err != nil {
 		return Snapshot{}, err
 	}
-	if isTemplate(data) {
+	header, err := readHeader(data)
+	if err != nil {
+		return Snapshot{}, diagnostic.Errorf("повреждённый JSON: %w", err)
+	}
+	if header.Format == nil {
 		if _, err = task.ReadTemplate(data); err != nil {
 			return Snapshot{}, err
 		}
 		return Snapshot{}, ErrTemplate
 	}
-	plan, err := decode(data)
+	plan, err := decodePlan(data, header)
 	if err != nil {
 		return Snapshot{}, err
 	}

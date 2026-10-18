@@ -3,7 +3,6 @@ package storage
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -31,12 +30,8 @@ func validateBackup(name string, data []byte) error {
 }
 
 func isTemplate(data []byte) bool {
-	var fields map[string]json.RawMessage
-	if json.Unmarshal(data, &fields) != nil || fields == nil {
-		return false
-	}
-	_, exists := fields["format"]
-	return !exists
+	header, err := readHeader(data)
+	return err == nil && header.Format == nil
 }
 
 func (s *Store) templateSource(apply bool) ([]byte, bool, error) {

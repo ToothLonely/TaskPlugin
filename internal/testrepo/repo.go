@@ -12,7 +12,7 @@ import (
 )
 
 // New creates an unborn repository without a configured Git identity.
-func New(t *testing.T) *git.Client {
+func New(t testing.TB) *git.Client {
 	t.Helper()
 	base := t.TempDir()
 	root := filepath.Join(base, "репозиторий worktree с пробелами")
@@ -45,7 +45,7 @@ func New(t *testing.T) *git.Client {
 }
 
 // Run fails a test on any unexpected Git error.
-func Run(t *testing.T, c *git.Client, args ...string) []byte {
+func Run(t testing.TB, c *git.Client, args ...string) []byte {
 	t.Helper()
 	r, err := c.Run(context.Background(), args...)
 	if err != nil {
@@ -55,7 +55,7 @@ func Run(t *testing.T, c *git.Client, args ...string) []byte {
 }
 
 // Commit sets identity only for this process, leaving repository config intact.
-func Commit(t *testing.T, c *git.Client) {
+func Commit(t testing.TB, c *git.Client) {
 	t.Helper()
 	Run(t, c, "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "-c", "commit.gpgSign=false", "commit", "--allow-empty", "-m", "test")
 }

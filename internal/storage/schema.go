@@ -19,16 +19,32 @@ func schemaVersion(data []byte) int {
 	return header.Version
 }
 
+type documentHeader struct {
+	Format  json.RawMessage `json:"format"`
+	Version int             `json:"schema_version"`
+}
+
+func readHeader(data []byte) (documentHeader, error) {
+	var header documentHeader
+	err := json.Unmarshal(data, &header)
+	return header, err
+}
+
 func decode(data []byte) (task.Plan, error) {
-	var header struct {
-		Format  string `json:"format"`
-		Version int    `json:"schema_version"`
-	}
-	if err := json.Unmarshal(data, &header); err != nil {
+	header, err := readHeader(data)
+	if err != nil {
 		return task.Plan{}, diagnostic.Errorf("повреждённый JSON: %w", err)
 	}
-	if header.Format != task.Format {
-		return task.Plan{}, diagnostic.Errorf("чужой формат плана %q", header.Format)
+	return decodePlan(data, header)
+}
+
+func decodePlan(data []byte, header documentHeader) (task.Plan, error) {
+	var format string
+	if err := json.Unmarshal(header.Format, &format); err != nil {
+		return task.Plan{}, diagnostic.Errorf("повреждённый JSON: %w", err)
+	}
+	if format != task.Format {
+		return task.Plan{}, diagnostic.Errorf("чужой формат плана %q", format)
 	}
 	if header.Version != task.SchemaVersion {
 		return task.Plan{}, diagnostic.Errorf("%w %d; поддерживается только схема %d", ErrUnsupportedSchema, header.Version, task.SchemaVersion)

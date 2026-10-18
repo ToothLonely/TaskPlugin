@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"math"
-	"slices"
 	"time"
 
 	"git-task/internal/task"
@@ -52,12 +51,22 @@ type StatusReport struct {
 }
 
 func statusReport(plan task.Plan, repo StatusRepository, pending bool) (StatusReport, error) {
+	if err := plan.Validate(); err != nil {
+		return StatusReport{}, err
+	}
+	return statusReportValidated(plan, repo, pending), nil
+}
+
+func statusReportValidated(plan task.Plan, repo StatusRepository, pending bool) StatusReport {
 	r := StatusReport{SchemaVersion: task.SchemaVersion, Repository: repo, Tasks: []task.Task{}, Warnings: []StatusWarning{}}
+	index, locals := statusIndexes(plan)
 	for _, id := range plan.Order {
-		t, err := plan.FindID(id)
-		if err != nil {
-			return StatusReport{}, err
+		t := index[id]
+		if t.Status == task.Todo && r.NextTaskID == nil {
+			next := id
+			r.NextTaskID = &next
 		}
+
 		r.Tasks = append(r.Tasks, t)
 		if t.Status != task.Archived {
 			r.Progress.Total++
@@ -66,7 +75,7 @@ func statusReport(plan task.Plan, repo StatusRepository, pending bool) (StatusRe
 			r.Progress.Done++
 		}
 		for _, a := range t.Attempts {
-			if plan.Team != nil && !slices.Contains(plan.Team.LocalAttempts, a.ID) {
+			if plan.Team != nil && !locals[a.ID] {
 				continue
 			}
 			if t.Status != task.Archived && a.Status != task.Done && repo.CurrentBranch != nil && a.Branch == *repo.CurrentBranch {
@@ -87,19 +96,13 @@ func statusReport(plan task.Plan, repo StatusRepository, pending bool) (StatusRe
 		percent := math.Round(1000*float64(r.Progress.Done)/float64(r.Progress.Total)) / 10
 		r.Progress.Percent = &percent
 	}
-	next, err := plan.FirstTodo()
-	if err == nil {
-		r.NextTaskID = &next.ID
-	} else if !errors.Is(err, task.ErrNotFound) {
-		return StatusReport{}, err
-	}
 	if plan.Team != nil && len(plan.Team.Pending) > 0 {
 		r.Warnings = append(r.Warnings, StatusWarning{Code: "unpublished", Message: "Локальные действия ещё не опубликованы; выполните git task team publish."})
 	}
 	if pending {
 		r.Warnings = append(r.Warnings, StatusWarning{Code: "operation_pending", Message: "Незавершённая операция в operation.json; изменения заблокированы до явного восстановления."})
 	}
-	return r, nil
+	return r
 }
 
 func (p *Plans) StatusReport(ctx context.Context) (StatusReport, error) {
@@ -112,11 +115,11 @@ func (p *Plans) StatusReport(ctx context.Context) (StatusReport, error) {
 	if err != nil {
 		return StatusReport{}, err
 	}
-	report, err := statusReport(plan, StatusRepository{Root: p.git.Dir, TargetBranch: plan.TargetBranch, CurrentBranch: head.Branch, HeadCommit: head.Commit, HeadCommittedAt: head.CommittedAt, Detached: head.Detached, Unborn: head.Unborn}, pending)
+	report := statusReportValidated(plan, StatusRepository{Root: p.git.Dir, TargetBranch: plan.TargetBranch, CurrentBranch: head.Branch, HeadCommit: head.Commit, HeadCommittedAt: head.CommittedAt, Detached: head.Detached, Unborn: head.Unborn}, pending)
 	if receiveErr != nil {
 		report.Warnings = append(report.Warnings, StatusWarning{Code: "shared_receive_failed", Message: receiveErr.Error(), Cause: receiveErr})
 	}
-	return report, err
+	return report, nil
 }
 
 func (p *Plans) Show(ctx context.Context, id string) (task.Task, bool, error) {

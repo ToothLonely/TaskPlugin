@@ -91,22 +91,37 @@ func (p *Plans) sync(ctx context.Context, snapshot storage.Snapshot, postMerge b
 		result  tracking.Result
 	}
 	var checks []checked
+	type completedCheck struct {
+		item     task.Task
+		warnings []task.Warning
+	}
+	var completed []completedCheck
 	now := time.Now().UTC()
+	index, locals := statusIndexes(snapshot.Plan)
+	positions := make(map[string]int, len(snapshot.Plan.Tasks))
+	for i, t := range snapshot.Plan.Tasks {
+		positions[t.ID] = i
+	}
+	reader := newCompletionReader(p.git)
 	for _, id := range snapshot.Plan.Order {
-		t, _ := snapshot.Plan.FindID(id)
+		t := index[id]
 		if t.Status == task.Done {
 			if snapshot.Plan.Team != nil {
 				local := t.Attempts[:0:0]
 				for _, a := range t.Attempts {
-					if slices.Contains(snapshot.Plan.Team.LocalAttempts, a.ID) {
+					if locals[a.ID] {
 						local = append(local, a)
 					}
 				}
 				t.Attempts = local
 			}
-			warnings, err := p.completedWarnings(ctx, t)
+			warnings, err := completedWarnings(ctx, reader, t)
 			if err != nil {
 				return task.Plan{}, false, err
+			}
+			completed = append(completed, completedCheck{t, warnings})
+			if slices.Equal(t.Warnings, warnings) {
+				continue
 			}
 			if _, err = next.SetWarnings(id, warnings); err != nil {
 				return task.Plan{}, false, err
@@ -120,7 +135,7 @@ func (p *Plans) sync(ctx context.Context, snapshot storage.Snapshot, postMerge b
 			if a.Status == task.Done {
 				continue
 			}
-			if snapshot.Plan.Team != nil && !slices.Contains(snapshot.Plan.Team.LocalAttempts, a.ID) {
+			if snapshot.Plan.Team != nil && !locals[a.ID] {
 				continue
 			}
 			var result tracking.Result
@@ -137,6 +152,10 @@ func (p *Plans) sync(ctx context.Context, snapshot storage.Snapshot, postMerge b
 			if result.Completion != nil {
 				_, err = next.Complete(id, a.ID, *result.Completion)
 			} else {
+				current := next.Tasks[positions[id]]
+				if current.ObservationMatches(a.ID, result.Observation, result.Warnings) {
+					continue
+				}
 				_, err = next.Observe(id, a.ID, result.Observation, result.Warnings)
 			}
 			if err != nil {
@@ -149,6 +168,16 @@ func (p *Plans) sync(ctx context.Context, snapshot storage.Snapshot, postMerge b
 	}
 	if next.Revision == snapshot.Plan.Revision {
 		return next, false, ctx.Err()
+	}
+	fresh := newCompletionReader(p.git)
+	for _, check := range completed {
+		warnings, err := completedWarnings(ctx, fresh, check.item)
+		if err != nil {
+			return task.Plan{}, false, err
+		}
+		if !slices.Equal(warnings, check.warnings) {
+			return task.Plan{}, false, storage.ErrConflict
+		}
 	}
 	for _, check := range checks {
 		if err := check.result.Recheck(ctx, p.git, check.attempt); err != nil {
@@ -164,21 +193,21 @@ func (p *Plans) sync(ctx context.Context, snapshot storage.Snapshot, postMerge b
 	return next, changed, err
 }
 
-func (p *Plans) completedWarnings(ctx context.Context, t task.Task) ([]task.Warning, error) {
+func completedWarnings(ctx context.Context, reader completionReader, t task.Task) ([]task.Warning, error) {
 	var warnings []task.Warning
 	for _, a := range t.Attempts {
 		c := a.Completion
 		if c == nil || c.Source != task.Merge {
 			continue
 		}
-		target, err := p.git.BranchCommit(ctx, c.TargetBranch)
+		target, err := reader.BranchCommit(ctx, c.TargetBranch)
 		if err != nil {
 			return nil, err
 		}
 		lost := target == ""
 		if !lost {
 			for _, oid := range []string{c.Commit, c.WorkCommit} {
-				exists, err := p.git.HasObject(ctx, oid)
+				exists, err := reader.HasObject(ctx, oid)
 				if err != nil {
 					return nil, err
 				}
@@ -186,7 +215,7 @@ func (p *Plans) completedWarnings(ctx context.Context, t task.Task) ([]task.Warn
 					lost = true
 					break
 				}
-				included, err := p.git.IsAncestor(ctx, oid, target)
+				included, err := reader.IsAncestor(ctx, oid, target)
 				if err != nil {
 					return nil, err
 				}

@@ -161,6 +161,10 @@ func (p *Plans) applyReceived(ctx context.Context, base storage.Snapshot, tip st
 	if err != nil {
 		return p.store.PreserveShared(ctx, data, err)
 	}
+	return p.applyReceivedPlan(ctx, base, tip, ack, old, remote, data)
+}
+
+func (p *Plans) applyReceivedPlan(ctx context.Context, base storage.Snapshot, tip string, ack bool, old, remote task.Plan, data []byte) error {
 	if tip == "" && base.Plan.Team.BaseCommit != "" {
 		return diagnostic.Errorf("общая ветка исчезла; локальный план и очередь сохранены")
 	}
@@ -177,16 +181,13 @@ func (p *Plans) applyReceived(ctx context.Context, base storage.Snapshot, tip st
 	team.BaseCommit = tip
 	team.Pending = slices.Clone(team.Pending)
 	if ack {
+		receipts := make(map[string]string, len(remote.Actions))
+		for _, r := range remote.Actions {
+			receipts[r.ID] = r.Digest
+		}
 		pending := team.Pending[:0]
 		for _, a := range team.Pending {
-			found := false
-			for _, r := range remote.Actions {
-				if r.ID == a.ID && r.Digest == a.Digest() {
-					found = true
-					break
-				}
-			}
-			if !found {
+			if digest, found := receipts[a.ID]; !found || digest != a.Digest() {
 				pending = append(pending, a)
 			}
 		}
@@ -198,16 +199,17 @@ func (p *Plans) applyReceived(ctx context.Context, base storage.Snapshot, tip st
 	}
 	_, err = p.store.SaveShared(ctx, base, next)
 	if err == nil {
+		previous := base.Plan.TaskSnapshots()
 		for _, t := range next.Tasks {
-			old, e := base.Plan.FindID(t.ID)
+			old, found := previous[t.ID]
 			oldCount := 0
-			if e == nil {
+			if found {
 				oldCount = len(old.Attempts)
 			}
 			if len(t.Attempts) > oldCount && len(t.Attempts) > 1 {
 				p.notices = append(p.notices, task.Warning{Code: "parallel_work", Message: fmt.Sprintf("Задача %s: получены независимые подходы, ни один не потерян.", t.ID)})
 			}
-			if e == nil && old.Status == task.Done && t.Status == task.Active {
+			if found && old.Status == task.Done && t.Status == task.Active {
 				p.notices = append(p.notices, task.Warning{Code: "late_attempt", Message: fmt.Sprintf("Задача %s снова active: получен поздний подход.", t.ID)})
 			}
 		}
@@ -226,37 +228,48 @@ func (p *Plans) ReceiveCached(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	_, err = p.receiveCached(ctx, base)
+	return err
+}
+
+func (p *Plans) receiveCached(ctx context.Context, base storage.Snapshot) (storage.Snapshot, error) {
 	if base.Plan.Team == nil || base.PendingOperation {
-		return nil
+		return base, nil
 	}
 	if err := checkQueue(base.Plan); err != nil {
-		return err
+		return base, err
 	}
 	tip, err := p.git.CachedPlanTip(ctx, base.Plan.Team.Remote)
 	if err != nil || tip == "" {
-		return err
+		return base, err
 	}
 	if base.Plan.Team.BaseCommit != "" {
 		if tip == base.Plan.Team.BaseCommit {
-			return nil
+			return base, nil
 		}
 		older, err := p.git.IsAncestor(ctx, tip, base.Plan.Team.BaseCommit)
 		if err != nil {
-			return err
+			return base, err
 		}
 		if older {
-			return nil
+			return base, nil
 		}
 	}
 	remote, data, err := p.sharedAt(ctx, tip, task.Plan{})
 	if err != nil {
-		return p.store.PreserveShared(ctx, data, err)
+		return base, p.store.PreserveShared(ctx, data, err)
 	}
-	_ = remote
 	if reflect.DeepEqual(base.Plan.Team.Base, json.RawMessage(data)) {
-		return nil
+		return base, nil
 	}
-	return p.applyReceived(ctx, base, tip, true)
+	old, err := decodeBase(base.Plan)
+	if err != nil {
+		return base, err
+	}
+	if err := p.applyReceivedPlan(ctx, base, tip, true, old, remote, data); err != nil {
+		return base, err
+	}
+	return p.store.Load(ctx)
 }
 
 func (p *Plans) Publish(ctx context.Context) error {

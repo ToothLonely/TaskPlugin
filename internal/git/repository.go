@@ -31,27 +31,28 @@ func (c *Client) Discover(ctx context.Context) (Repository, error) {
 	if outputLine(inside.Stdout) != "true" {
 		return Repository{}, ErrNotWorkTree
 	}
-	var repo Repository
-	queries := []struct {
-		args []string
-		dest *string
-	}{
-		{[]string{"--show-toplevel"}, &repo.Root},
-		{[]string{"--absolute-git-dir"}, &repo.GitDir},
-		{[]string{"--git-common-dir"}, &repo.CommonDir},
-		{[]string{"--git-path", "info/exclude"}, &repo.ExcludePath},
+	result, err := c.Run(ctx, "rev-parse", "--path-format=absolute", "--show-toplevel", "--absolute-git-dir", "--git-common-dir", "--git-path", "info/exclude")
+	if err != nil {
+		return Repository{}, diagnostic.Errorf("не удалось определить пути репозитория: %w", err)
 	}
-	for _, query := range queries {
-		args := append([]string{"rev-parse", "--path-format=absolute"}, query.args...)
-		result, err := c.Run(ctx, args...)
-		if err != nil {
-			return Repository{}, diagnostic.Errorf("не удалось определить пути репозитория: %w", err)
+	paths := strings.Split(outputLine(result.Stdout), "\n")
+	if len(paths) != 4 {
+		paths = nil
+		for _, args := range [][]string{{"--show-toplevel"}, {"--absolute-git-dir"}, {"--git-common-dir"}, {"--git-path", "info/exclude"}} {
+			result, err := c.Run(ctx, append([]string{"rev-parse", "--path-format=absolute"}, args...)...)
+			if err != nil {
+				return Repository{}, diagnostic.Errorf("не удалось определить пути репозитория: %w", err)
+			}
+			paths = append(paths, outputLine(result.Stdout))
 		}
-		path := outputLine(result.Stdout)
+	}
+	var repo Repository
+	for i, dest := range []*string{&repo.Root, &repo.GitDir, &repo.CommonDir, &repo.ExcludePath} {
+		path := paths[i]
 		if !filepath.IsAbs(path) {
 			return Repository{}, diagnostic.Errorf("Git вернул не абсолютный путь: %q", path)
 		}
-		*query.dest = filepath.Clean(path)
+		*dest = filepath.Clean(path)
 	}
 	return repo, nil
 }

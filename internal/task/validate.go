@@ -106,6 +106,7 @@ func (p Plan) Validate() error {
 		if base.Team != nil {
 			return invalid("локальные настройки в общей базе")
 		}
+		validated := map[string]bool{string(p.Team.Base): true}
 		pending := map[string]bool{}
 		for _, a := range p.Team.Pending {
 			if !identity(a.ID) || pending[a.ID] {
@@ -113,10 +114,14 @@ func (p Plan) Validate() error {
 			}
 			pending[a.ID] = true
 			for _, data := range []json.RawMessage{a.Before, a.After} {
+				if validated[string(data)] {
+					continue
+				}
 				var snapshot Plan
 				if err := json.Unmarshal(data, &snapshot); err != nil {
 					return invalid("повреждено действие %s: %v", a.ID, err)
 				}
+				validated[string(data)] = true
 				if snapshot.Team != nil {
 					return invalid("локальные данные в действии")
 				}

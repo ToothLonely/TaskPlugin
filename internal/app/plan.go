@@ -73,13 +73,20 @@ func (p *Plans) Status(ctx context.Context) (task.Plan, error) {
 
 // StatusState also reports an unfinished operation without repairing it.
 func (p *Plans) StatusState(ctx context.Context) (task.Plan, bool, error) {
-	receiveErr := p.ReceiveCached(ctx)
 	snapshot, err := p.store.Load(ctx)
 	if err != nil || snapshot.PendingOperation {
 		return snapshot.Plan, snapshot.PendingOperation, err
 	}
+	snapshot, receiveErr := p.receiveCached(ctx, snapshot)
 	if receiveErr != nil {
-		return snapshot.Plan, false, errors.Join(ErrReceive, receiveErr)
+		current, loadErr := p.store.Load(ctx)
+		if loadErr != nil || current.PendingOperation {
+			return current.Plan, current.PendingOperation, loadErr
+		}
+		return current.Plan, false, errors.Join(ErrReceive, receiveErr)
+	}
+	if snapshot.PendingOperation {
+		return snapshot.Plan, true, nil
 	}
 	plan, _, err := p.sync(ctx, snapshot, false)
 	return plan, false, err
