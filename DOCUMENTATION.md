@@ -1,5 +1,86 @@
 # Git Task documentation
 
+## Updating git-task / Обновление git-task
+
+`git task update` updates an existing installation to the latest stable release
+of [ToothLonely/TaskPlugin](https://github.com/ToothLonely/TaskPlugin/releases).
+It accepts no arguments other than `--help`, works outside repositories, and does
+not change plans, hooks, Git configuration, or project files. Equal/newer versions
+are a no-op; development builds cannot update. An older installation without this
+command needs one manual upgrade using the existing installer first.
+
+The updater requires the complete release bundle: native installers, portable
+archives, `manifest.json`, and `SHA256SUMS`. The published v1.4.0 release does not
+contain the metadata required by the updater. Missing metadata produces an error;
+the updater never bypasses verification. HTTPS and SHA-256 provide integrity
+relative to the official release, not an independent publisher signature.
+
+MSI, DEB, RPM, and PKG installations use their native installer and preserve package
+registration. System installations require the privileges normally required by
+`dpkg --install`, `rpm --upgrade`, or `/usr/sbin/installer`; there is no automatic
+sudo. MSI uses the existing installation scope, disables automatic restart and
+does not terminate applications. A reboot-required/error result is not reported
+as success. Check the native package state before repeating an interrupted update.
+Homebrew and other unidentified owners must use their original installation
+channel. Multiple copies in PATH are rejected when applying an update.
+
+Portable archives built with this version include `git-task-portable.json`.
+Keep that receipt next to the binary; it binds the installed version and checksum.
+Older portable copies need a fresh complete archive in a separate directory.
+Never add a portable receipt to a package-managed installation. Replacement keeps
+permissions and renames the old binary to `.update-backup`; it does not overwrite
+a running executable. If the OS disallows that rename, the update fails and the
+original remains. A successful portable update retains its backup and journal
+until the next update invocation verifies the new copy and cleans them up.
+
+### Recovery / Восстановление
+
+An interrupted update deliberately leaves evidence next to the executable:
+`.update-lock`, `.update.json` (portable), or `.update-native.json` (native).
+Do not remove a lock while any updater/installer is still running. After confirming
+that all such processes have exited, remove only the empty `.update-lock` directory.
+For a completed portable replacement, run `git task update` again to verify and
+finish receipt/backup cleanup. If the journal, binary, or receipt disagree, preserve
+all files and compare their SHA-256 with `previous_hash`/`next_hash` in the journal.
+Restore the old binary AND matching receipt from their `.update-backup` files, or
+install a fresh complete official archive separately. Only after confirming a
+working, matching pair remove the obsolete journal and remaining candidate file.
+
+For native failures, preserve `.update-native.json`: it records the package owner,
+versions and downloaded installer path. Complete/repair the installation with
+that native package tool, verify both its registered version and `git task version`,
+and only then remove the journal and downloaded temporary directory. Never restore
+a portable backup over a native package. The updater does not automatically roll
+back package databases. Permissions, busy files, interrupted installers and restart
+requirements remain native installer errors, not proof of an update.
+
+`git task update` обновляет существующую установку до последнего стабильного релиза.
+Репозиторий не нужен; планы, hooks и настройки Git не меняются. Разрешён только
+`--help`. Равная/более новая версия не понижается; сборка dev отклоняется. Для первого
+перехода со старой версии без update используйте прежний установщик. Нужен полный
+комплект релиза с manifest и контрольными суммами; у опубликованного v1.4.0 их нет.
+
+MSI/DEB/RPM/PKG обновляются штатным инструментом с проверкой регистрации пакета.
+Системная установка требует соответствующих прав; скрытого sudo и принудительного
+завершения программ нет. Homebrew/неизвестный владелец требуют исходного канала
+установки. Для portable сохраните квитанцию из нового официального архива рядом
+с бинарником. Старый бинарник переименовывается в backup; если ОС запрещает это,
+обновление отказывает, сохраняя оригинал. Успех подтверждается версией нового файла.
+
+После прерывания сначала убедитесь, что updater и установщик завершены, затем можно
+удалить только пустой каталог `.update-lock`. Не удаляйте журнал и backup вслепую.
+Для завершённой portable-замены повтор update проверяет новую версию и очищает
+остатки. При несогласованности сохраните файлы, сравните SHA-256 с журналом и
+восстановите согласованную пару старого бинарника и квитанции из backup либо
+распакуйте официальный архив отдельно. Журнал удаляется после проверки пары.
+Для native сохраните `.update-native.json`, завершите/исправьте установку штатным
+инструментом, проверьте регистрацию и `git task version`, затем удалите журнал и
+временный каталог пакета. Portable-откат поверх пакетной базы запрещён.
+
+SHA-256 и HTTPS не являются независимой подписью издателя. Фактическую работу
+обновления MSI/DEB/RPM/PKG и portable проверяет независимый ревьюер в изолированных
+VM/CI; успешная сборка сама по себе не подтверждает платформенную поддержку.
+
 [English](#english) | [Русский](#russian)
 
 <a id="english"></a>

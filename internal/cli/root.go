@@ -20,6 +20,7 @@ type Streams struct {
 	Err          io.Writer
 	OpenDialogue func() (Dialogue, error)
 	RunEditor    func(context.Context, string, string, string) error
+	RunUpdate    func(context.Context, string, io.Writer, io.Writer) error
 }
 
 type usageError struct{ error }
@@ -114,6 +115,9 @@ func execute(ctx context.Context, args []string, version string, streams Streams
 		args = args[1:]
 	}
 	if command != "help" && command != "version" {
+		if command == "update" {
+			return runUpdate(ctx, args[1:], version, streams)
+		}
 		if command == "push" || command == "pull" {
 			return runExchange(ctx, command, args[1:], streams, open)
 		}

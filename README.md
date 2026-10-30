@@ -377,3 +377,7 @@ git task push
 в локальной очереди. Обычные команды Git также доступны.
 
 [Все команды и дополнительные настройки → DOCUMENTATION.md](https://github.com/ToothLonely/TaskPlugin/blob/master/DOCUMENTATION.md#russian)
+
+### Updating / Обновление
+Use git task update after installing a version that includes this command. See [update and recovery](DOCUMENTATION.md#updating-git-task--обновление-git-task) for package ownership, permissions and portable recovery.
+Для обновления версии с новой командой используйте git task update. Первый переход со старой версии выполняется прежним установщиком. Подробности и восстановление — DOCUMENTATION.md.

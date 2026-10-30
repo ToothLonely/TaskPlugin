@@ -126,6 +126,15 @@ func run(ctx context.Context, args []string) error {
 			return err
 		}
 		entries := append([]entry{{binaryName, binary, 0755}}, assets...)
+		portableReceipt, err := json.Marshal(struct {
+			Owner   string `json:"owner"`
+			Version string `json:"version"`
+			SHA256  string `json:"sha256"`
+		}{"portable", *version, digest(binary)})
+		if err != nil {
+			return err
+		}
+		entries = append(entries, entry{"git-task-portable.json", portableReceipt, 0644})
 		archive, err := pack(entries, operatingSystem == "windows")
 		if err != nil {
 			return err
