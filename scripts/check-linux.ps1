@@ -3,7 +3,7 @@ param([string]$Docker = 'docker', [switch]$UseExistingImage,
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$checkImage = 'git-task-checks:go1.26.8-git2.51.0'
+$checkImage = 'git-task-checks:go1.26.10-git2.51.0'
 
 # Image preparation downloads tools. The actual checks run without networking.
 if (-not $UseExistingImage) {
