@@ -14,6 +14,15 @@ def msi_registration():
     script = "$ErrorActionPreference='Stop'; $i=New-Object -ComObject WindowsInstaller.Installer; $p=@($i.RelatedProducts('{C0C7D813-8DDD-4F2B-951A-E30DC27F643C}')); ConvertTo-Json -Compress -InputObject $p"
     return json.loads(run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', script]))
 
+def verify_directory_creation_denied(directory):
+    probe = directory / 'permission-probe'
+    try:
+        probe.mkdir()
+    except PermissionError:
+        return
+    probe.rmdir()
+    raise RuntimeError('Permission fixture still allows subdirectory creation: ' + str(directory))
+
 def permission_check():
     executable = evidence / 'permission.test.exe'
     run(['go', 'test', '-c', '-o', executable, './internal/update'])
@@ -28,8 +37,10 @@ def permission_check():
         target = str(denied / 'git-task')
         if platform.system() == 'Windows':
             sid = run(['whoami', '/user', '/fo', 'csv', '/nh']).strip().split(',')[-1].strip('"')
-            run(['icacls', denied, '/deny', '*' + sid + ':(OI)(CI)(W)'])
+            run(['icacls', denied, '/deny', '*' + sid + ':(AD,WD)'])
             try:
+                run(['icacls', denied])
+                verify_directory_creation_denied(denied)
                 os.environ['UPDATE_DENIED_PATH'] = target
                 run([child, '-test.run=^TestUpdatePermissionChild$', '-test.v'])
             finally:
@@ -57,7 +68,7 @@ def run(args):
     with (evidence / 'commands.log').open('a', encoding='utf-8') as log:
         log.write(json.dumps([str(x) for x in args]) + '\n' + result.stdout + '\nexit=' + str(result.returncode) + '\n')
     if result.returncode:
-        raise RuntimeError('Command failed: ' + str(args))
+        raise RuntimeError('Command failed (exit ' + str(result.returncode) + '): ' + str(args) + '\n' + result.stdout[-8000:])
     return result.stdout
 
 def main():

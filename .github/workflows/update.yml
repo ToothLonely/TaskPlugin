@@ -94,6 +94,7 @@ jobs:
       - name: Native or portable upgrade and uninstall
         shell: bash
         run: |
+          python3 -m unittest discover -s scripts -p test_update_ci.py
           if [[ '${{ matrix.channel }}' == deb || '${{ matrix.channel }}' == pkg ]]; then
             sudo env PATH="$PATH" GITHUB_ACTIONS=true python3 scripts/update-ci.py '${{ matrix.channel }}'
           else
