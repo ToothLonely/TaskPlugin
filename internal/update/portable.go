@@ -34,6 +34,10 @@ func replacePortable(ctx context.Context, i Installation, binary []byte, version
 }
 
 func applyPortable(ctx context.Context, i Installation, binary []byte, version, hash string, inspect func(context.Context, string, string) (Installation, error), verify func(context.Context, string, string) error) error {
+	return applyPortableSteps(ctx, i, binary, version, hash, inspect, verify, func(string) {})
+}
+
+func applyPortableSteps(ctx context.Context, i Installation, binary []byte, version, hash string, inspect func(context.Context, string, string) (Installation, error), verify func(context.Context, string, string) error, checkpoint func(string)) error {
 	journalPath := i.Path + ".update.json"
 	backup := i.Path + ".update-backup"
 	for _, path := range []string{journalPath, backup, filepath.Join(filepath.Dir(i.Path), "git-task-portable.json.update-backup")} {
@@ -85,12 +89,15 @@ func applyPortable(ctx context.Context, i Installation, binary []byte, version, 
 	if err := writeNew(journalPath, data, 0600); err != nil {
 		return err
 	}
+	checkpoint("journal")
 	if err := os.Rename(i.Path, backup); err != nil {
 		return diagnostic.Errorf("не удалось сохранить работающий бинарник; оригинал сохранён, журнал %s: %w", journalPath, err)
 	}
+	checkpoint("backup")
 	if err := os.Rename(staged, i.Path); err != nil {
 		return errors.Join(err, os.Rename(backup, i.Path))
 	}
+	checkpoint("binary")
 	if err := verify(ctx, i.Path, version); err != nil {
 		if moveErr := os.Rename(i.Path, staged); moveErr != nil {
 			return errors.Join(err, moveErr)
@@ -113,8 +120,10 @@ func applyPortable(ctx context.Context, i Installation, binary []byte, version, 
 	if err := os.Rename(receiptPath, receiptPath+".update-backup"); err != nil {
 		return diagnostic.Errorf("бинарник заменён, но квитанция требует восстановления: %w", err)
 	}
+	checkpoint("receipt-backup")
 	if err := writeNew(receiptPath, receiptData, 0600); err != nil {
 		return diagnostic.Errorf("бинарник заменён, но квитанция требует восстановления: %w", err)
 	}
+	checkpoint("receipt")
 	return nil
 }

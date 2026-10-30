@@ -168,12 +168,8 @@ func installNative(ctx context.Context, i Installation, name string, data []byte
 	cmd := exec.CommandContext(ctx, program, args...)
 	cmd.Stdout = out
 	cmd.Stderr = stderr
-	if err := cmd.Run(); err != nil {
-		if ctx.Err() != nil {
-			err = errors.Join(err, ctx.Err())
-			return diagnostic.Errorf("установщик не подтвердил завершение; перед повтором проверьте состояние пакета и необходимые права: %w", err)
-		}
-		return diagnostic.Errorf("установщик не подтвердил завершение; перед повтором проверьте состояние пакета и необходимые права: %w", err)
+	if err := runNativeCommand(ctx, cmd); err != nil {
+		return err
 	}
 	if err := verifyVersion(ctx, i.Path, version); err != nil {
 		return err
@@ -196,5 +192,16 @@ func installNative(ctx context.Context, i Installation, name string, data []byte
 		return err
 	}
 	completed = true
+	return nil
+}
+
+func runNativeCommand(ctx context.Context, cmd *exec.Cmd) error {
+	if err := cmd.Run(); err != nil {
+		if ctx.Err() != nil {
+			err = errors.Join(err, ctx.Err())
+			return diagnostic.Errorf("установщик не подтвердил завершение; перед повтором проверьте состояние пакета и необходимые права: %w", err)
+		}
+		return diagnostic.Errorf("установщик не подтвердил завершение; перед повтором проверьте состояние пакета и необходимые права: %w", err)
+	}
 	return nil
 }

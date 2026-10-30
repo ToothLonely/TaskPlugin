@@ -1,0 +1,107 @@
+name: Update acceptance
+on:
+  workflow_dispatch:
+  push:
+    branches: [master, feat/a05-update]
+permissions:
+  contents: read
+jobs:
+  packages:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-15]
+        version: ['90.0.0', '90.0.1']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.26.10'
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y rpm cpio
+      - run: go run ./scripts/release -mode native -version ${{ matrix.version }} -out .tools/native
+      - uses: actions/upload-artifact@v7
+        with:
+          name: update-native-${{ matrix.version }}-${{ matrix.os }}
+          path: .tools/native/*
+          if-no-files-found: error
+  bundles:
+    needs: packages
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        version: ['90.0.0', '90.0.1']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.26.10'
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: update-native-${{ matrix.version }}-*
+          merge-multiple: true
+          path: .tools/native
+      - run: go run ./scripts/release -mode bundle -version ${{ matrix.version }} -installer-dir .tools/native -out .tools/bundle
+      - uses: actions/upload-artifact@v7
+        with:
+          name: update-bundle-${{ matrix.version }}
+          path: .tools/bundle/*
+          if-no-files-found: error
+  acceptance:
+    needs: bundles
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: windows-latest, channel: msi}
+          - {os: windows-latest, channel: portable}
+          - {os: ubuntu-latest, channel: deb}
+          - {os: ubuntu-latest, channel: rpm, container: 'fedora:43'}
+          - {os: ubuntu-latest, channel: portable}
+          - {os: macos-15, channel: pkg}
+          - {os: macos-15, channel: portable}
+          - {os: macos-15-intel, channel: portable}
+    runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container || '' }}
+    steps:
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock -Force | Out-Null
+          New-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock -Name AllowDevelopmentWithoutDevLicense -Value 1 -PropertyType DWord -Force | Out-Null
+      - if: matrix.channel == 'rpm'
+        run: dnf install -y git python3 tar gzip which util-linux
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.26.10'
+      - uses: actions/download-artifact@v8
+        with:
+          name: update-bundle-90.0.0
+          path: .tools/update-old
+      - uses: actions/download-artifact@v8
+        with:
+          name: update-bundle-90.0.1
+          path: .tools/update-new
+      - name: Native or portable upgrade and uninstall
+        shell: bash
+        run: |
+          if [[ '${{ matrix.channel }}' == deb || '${{ matrix.channel }}' == pkg ]]; then
+            sudo env PATH="$PATH" GITHUB_ACTIONS=true python3 scripts/update-ci.py '${{ matrix.channel }}'
+          else
+            python3 scripts/update-ci.py '${{ matrix.channel }}'
+          fi
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: update-evidence-${{ matrix.os }}-${{ matrix.channel }}
+          path: .tools/update-evidence/
+          if-no-files-found: error
