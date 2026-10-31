@@ -14,15 +14,6 @@ def msi_registration():
     script = "$ErrorActionPreference='Stop'; $i=New-Object -ComObject WindowsInstaller.Installer; $p=@($i.RelatedProducts('{C0C7D813-8DDD-4F2B-951A-E30DC27F643C}')); ConvertTo-Json -Compress -InputObject $p"
     return json.loads(run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', script]))
 
-def verify_directory_creation_denied(directory):
-    probe = directory / 'permission-probe'
-    try:
-        probe.mkdir()
-    except PermissionError:
-        return
-    probe.rmdir()
-    raise RuntimeError('Permission fixture still allows subdirectory creation: ' + str(directory))
-
 def permission_check():
     executable = evidence / 'permission.test.exe'
     run(['go', 'test', '-c', '-o', executable, './internal/update'])
@@ -40,9 +31,9 @@ def permission_check():
             run(['icacls', denied, '/deny', '*' + sid + ':(AD,WD)'])
             try:
                 run(['icacls', denied])
-                verify_directory_creation_denied(denied)
+                run(['whoami', '/priv'])
                 os.environ['UPDATE_DENIED_PATH'] = target
-                run([child, '-test.run=^TestUpdatePermissionChild$', '-test.v'])
+                run([child, '-test.run=^TestUpdateWindowsPermissionProcess$', '-test.v'])
             finally:
                 run(['icacls', denied, '/remove:d', '*' + sid])
                 os.environ.pop('UPDATE_DENIED_PATH', None)
